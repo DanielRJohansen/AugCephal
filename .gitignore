@@ -170,3 +170,4 @@ dmypy.json
 *.xml
 *.iml
 *.opendb
+*.vs
