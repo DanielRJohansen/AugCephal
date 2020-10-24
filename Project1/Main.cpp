@@ -1,8 +1,9 @@
 #include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-//#include "Raytracing.h"
-#include "Camera.h"
+#include "Environment.h"
+#include "Raytracing.h"
+//#include "Camera.h"
 //#include "Tools.h"
 //#include <opencv2/imgproc/imgproc.hpp>
 //#include <cv.h>
@@ -27,11 +28,14 @@ Mat HU_norm_image(Mat img, float max, float min) {
 }
 
 int main() {
-	Environment Env;
-	Env.Run();
-	//Camera camera;
+	Raytracer RT;
+	//cout << RT.a;
+	//Environment Env;
+	//Env.Run();
 	//Ray R(camera, 3.14 * 0.5, 3.14*0., 1.);
+
 	return 0;
+
 	string image_path = "E:\\NIH_images\\000001_01_01\\110.png";
 	Mat img = imread(image_path, cv::IMREAD_UNCHANGED);
 	cout << img.type() << endl;
