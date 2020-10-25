@@ -28,9 +28,7 @@ Mat HU_norm_image(Mat img, float max, float min) {
 }
 
 int main() {
-	Raytracer RT;
-	//cout << RT.a;
-	//Environment Env;
+	Environment Env;
 	//Env.Run();
 	//Ray R(camera, 3.14 * 0.5, 3.14*0., 1.);
 

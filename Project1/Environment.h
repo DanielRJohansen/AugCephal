@@ -4,11 +4,12 @@
 #include "Raytracing.h"
 
 class Environment {
-	//Environment() {};// raytracer.render(camera);
 
 public:
+	Environment() { RT.render(camera); }
+
 	int a = 1;
 	Camera camera;
-	Raytracer Raytracer();
+	Raytracer RT;
 	void Run();
 };

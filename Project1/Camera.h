@@ -1,6 +1,6 @@
 #pragma once
 #include <iostream>
-
+#include "Constants.h"
 using namespace std;
 
 class Camera {
@@ -10,7 +10,7 @@ public:
 	float y;
 	float x;
 
-	float radius = 1;
+	float radius = 512;
 
 	float plane_pitch;
 	float plane_yaw;
