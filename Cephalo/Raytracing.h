@@ -25,7 +25,7 @@ public:
 	float relative_yaw;
 
 	Ray(float relative_pitch, float relative_yaw);
-	void castRay(float3 cam_pos, RayInfo RF);
+	//void castRay(float3 cam_pos, RayInfo RF);
 	void rayStep(int step);
 	
 	~Ray() {}
@@ -34,8 +34,8 @@ private:
 	double radius = 1;	// Dunno about this value yet...................
 
 	// New value for each new cast
-	float3 origin;
-	float3 step_vector;
+	//float3 origin;
+	//float3 step_vector;
 	void makeStepVector(RayInfo RF);
 	float unitvector[3][3];
 
@@ -65,7 +65,7 @@ private:
 
 	void initRays();
 	int xyToIndex(int x, int y) { return y * RAYS_PER_DIM + x; }
-	void castRays(Camera camera);	// Calculates positions, returns as list
+	//void castRays(Camera camera);	// Calculates positions, returns as list
 	void catchRays();				// Determines ray rgba
 	cv::Mat projectRaysOnPlane();
 };

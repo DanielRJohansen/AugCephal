@@ -7,7 +7,7 @@ const float RAY_STEPSIZE = 1;
 //float camera_dist = 512;
 
 
-
+/*
 struct float3
 {
 	float3() {};
@@ -17,4 +17,4 @@ struct float3
 
 	inline float3 operator*(float s) const { return float3(x * s, y * s, z * s); }
 	inline float3 operator+(const float3& a) const { return float3(x + a.x, y + a.y, z + a.z); }
-};
+};*/

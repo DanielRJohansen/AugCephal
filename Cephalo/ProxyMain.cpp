@@ -3,6 +3,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "Environment.h"
 #include "Raytracing.h"
+#include "CudaOps.cuh"
 //#include "Camera.h"
 //#include "Tools.h"
 //#include <opencv2/imgproc/imgproc.hpp>
@@ -25,9 +26,16 @@ Mat HU_norm_image(Mat img, float max, float min) {
 		}
 	}
 	return img_;
-}
-
+} 
 int main() {
+	CudaOperator CudaO();
+	int* a, * b, * c;
+	a = (int*)malloc(1024 * sizeof(int));
+	b = (int*)malloc(1024 * sizeof(int));
+	c = (int*)malloc(1024 * sizeof(int));
+	return 0;
+}
+int proxyMain() {
 	Environment Env;
 	//Env.Run();
 	//Ray R(camera, 3.14 * 0.5, 3.14*0., 1.);
@@ -37,7 +45,7 @@ int main() {
 	string image_path = "E:\\NIH_images\\000001_01_01\\110.png";
 	Mat img = imread(image_path, cv::IMREAD_UNCHANGED);
 	cout << img.type() << endl;
-	img = HU_norm_image(img, -100, -750);
+	//img = HU_norm_image(img, -100, -750);
 	imshow("Image", img);
 	waitKey();
 }

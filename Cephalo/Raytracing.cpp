@@ -6,11 +6,11 @@ Ray::Ray(float rel_pitch, float rel_yaw) {
 }
 
 
-void Ray::castRay(float3 cam_pos, RayInfo RF ) {
-	origin = cam_pos;
-
-	makeStepVector(RF);
-}
+//void Ray::castRay(float3 cam_pos, RayInfo RF ) {
+//	origin = cam_pos;
+//
+//	makeStepVector(RF);
+//}
 
 void Ray::makeStepVector(RayInfo RF) {
 	float x = radius * RF.sin_pitch * RF.cos_yaw;
@@ -18,12 +18,12 @@ void Ray::makeStepVector(RayInfo RF) {
 	float z = radius * RF.cos_pitch;
 	
 	// Step vector
-	step_vector = float3(x, y, z);
-	step_vector = step_vector * RAY_STEPSIZE;
+	//step_vector = float3(x, y, z);
+	//step_vector = step_vector * RAY_STEPSIZE;
 }
 
 void Ray::rayStep(int step) {
-	float3 pos = origin + step_vector * step;
+	//float3 pos = origin + step_vector * step;
 	//cout << pos.x << endl;
 }
 
@@ -41,7 +41,7 @@ Raytracer::Raytracer() {
 Raytracer::~Raytracer() {}
 
 cv::Mat Raytracer::render(Camera camera) {
-	castRays(camera);
+	//castRays(camera);
 	catchRays();
 	return projectRaysOnPlane();	//TODO: only calculate rays belonging to pixels,
 									// if focal point has changed.
@@ -60,6 +60,7 @@ void Raytracer::initRays() {
 	}
 }
 
+/*
 void Raytracer::castRays(Camera camera) {
 	for (int i = 0; i < RAYS_PER_DIM; i++) {
 		sin_pitches[i] = sin(rayptr[xyToIndex(0,i)].relative_pitch + camera.plane_pitch);
@@ -69,12 +70,12 @@ void Raytracer::castRays(Camera camera) {
 	}
 	for (int y = 0; y < RAYS_PER_DIM; y++) {
 		for (int x = 0; x < RAYS_PER_DIM; x++) {
-			rayptr[xyToIndex(x, y)].castRay(float3(camera.x, camera.y, camera.z),
-				RayInfo(sin_pitches[y], cos_pitches[y], sin_yaws[x], cos_yaws[x]));
+			//rayptr[xyToIndex(x, y)].castRay(float3(camera.x, camera.y, camera.z),
+			//	RayInfo(sin_pitches[y], cos_pitches[y], sin_yaws[x], cos_yaws[x]));
 		}
 	}
 	cout << "Rays cast" << endl;
-}
+}*/
 
 void Raytracer::catchRays() {
 	for (int i = 200; i < 500; i++) {
