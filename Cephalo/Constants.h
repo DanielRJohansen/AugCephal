@@ -6,7 +6,6 @@ const float RAY_STEPSIZE = 1;
 
 //float camera_dist = 512;
 
-
 /*
 struct float3
 {

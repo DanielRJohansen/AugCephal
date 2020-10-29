@@ -1,43 +1,50 @@
 #include "CudaOps.cuh"
 
 //cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
-
-
-
-
-
-void CudaOperator::showDevices() {
-    int nDevices;
-    cudaGetDeviceCount(&nDevices);
-
-    for (int i = 0; i < nDevices; i++) {
-        cudaDeviceProp prop;
-        cudaGetDeviceProperties(&prop, i);
-        printf("Device Number: %d\n", i);
-        printf("  Device name: %s\n", prop.name);
-        printf("  Memory Clock Rate (KHz): %d\n",
-            prop.memoryClockRate);
-        printf("  Memory Bus Width (bits): %d\n",
-            prop.memoryBusWidth);
-        printf("  Peak Memory Bandwidth (GB/s): %f\n\n",
-            2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
-    }
-}
-
-
-
-
-
-
-
-
-
-
-__global__ void addKernel(int* c, const int* a, const int* b)
+__global__ void squareKernel(int* a, int* b)
 {
     int i = threadIdx.x;
-    c[i] = a[i] + b[i];
+    b[i] = a[i] *a[i];
+}
+
+
+int bmain() {
+    int* a, * b;
+    int SIZE = 512;
+    cudaMallocManaged(&a, SIZE * sizeof(int));
+    cudaMallocManaged(&b, SIZE * sizeof(int));
+    for (int i = 0; i < SIZE; i++) {
+        a[i] = i;
+    }
+    b[0] = 0;
+    squareKernel <<<1, 512 >> > (a, b);
+    cudaDeviceSynchronize();
+    for (int i = 0; i < SIZE; i++) {
+        cout << b[i] << " ";
+    }
+    cudaFree(a);
+    cudaFree(b);
+    return 0;
 }
 
 
 
+
+
+void CudaOperator::doStuff() {
+    int* a, * b;
+    int SIZE = 512;
+    cudaMallocManaged(&a, SIZE * sizeof(int));
+    cudaMallocManaged(&b, SIZE * sizeof(int));
+    for (int i = 0; i < SIZE; i++) {
+        a[i] = i;
+    }
+    b[0] = 0;
+    squareKernel << <1, 512 >> > (a, b);
+    cudaDeviceSynchronize();
+    for (int i = 0; i < SIZE; i++) {
+        cout << b[i] << " ";
+    }
+    cudaFree(a);
+    cudaFree(b);
+}

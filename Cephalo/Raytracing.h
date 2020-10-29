@@ -4,6 +4,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "Constants.h"
+#include "Cudaops.cuh"
 
 using namespace std;
 
@@ -25,28 +26,20 @@ public:
 	float relative_yaw;
 
 	Ray(float relative_pitch, float relative_yaw);
-	//void castRay(float3 cam_pos, RayInfo RF);
-	void rayStep(int step);
-	
+	float* makeStepVector(RayInfo RF);	//Returns vector dx dy dz
+
 	~Ray() {}
 private:
 	//Set at beginning, never changed
 	double radius = 1;	// Dunno about this value yet...................
-
-	// New value for each new cast
-	//float3 origin;
-	//float3 step_vector;
-	void makeStepVector(RayInfo RF);
-	float unitvector[3][3];
-
-	
-
+	float* step_vector = new float[3];
 };
 
 
 class Raytracer {
 public:
-	Raytracer();
+	Raytracer() {};
+	void initRaytracer(Camera camera);
 	int a;
 	//void newVolume(float** vol) { volume = vol; }
 	cv::Mat render(Camera camera);
@@ -55,6 +48,7 @@ public:
 private:
 	//float** volume;
 	Ray *rayptr;
+	Camera camera;
 
 	// This optimizes cosine calculations from O(n^2) to O(n)
 	float sin_pitches[RAYS_PER_DIM];
@@ -63,9 +57,15 @@ private:
 	float cos_yaws[RAYS_PER_DIM];
 	
 
+	float*** all_step_vectors;		//RAYy, RAYx, RAYstepvector(x, y, z)
+	float* origin;
+	CudaOperator CudaOps;
+
 	void initRays();
+	void initCuda();
 	int xyToIndex(int x, int y) { return y * RAYS_PER_DIM + x; }
-	//void castRays(Camera camera);	// Calculates positions, returns as list
+	void precalcSinCos();
+	void castRays();	// Calculates positions, returns as list
 	void catchRays();				// Determines ray rgba
 	cv::Mat projectRaysOnPlane();
 };

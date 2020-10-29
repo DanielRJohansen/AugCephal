@@ -4,6 +4,7 @@
 #include "Environment.h"
 #include "Raytracing.h"
 #include "CudaOps.cuh"
+
 //#include "Camera.h"
 //#include "Tools.h"
 //#include <opencv2/imgproc/imgproc.hpp>
@@ -26,16 +27,14 @@ Mat HU_norm_image(Mat img, float max, float min) {
 		}
 	}
 	return img_;
-} 
+} /*
 int main() {
-	CudaOperator CudaO();
-	int* a, * b, * c;
-	a = (int*)malloc(1024 * sizeof(int));
-	b = (int*)malloc(1024 * sizeof(int));
-	c = (int*)malloc(1024 * sizeof(int));
+	cout << "Sending" << endl;
+	CudaOperator CudaO;
+	CudaO.doStuff();
 	return 0;
-}
-int proxyMain() {
+}*/
+int main() {
 	Environment Env;
 	//Env.Run();
 	//Ray R(camera, 3.14 * 0.5, 3.14*0., 1.);
