@@ -18,9 +18,9 @@ void Camera::cylindricToCartesian() {	//theta, phi inverted on wiki
 	x = radius * sin(pitch) * cos(yaw);
 	y = radius * sin(pitch) * sin(yaw);
 	z = radius * cos(pitch);
-	cout << pitch << "        " << yaw << endl;
-	cout << plane_pitch << "        " << plane_yaw << endl;
-	cout << endl;
+	//cout << pitch << "        " << yaw << endl;
+	//cout << plane_pitch << "        " << plane_yaw << endl;
+	//cout << endl;
 }
 
 

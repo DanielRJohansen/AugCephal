@@ -58,11 +58,12 @@ private:
 	
 
 	float*** all_step_vectors;		//RAYy, RAYx, RAYstepvector(x, y, z)
-	float* origin;
+	float* origin = new float[3];	//x, y, z
 	CudaOperator CudaOps;
 
 	void initRays();
 	void initCuda();
+	void updateCameraOrigin();
 	int xyToIndex(int x, int y) { return y * RAYS_PER_DIM + x; }
 	void precalcSinCos();
 	void castRays();	// Calculates positions, returns as list

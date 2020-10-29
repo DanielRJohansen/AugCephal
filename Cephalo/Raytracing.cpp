@@ -11,9 +11,9 @@ float* Ray::makeStepVector(RayInfo RF) {
 	float x = radius * RF.sin_pitch * RF.cos_yaw;
 	float y = radius * RF.sin_pitch * RF.sin_yaw;
 	float z = radius * RF.cos_pitch;
-	step_vector[0] = x;
-	step_vector[1] = y;
-	step_vector[2] = z;
+	step_vector[0] = x * RAY_STEPSIZE;
+	step_vector[1] = y * RAY_STEPSIZE;
+	step_vector[2] = z * RAY_STEPSIZE;
 
 	return step_vector;
 }
@@ -50,30 +50,29 @@ void Raytracer::initCuda() {
 	all_step_vectors = new float** [RAYS_PER_DIM];
 	for (int y = 0; y < RAYS_PER_DIM; y++) {
 		all_step_vectors[y] = new float* [RAYS_PER_DIM];
-		/*for (int x = 0; x < RAYS_PER_DIM; x++) {
-			all_step_vectors[y][x] = new float[3];
-			all_step_vectors[y][x][0] = 0;
-			all_step_vectors[y][x][1] = 0;
-			all_step_vectors[y][x][2] = 0;
-		}*/
 	}
 	origin = new float[3];
 	origin[0] = camera.x;
 	origin[1] = camera.y;
 	origin[2] = camera.z;
-	CudaOps.updateValues(all_step_vectors, origin);
-	//cout << "HEre   " << CudaOps.all_step_vectors[120][39][1]; doesnt work anymore, and should not
+	CudaOps.update(all_step_vectors, origin);
 }
 
 
 cv::Mat Raytracer::render(Camera c) {
 	camera = c;
-	cout << "Rendering";
+	cout << "Rendering" << endl;
 	precalcSinCos();
 	castRays();
 	catchRays();
 	return projectRaysOnPlane();	//TODO: only calculate rays belonging to pixels,
 									// if focal point has changed.
+}
+
+void Raytracer::updateCameraOrigin() {
+	origin[0] = camera.x;
+	origin[1] = camera.y;
+	origin[2] = camera.z;
 }
 
 void Raytracer::precalcSinCos() {
@@ -92,8 +91,11 @@ void Raytracer::castRays() {
 				RayInfo(sin_pitches[y], cos_pitches[y], sin_yaws[x], cos_yaws[x]));
 		}
 	}
+	CudaOps.update(all_step_vectors, origin);
 	cout << "Rays cast" << endl;
-	cout << all_step_vectors[120][121][0] << endl;
+	cout << CudaOps.all_step_vectors[120][121][0] << endl;
+	cout << CudaOps.all_step_vectors[120][121][1] << endl;
+	cout << CudaOps.all_step_vectors[120][121][2] << endl;
 }
 
 void Raytracer::catchRays() {

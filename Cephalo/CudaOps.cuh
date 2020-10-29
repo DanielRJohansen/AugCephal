@@ -9,7 +9,7 @@ using namespace std;
 class CudaOperator {
 public:
 	CudaOperator() {};
-	void updateValues(float*** sv, float* o) { all_step_vectors = sv; origin = 0; cout << "Cuda initialized" << endl; };
+	void update(float*** sv, float* o) { all_step_vectors = sv; origin = 0; cout << "Cuda initialized" << endl; };
 	void doStuff();
 	float*** all_step_vectors;
 	float* origin;
