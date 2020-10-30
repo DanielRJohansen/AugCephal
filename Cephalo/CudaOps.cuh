@@ -4,15 +4,20 @@
 #include "device_launch_parameters.h"
 #include <stdio.h>
 #include <iostream>
+#include "Constants.h"
 using namespace std;
+
+
 
 class CudaOperator {
 public:
-	CudaOperator() {};
-	void update(float*** sv, float* o) { all_step_vectors = sv; origin = 0; cout << "Cuda initialized" << endl; };
+	CudaOperator();
+	void update(Ray *rp);
+	void newVolume(Volume *vol) { volume = vol; }
+	void Raystep();
 	void doStuff();
-	float*** all_step_vectors;
-	float* origin;
+	Ray* rayptr;
+	Volume *volume;			//X, Y, Z, [color, alpha]
 	int a = 0;
 private:
 	

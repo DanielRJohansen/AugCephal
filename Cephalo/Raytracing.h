@@ -19,21 +19,7 @@ struct RayInfo {
 };
 
 
-class Ray {
-	Ray() {}
-public:
-	float relative_pitch;
-	float relative_yaw;
 
-	Ray(float relative_pitch, float relative_yaw);
-	float* makeStepVector(RayInfo RF);	//Returns vector dx dy dz
-
-	~Ray() {}
-private:
-	//Set at beginning, never changed
-	double radius = 1;	// Dunno about this value yet...................
-	float* step_vector = new float[3];
-};
 
 
 class Raytracer {
@@ -63,8 +49,12 @@ private:
 
 	void initRays();
 	void initCuda();
+	
+	int xyToRayIndex(int x, int y) { return y * RAYS_PER_DIM + x; }
+	int rayIndexToX(int index) { return index % RAYS_PER_DIM; }
+	int rayIndexToY(int index) { return index / RAYS_PER_DIM; }
+
 	void updateCameraOrigin();
-	int xyToIndex(int x, int y) { return y * RAYS_PER_DIM + x; }
 	void precalcSinCos();
 	void castRays();	// Calculates positions, returns as list
 	void catchRays();				// Determines ray rgba
