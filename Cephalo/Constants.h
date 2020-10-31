@@ -1,7 +1,11 @@
 #pragma once
+
+#include <opencv2/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 const int RAYS_PER_DIM = 256;
 const int NUM_RAYS = RAYS_PER_DIM* RAYS_PER_DIM;
-const float RAY_RANGE = 3.1415 * 0.5;
+const float RAY_RANGE = 3.1415 * 0.1;
 const float RAY_STEPSIZE = 1;
 const float CAMERA_RADIUS = 1;
 const int FOCAL_LEN = 50;	// Only implemented in rendering so far!!
@@ -9,9 +13,15 @@ const int FOCAL_LEN = 50;	// Only implemented in rendering so far!!
 const int VOL_X = 256;
 const int VOL_Y = 256;
 const int VOL_Z = 30;
+
+const int IM_SIZE = 256;
 //float camera_dist = 512;
 
-
+struct Float2 {//float3 taken by cuda
+	Float2() {}
+	Float2(float x, float y) : x(x), y(y) {}
+	float x, y;
+};
 struct Float3	//float3 taken by cuda
 {
 	Float3() {};
@@ -28,10 +38,11 @@ struct Float3	//float3 taken by cuda
 struct Ray {
 	float relative_pitch;
 	float relative_yaw;
-	float step_vector[3];	//x, y, z
-	float origin[3];		//x, y, z
+	Float3 step_vector;	//x, y, z
+	Float3 origin;		//x, y, z
 	
-	float render_plane_pos[2];
+	int render_x;
+	int render_y;
 
 	float acc_color = 0;	//0..1
 	float acc_alpha = 0;	//0..1
@@ -41,12 +52,8 @@ struct Ray {
 		acc_color = 0;
 		acc_alpha = 0;
 		full = false;
-		origin[0] = x;
-		origin[1] = y;
-		origin[2] = z;
-		step_vector[0] = x_;
-		step_vector[1] = y_;
-		step_vector[2] = z_;
+		origin = Float3(x, y, z);
+		step_vector = Float3(x_, y_, z_);
 	}
 };
 struct Block {
@@ -67,4 +74,9 @@ struct Volume {
 			}
 		}
 	}
+};
+
+struct Rendering {
+	cv::Mat image = cv::Mat::zeros(cv::Size(IM_SIZE, IM_SIZE), CV_8U);
+	float raycnt[IM_SIZE][IM_SIZE];		//y, x   Rays per pixel, for taking mean of color
 };

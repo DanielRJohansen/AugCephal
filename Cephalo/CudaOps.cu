@@ -15,9 +15,10 @@ __global__ void stepKernel(Ray* rayptr, Volume *volume) {
 
     for (int step = 0; step < 100; step++) {
         if (!rayptr[index].full) {
-            float x_ = rayptr[index].origin[0] * rayptr[index].step_vector[0] * 1;
-            float y_ = rayptr[index].origin[1] * rayptr[index].step_vector[1] * 1;
-            float z_ = rayptr[index].origin[2] * rayptr[index].step_vector[2] * 1;
+            //Float3 step_pos = rayptr[index].origin + rayptr[index].step_vector * step;
+            float x_ = rayptr[index].origin.x + rayptr[index].step_vector.x * 1;
+            float y_ = rayptr[index].origin.y + rayptr[index].step_vector.y * 1;
+            float z_ = rayptr[index].origin.z + rayptr[index].step_vector.z * 1;
             int vol_x = (int)x_ + vol_x_range / 2;
             int vol_y = (int)y_ + vol_y_range / 2;
             int vol_z = (int)z_ + vol_z_range / 2;

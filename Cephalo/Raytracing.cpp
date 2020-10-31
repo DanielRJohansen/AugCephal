@@ -8,10 +8,14 @@
 void Raytracer::initRaytracer(Camera c) { 
 	rayptr = (Ray*)malloc(NUM_RAYS * sizeof(Ray));
 	camera = c;
-	cout << "This far";
 	initRays();
 	initCuda();	
 	volume.testSetup();
+
+	precalcSinCos();
+	castRays();
+	catchRays();
+	initRenderPlane();
 	cout << "Raytracer Initialized" << endl;
 }
 Raytracer::~Raytracer() {}
@@ -34,10 +38,29 @@ void Raytracer::initRays() {
 
 void Raytracer::initRenderPlane() {
 	for (int i = 0; i < NUM_RAYS; i++) {
-		float p0_sub_l0 = 0;
+		//cout << camera.focal_plane_point.x << " " << rayptr[i].origin.x << " " << rayptr[i].step_vector.x << end;
+		float ray_dist = (camera.focal_plane_point + rayptr[i].origin).dot((rayptr[i].step_vector*(1/RAY_STEPSIZE)));
+		cout << "Ray dist  " << ray_dist << endl;
+		cout << rayptr[i].step_vector.x << " " << rayptr[i].step_vector.y << " " << rayptr[i].step_vector.z << endl;
+		Float3 ray_pos_on_plane = rayptr[i].origin + rayptr[i].step_vector * ray_dist;
+		Float2 rp_pos = convertGlobalCoorToRenderCoor(ray_pos_on_plane);
+		cout << rp_pos.x << " " << (int)rp_pos.x << endl;
+		rayptr[i].render_x = (int)rp_pos.x;
+		rayptr[i].render_y = (int)rp_pos.y;
+		cout << rayptr[i].render_y << " " << rayptr[i].render_x << endl;
+		rendering.raycnt[rayptr[i].render_y][rayptr[i].render_y] += 1;
+		for (int y = 0; y < 256; y++) {
+			for (int x = 0; x < 256; x++) {
+				cout << rendering.raycnt[y][x] << " ";
+			}
+			cout << endl;
+		}	
 	}
 }
 
+Float2 Raytracer::convertGlobalCoorToRenderCoor(Float3 glob) {
+	return Float2(glob.x, glob.z);	// Quick implementation, only works for initial camera pos
+}
 void Raytracer::initCuda() {
 	all_step_vectors = new float** [RAYS_PER_DIM];
 	for (int y = 0; y < RAYS_PER_DIM; y++) {
@@ -83,9 +106,11 @@ void Raytracer::castRays() {
 			float y_ = 1 * sin_pitches[y] * sin_yaws[x];
 			float z_ = 1 * cos_pitches[y];
 			
-			rayptr[xyToRayIndex(x, y)].step_vector[0] = x_ * RAY_STEPSIZE;
-			rayptr[xyToRayIndex(x, y)].step_vector[1] = y_ * RAY_STEPSIZE;
-			rayptr[xyToRayIndex(x, y)].step_vector[2] = z_ * RAY_STEPSIZE;
+			rayptr[xyToRayIndex(x, y)].step_vector = Float3(x_ * RAY_STEPSIZE,
+				y_ * RAY_STEPSIZE, z_ * RAY_STEPSIZE);
+			//rayptr[xyToRayIndex(x, y)].step_vector[0] = x_ * RAY_STEPSIZE;
+			//rayptr[xyToRayIndex(x, y)].step_vector[1] = y_ * RAY_STEPSIZE;
+			//rayptr[xyToRayIndex(x, y)].step_vector[2] = z_ * RAY_STEPSIZE;
 
 		}
 	}
