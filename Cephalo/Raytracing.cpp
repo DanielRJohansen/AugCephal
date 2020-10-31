@@ -8,8 +8,10 @@
 void Raytracer::initRaytracer(Camera c) { 
 	rayptr = (Ray*)malloc(NUM_RAYS * sizeof(Ray));
 	camera = c;
+	cout << "This far";
 	initRays();
-	initCuda();
+	initCuda();	
+	volume.testSetup();
 	cout << "Raytracer Initialized" << endl;
 }
 Raytracer::~Raytracer() {}
@@ -82,6 +84,7 @@ void Raytracer::castRays() {
 		}
 	}
 	CudaOps.update(rayptr);
+	CudaOps.rayStep();
 	cout << "Rays cast" << endl;
 
 }

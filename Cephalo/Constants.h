@@ -4,6 +4,10 @@ const int NUM_RAYS = RAYS_PER_DIM* RAYS_PER_DIM;
 const float RAY_RANGE = 3.1415 * 0.5;
 const float RAY_STEPSIZE = 1;
 const float CAMERA_RADIUS = 1;
+
+const int VOL_X = 256;
+const int VOL_Y = 256;
+const int VOL_Z = 30;
 //float camera_dist = 512;
 
 /*
@@ -45,14 +49,16 @@ struct Block {
 	float color;
 	float alpha;
 };
+
 struct Volume {
-	Block blocks[256][256][30];
+	Block* blocks = (Block*) malloc (256 * 256 * 30 * sizeof(Block));
+	int xyzToIndex(int x, int y, int z) { return z * 256 * 256 + y * 256 + x; }
 	void testSetup() {
 		for (int z = 0; z < 30; z++) {
 			for (int y = 0; y < 256; y++) {
 				for (int x = 0; x < 256; x++) {
-					blocks[x][y][z].alpha = 1;
-					blocks[x][y][z].alpha = 1 * (x < 128);
+					blocks[xyzToIndex(x, y, z)].alpha = 1;
+					blocks[xyzToIndex(x, y, z)].alpha = 1 * (x < 128);
 				}
 			}
 		}

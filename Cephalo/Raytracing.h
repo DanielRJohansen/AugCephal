@@ -27,6 +27,7 @@ public:
 	Raytracer() {};
 	void initRaytracer(Camera camera);
 	int a;
+	Volume volume;
 	//void newVolume(float** vol) { volume = vol; }
 	cv::Mat render(Camera camera);
 	~Raytracer();

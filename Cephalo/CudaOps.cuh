@@ -14,7 +14,7 @@ public:
 	CudaOperator();
 	void update(Ray *rp);
 	void newVolume(Volume *vol) { volume = vol; }
-	void Raystep();
+	void rayStep();
 	void doStuff();
 	Ray* rayptr;
 	Volume *volume;			//X, Y, Z, [color, alpha]

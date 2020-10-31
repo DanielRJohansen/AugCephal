@@ -36,11 +36,6 @@ int main() {
 }*/
 
 int main() {
-	float a = -120.999;
-	cout << (int) a;
-	//CudaOperator CO;
-	//CO.doStuff();
-	return 0;
 	Environment Env;
 	//Env.Run();
 	//Ray R(camera, 3.14 * 0.5, 3.14*0., 1.);
