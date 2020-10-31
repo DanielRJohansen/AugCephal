@@ -27,14 +27,7 @@ Mat HU_norm_image(Mat img, float max, float min) {
 		}
 	}
 	return img_;
-} /*
-int main() {
-	cout << "Sending" << endl;
-	CudaOperator CudaO;
-	CudaO.doStuff();
-	return 0;
-}*/
-
+} 
 int main() {
 	Environment Env;
 	//Env.Run();

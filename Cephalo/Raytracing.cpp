@@ -32,6 +32,12 @@ void Raytracer::initRays() {
 	}
 }
 
+void Raytracer::initRenderPlane() {
+	for (int i = 0; i < NUM_RAYS; i++) {
+		float p0_sub_l0 = 0;
+	}
+}
+
 void Raytracer::initCuda() {
 	all_step_vectors = new float** [RAYS_PER_DIM];
 	for (int y = 0; y < RAYS_PER_DIM; y++) {

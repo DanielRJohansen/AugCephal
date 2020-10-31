@@ -28,12 +28,10 @@ public:
 	void initRaytracer(Camera camera);
 	int a;
 	Volume volume;
-	//void newVolume(float** vol) { volume = vol; }
 	cv::Mat render(Camera camera);
 	~Raytracer();
 
 private:
-	//float** volume;
 	Ray *rayptr;
 	Camera camera;
 
@@ -50,6 +48,7 @@ private:
 
 	void initRays();
 	void initCuda();
+	void initRenderPlane();
 	
 	int xyToRayIndex(int x, int y) { return y * RAYS_PER_DIM + x; }
 	int rayIndexToX(int index) { return index % RAYS_PER_DIM; }

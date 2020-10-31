@@ -4,23 +4,25 @@ const int NUM_RAYS = RAYS_PER_DIM* RAYS_PER_DIM;
 const float RAY_RANGE = 3.1415 * 0.5;
 const float RAY_STEPSIZE = 1;
 const float CAMERA_RADIUS = 1;
+const int FOCAL_LEN = 50;	// Only implemented in rendering so far!!
 
 const int VOL_X = 256;
 const int VOL_Y = 256;
 const int VOL_Z = 30;
 //float camera_dist = 512;
 
-/*
-struct float3
-{
-	float3() {};
-	float3(float s) : x(s), y(s), z(s) {}
-	float3(float x, float y, float z) : x(x), y(y), z(z) {}
-	float x, y, z;
 
-	inline float3 operator*(float s) const { return float3(x * s, y * s, z * s); }
-	inline float3 operator+(const float3& a) const { return float3(x + a.x, y + a.y, z + a.z); }
-};*/
+struct Float3	//float3 taken by cuda
+{
+	Float3() {};
+	Float3(float s) : x(s), y(s), z(s) {}
+	Float3(float x, float y, float z) : x(x), y(y), z(z) {}
+	float x, y, z;
+	float dot(const Float3 a) {return (float) x * a.x + y * a.y + z * a.z; }
+	inline Float3 operator*(float s) const { return Float3(x * s, y * s, z * s); }
+	inline Float3 operator-(const Float3& a) const { return Float3(x - a.x, y - a.y, z - a.z); }
+	inline Float3 operator+(const Float3& a) const { return Float3(x + a.x, y + a.y, z + a.z); }
+};
 
 
 struct Ray {
@@ -28,8 +30,14 @@ struct Ray {
 	float relative_yaw;
 	float step_vector[3];	//x, y, z
 	float origin[3];		//x, y, z
+	
+	float render_plane_pos[2];
 
-	void reset(float x, float y, float z, float x_, float y_, float z_) {
+	float acc_color = 0;	//0..1
+	float acc_alpha = 0;	//0..1
+	bool full = false;		//
+
+	void reset(float x, float y, float z, float x_, float y_, float z_) { // origin, step_vector
 		acc_color = 0;
 		acc_alpha = 0;
 		full = false;
@@ -40,10 +48,6 @@ struct Ray {
 		step_vector[1] = y_;
 		step_vector[2] = z_;
 	}
-
-	float acc_color = 0;	//0..1
-	float acc_alpha = 0;	//0..1
-	bool full = false;		//
 };
 struct Block {
 	float color;
