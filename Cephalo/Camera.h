@@ -24,7 +24,7 @@ public:
 private:
 	void cylindricToCartesian();
 	void calcFocalPlane();
-	float pitch = 3.1415 / 2;
-	float yaw = -3.1415 / 2;
+	float pitch = 3.1415 / 2.;
+	float yaw = -3.1415 / 2.;
 };
 

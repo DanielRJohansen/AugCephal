@@ -19,19 +19,16 @@ void Camera::cylindricToCartesian() {	//theta, phi inverted on wiki
 	x = radius * sin(pitch) * cos(yaw);
 	y = radius * sin(pitch) * sin(yaw);
 	z = radius * cos(pitch);
+	cout << "Camera position " << x << " " << y << " " << z << endl;
 }
 
 void Camera::calcFocalPlane() {
-	focal_plane_normal = Float3(sin(plane_pitch) * cos(plane_yaw),
-		sin(plane_pitch) * cos(plane_yaw), cos(plane_pitch));
-	//focal_plane_normal[0] = 1 * sin(plane_pitch) * cos(plane_yaw);
-	//focal_plane_normal[1] = 1 * sin(plane_pitch) * sin(plane_yaw);
-	//focal_plane_normal[2] = 1 * cos(plane_pitch);
+	focal_plane_normal = Float3(-x / radius, -y / radius, -z / radius);
+	//cout << "Cam yaw " << yaw / (2*3.14) * 360 << "   Cam pitch " << pitch / (2*3.14) * 360 << endl;
+	//cout << "Plane yaw " << plane_yaw/ (2 * 3.14) *360 << "   plane pitch " << plane_pitch / (2 * 3.14) * 360 << endl;
+	cout << "Focal plane normal: ";
+	focal_plane_normal.print();
 
 	focal_plane_point = Float3(x, y, z) + focal_plane_normal * FOCAL_LEN;
-	//focal_plane_point[0] = x + focal_plane_normal[0] * FOCAL_LEN;
-	//focal_plane_point[1] = y + focal_plane_normal[1] * FOCAL_LEN;
-	//focal_plane_point[2] = z + focal_plane_normal[2] * FOCAL_LEN;
 }
-
 

@@ -39,7 +39,7 @@ void Raytracer::initRays() {
 void Raytracer::initRenderPlane() {
 	for (int i = 0; i < NUM_RAYS; i++) {
 		//cout << camera.focal_plane_point.x << " " << rayptr[i].origin.x << " " << rayptr[i].step_vector.x << end;
-		float ray_dist = (camera.focal_plane_point + rayptr[i].origin).dot((rayptr[i].step_vector*(1/RAY_STEPSIZE)));
+		float ray_dist = (camera.focal_plane_point + rayptr[i].origin).dot((rayptr[i].step_vector));
 		cout << "Ray dist  " << ray_dist << endl;
 		cout << rayptr[i].step_vector.x << " " << rayptr[i].step_vector.y << " " << rayptr[i].step_vector.z << endl;
 		Float3 ray_pos_on_plane = rayptr[i].origin + rayptr[i].step_vector * ray_dist;
@@ -108,6 +108,9 @@ void Raytracer::castRays() {
 			
 			rayptr[xyToRayIndex(x, y)].step_vector = Float3(x_ * RAY_STEPSIZE,
 				y_ * RAY_STEPSIZE, z_ * RAY_STEPSIZE);
+			cout << "First ray step vector " << endl;
+			rayptr[xyToRayIndex(x, y)].step_vector.print();
+			return;
 			//rayptr[xyToRayIndex(x, y)].step_vector[0] = x_ * RAY_STEPSIZE;
 			//rayptr[xyToRayIndex(x, y)].step_vector[1] = y_ * RAY_STEPSIZE;
 			//rayptr[xyToRayIndex(x, y)].step_vector[2] = z_ * RAY_STEPSIZE;

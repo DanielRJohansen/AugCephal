@@ -6,7 +6,10 @@
 class Environment {
 
 public:
-	Environment() {RT.initRaytracer(camera); RT.render(camera);}
+	Environment() {
+		RT.initRaytracer(camera); 
+		//RT.render(camera);
+	}
 
 	int a = 1;
 	Camera camera;
