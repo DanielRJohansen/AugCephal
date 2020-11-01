@@ -8,7 +8,9 @@ class Environment {
 public:
 	Environment() {
 		RT.initRaytracer(camera); 
-		//RT.render(camera);
+		cv::Mat first_im = RT.render(camera);
+		cv::imshow("Image", first_im);
+		cv::waitKey();
 	}
 
 	int a = 1;

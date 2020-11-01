@@ -13,7 +13,7 @@ __global__ void squareKernel(int* a, int* b)
 __global__ void stepKernel(Ray* rayptr, Volume *volume) {
     int index = blockIdx.x * RAYS_PER_DIM + threadIdx.x;  //This fucks shit up if RPD > 1024!!
 
-    for (int step = 0; step < 100; step++) {
+    for (int step = 0; step < 1000; step++) {
         if (!rayptr[index].full) {
             //Float3 step_pos = rayptr[index].origin + rayptr[index].step_vector * step;
             float x_ = rayptr[index].origin.x + rayptr[index].step_vector.x * 1;
@@ -25,9 +25,10 @@ __global__ void stepKernel(Ray* rayptr, Volume *volume) {
             if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && // Only proceed if coordinate is within volume!
                 vol_x < vol_x_range && vol_y < vol_y_range && vol_z < vol_z_range) {
                 int volume_index = vol_z * 256 * 256 + vol_y * 256 + vol_x;
-                rayptr[index].acc_color = volume[0].blocks[volume_index].color;
-                rayptr[index].acc_alpha = volume[0].blocks[volume_index].alpha;
-                rayptr[index].full = true;
+                rayptr[index].acc_color += volume[0].blocks[volume_index].color;
+                rayptr[index].acc_alpha += volume[0].blocks[volume_index].alpha;
+                if (rayptr[index].acc_alpha >= 1) 
+                    rayptr[index].full = true;
             }
         }
     }

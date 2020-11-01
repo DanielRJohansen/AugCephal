@@ -5,7 +5,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "Constants.h"
 #include "Cudaops.cuh"
-
+#include "math.h"
 using namespace std;
 
 
@@ -27,14 +27,13 @@ public:
 	Raytracer() {};
 	void initRaytracer(Camera camera);
 	int a;
-	Volume volume;
+	Volume *volume;
 	cv::Mat render(Camera camera);
 	~Raytracer();
 
 private:
 	Ray *rayptr;
 	Camera camera;
-	Rendering rendering;
 
 	// This optimizes cosine calculations from O(n^2) to O(n)
 	float sin_pitches[RAYS_PER_DIM];
@@ -49,8 +48,6 @@ private:
 
 	void initRays();
 	void initCuda();
-	void initRenderPlane();
-	Float2 convertGlobalCoorToRenderCoor(Float3 glob);
 	
 	int xyToRayIndex(int x, int y) { return y * RAYS_PER_DIM + x; }
 	int rayIndexToX(int index) { return index % RAYS_PER_DIM; }

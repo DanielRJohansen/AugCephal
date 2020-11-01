@@ -4,9 +4,10 @@
 #include <opencv2/highgui/highgui.hpp>
 using namespace std;
 
-const int RAYS_PER_DIM = 256;
-const int NUM_RAYS = RAYS_PER_DIM* RAYS_PER_DIM;
-const float RAY_RANGE = 3.1415 * 0.1;
+const int RAYS_PER_DIM = 512;
+const float OBJECT_SIZE = 512;
+const int NUM_RAYS = RAYS_PER_DIM * RAYS_PER_DIM;
+//const float RAY_RANGE = 3.1415 * 0.1;
 const float RAY_STEPSIZE = 1;
 const float CAMERA_RADIUS = 1;
 const int FOCAL_LEN = 50;	// Only implemented in rendering so far!!
@@ -59,26 +60,38 @@ struct Ray {
 	}
 };
 struct Block {
+	Block() {}
+	Block(float c, float a) { color = c; alpha = a; }
 	float color;
-	float alpha;
+	float alpha=1;
 };
 
-struct Volume {
-	Block* blocks = (Block*) malloc (256 * 256 * 30 * sizeof(Block));
-	int xyzToIndex(int x, int y, int z) { return z * 256 * 256 + y * 256 + x; }
+class Volume {
+public:
+	Block* blocks;
+	//Volume() {blocks = (Block*) malloc (512 * 512 * 30 * sizeof(Block)); }
+	Volume() {
+		cout << "Doing this " << endl;
+		blocks = new Block[512 * 512 * 30];
+		for (int i = 0; i < 512 * 512 * 30; i++) {
+			blocks[i] = Block();
+		}
+	}
+		
+	int xyzToIndex(int x, int y, int z) { return z * 512 * 512 + y * 512 + x; }
 	void testSetup() {
+		cout << sizeof(Block) << endl;
 		for (int z = 0; z < 30; z++) {
-			for (int y = 0; y < 256; y++) {
-				for (int x = 0; x < 256; x++) {
-					blocks[xyzToIndex(x, y, z)].alpha = 1;
-					blocks[xyzToIndex(x, y, z)].alpha = 1 * (x < 128);
+			for (int y = 0; y < 512; y++) {
+				for (int x = 0; x < 512; x++) {
+					cout << x <<" " << y << " " << z << " "<< xyzToIndex(x, y, z) << endl;
+					blocks[xyzToIndex(x, y, z)].color = x / 512;
+					//blocks[xyzToIndex(x, y, z)] = Block(x / 512, 1);
+					//blocks[1] = Block(23, 1);
+					//blocks[xyzToIndex(x, y, z)].alpha = 1 * (x < 128);
 				}
 			}
 		}
 	}
 };
 
-struct Rendering {
-	cv::Mat image = cv::Mat::zeros(cv::Size(IM_SIZE, IM_SIZE), CV_8U);
-	float raycnt[IM_SIZE][IM_SIZE];		//y, x   Rays per pixel, for taking mean of color
-};

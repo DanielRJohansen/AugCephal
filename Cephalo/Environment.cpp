@@ -8,7 +8,7 @@
 void Environment::Run() {
 	int a = 1;
 	cout << "Environment running" << endl;
-	/*
+	
 	int c = 0;
 	cout << "Camera rotation stepsize " << camera.rotation_step << endl;
 	cout << "Camera initial position " << camera.x << " " << camera.y
@@ -38,8 +38,8 @@ void Environment::Run() {
 			break;
 		}
 		if (move) {
-			raytracer.render(camera);
+			RT.render(camera);
 		}
 	}
-	*/
+	
 }

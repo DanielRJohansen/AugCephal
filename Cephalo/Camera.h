@@ -5,7 +5,7 @@ using namespace std;
 
 class Camera {
 public:
-	Camera() { updatePos('n'); 	calcFocalPlane();}
+	Camera() { updatePos('n');}
 	float z;
 	float y;
 	float x;
@@ -16,7 +16,7 @@ public:
 	float plane_yaw;
 
 	Float3 focal_plane_point;		//x, y, z
-	Float3 focal_plane_normal;	//x, y, z
+	Float3 focal_plane_normal;		//x, y, z
 	
 	double rotation_step = 2 * 3.1415 / 20; // 20 clicks per rotation
 
