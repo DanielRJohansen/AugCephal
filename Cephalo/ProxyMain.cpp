@@ -38,7 +38,7 @@ int main() {
 	for (int i = 0; i < 50; i++) cout << t[i].var << " ";
 	*/
 	Environment Env;
-	//Env.Run();
+	Env.Run();
 	//Ray R(camera, 3.14 * 0.5, 3.14*0., 1.);
 
 	return 0;

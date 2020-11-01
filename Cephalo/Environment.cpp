@@ -10,36 +10,37 @@ void Environment::Run() {
 	cout << "Environment running" << endl;
 	
 	int c = 0;
-	cout << "Camera rotation stepsize " << camera.rotation_step << endl;
-	cout << "Camera initial position " << camera.x << " " << camera.y
-		<< " " << camera.z << endl << endl;
+	cout << "Camera rotation stepsize " << camera->rotation_step << endl;
+	cout << "Camera initial position " << camera->x << " " << camera->y
+		<< " " << camera->z << endl << endl;
 	while (true) {
 		bool move = true;
 		c = 0;
 		switch ((c = _getch())) {
 		case KEY_UP:
 			cout << endl << "Up" << endl;//key up
-			camera.updatePos('u');
+			camera->updatePos('u');
 			break;
 		case KEY_DOWN:
 			cout << endl << "Down" << endl;   // key down
-			camera.updatePos('d');
+			camera->updatePos('d');
 			break;
 		case KEY_LEFT:
 			cout << endl << "Left" << endl;  // key left
-			camera.updatePos('l');
+			camera->updatePos('l');
 			break;
 		case KEY_RIGHT:
 			cout << endl << "Right" << endl;  // key right
-			camera.updatePos('r');
+			camera->updatePos('r');
 			break;
 		default:
 			move = false;	// Only case where we dont need to render
 			break;
 		}
 		if (move) {
-			RT.render(camera);
+			cv::Mat first_im = RT.render();
+			cout << "showing image";
+			cv::imshow("Image", first_im);
 		}
-	}
-	
+	}	
 }

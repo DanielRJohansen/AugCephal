@@ -26,14 +26,14 @@ struct RayInfo {
 class Raytracer {
 public:
 	Raytracer() {};
-	void initRaytracer(Camera camera);
+	void initRaytracer(Camera *camera);
 	Block *blocks;
-	cv::Mat render(Camera camera);
+	cv::Mat render();
 	~Raytracer();
 
 private:
 	Ray *rayptr;
-	Camera camera;
+	Camera *camera;
 
 	// This optimizes cosine calculations from O(n^2) to O(n)
 	float sin_pitches[RAYS_PER_DIM];
@@ -41,12 +41,9 @@ private:
 	float sin_yaws[RAYS_PER_DIM];
 	float cos_yaws[RAYS_PER_DIM];
 	
-
-	float* origin = new float[3];	//x, y, z
 	CudaOperator CudaOps;
 
 	void initRays();
-	void initCuda();
 	
 	int xyToRayIndex(int x, int y) { return y * RAYS_PER_DIM + x; }
 	int rayIndexToX(int index) { return index % RAYS_PER_DIM; }
