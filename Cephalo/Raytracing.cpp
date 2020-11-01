@@ -10,11 +10,12 @@ void Raytracer::initRaytracer(Camera c) {
 	camera = c;
 	initRays();
 	initCuda();	
-	volume->testSetup();
-
-	precalcSinCos();
+	blocks = new Block[512 * 512 * 30];
+	CudaOps.newVolume(blocks);
+	cout << "Volume size " << 512*512*30*sizeof(Block)/1000000. << " MB" << endl;
+	/*precalcSinCos();
 	castRays();
-	catchRays();
+	catchRays();*/
 	cout << "Raytracer Initialized" << endl;
 }
 Raytracer::~Raytracer() {}
@@ -31,6 +32,7 @@ void Raytracer::initRays() {
 			Ray ray;
 			ray.relative_pitch = relative_pitch;
 			ray.relative_yaw = relative_yaw;
+			//*ray.test = 42;
 			rayptr[xyToRayIndex(x, y)] = ray;
 		}
 	}
@@ -39,16 +41,13 @@ void Raytracer::initRays() {
 
 
 void Raytracer::initCuda() {
-	all_step_vectors = new float** [RAYS_PER_DIM];
-	for (int y = 0; y < RAYS_PER_DIM; y++) {
-		all_step_vectors[y] = new float* [RAYS_PER_DIM];
-	}
 	origin = new float[3];
 	origin[0] = camera.x;
 	origin[1] = camera.y;
 	origin[2] = camera.z;
-	CudaOps.update(rayptr);
-	CudaOps.newVolume(volume);
+	//CudaOps.update(rayptr);
+	cout << "rayptr final index origin: "; 
+	CudaOps.rayptr[512 * 512 - 1].origin.print();
 }
 
 
@@ -88,6 +87,7 @@ void Raytracer::castRays() {
 			
 			rayptr[xyToRayIndex(x, y)].step_vector = Float3(x_ * RAY_STEPSIZE,
 				y_ * RAY_STEPSIZE, z_ * RAY_STEPSIZE);
+			rayptr[xyToRayIndex(x, y)].origin = camera.origin;
 			//cout << "First ray step vector " << endl;
 			//rayptr[xyToRayIndex(x, y)].step_vector.print();
 			
@@ -97,8 +97,9 @@ void Raytracer::castRays() {
 		}
 	}
 
-	CudaOps.update(rayptr);
-	CudaOps.rayStep();
+	//CudaOps.update(rayptr);
+	//CudaOps.doStuff();
+	CudaOps.rayStep(rayptr);
 	cout << "Rays cast" << endl;
 
 }
@@ -116,7 +117,7 @@ cv::Mat Raytracer::projectRaysOnPlane() {
 	for (int y = 0; y < 512; y++) {
 		for (int x = 0; x < 512; x++) {
 			image.at<uchar>(y, x) = rayptr[xyToRayIndex(x, y)].acc_color * 256;
-			cout << rayptr[xyToRayIndex(x, y)].acc_color * 256 << endl;
+			//cout << rayptr[xyToRayIndex(x, y)].acc_color * 256 << endl;
 		}
 	}
 	return image;

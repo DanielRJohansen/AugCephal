@@ -18,6 +18,7 @@ void Camera::cylindricToCartesian() {	//theta, phi inverted on wiki
 	x = radius * sin(pitch) * cos(yaw);
 	y = radius * sin(pitch) * sin(yaw);
 	z = radius * cos(pitch);
+	origin = Float3(x, y, z);
 	cout << "Camera position " << x << " " << y << " " << z << endl;
 }
 

@@ -5,19 +5,24 @@
 #include <stdio.h>
 #include <iostream>
 #include "Constants.h"
+#include "Containers.h"
 using namespace std;
 
 
+struct testObject {
+	float var = 0.42;
+};
 
 class CudaOperator {
 public:
 	CudaOperator();
-	void update(Ray *rp);
-	void newVolume(Volume *vol) { volume = vol; }
-	void rayStep();
+	void newVolume(Block* blocks);
+	void rayStep(Ray *rp);
 	void doStuff();
+	void objectTesting(testObject *t);
+	testObject *t;
 	Ray* rayptr;
-	Volume *volume;			//X, Y, Z, [color, alpha]
+	Block *blocks;			//X, Y, Z, [color, alpha]
 	int a = 0;
 private:
 	

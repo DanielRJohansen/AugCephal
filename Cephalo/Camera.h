@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include "Constants.h"
+#include "Containers.h"
 using namespace std;
 
 class Camera {
@@ -9,7 +10,7 @@ public:
 	float z;
 	float y;
 	float x;
-
+	Float3 origin;
 	float radius = 512;
 
 	float plane_pitch; //Two planes, this is the camera plane, later the focal plane!

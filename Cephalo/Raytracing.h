@@ -4,6 +4,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "Constants.h"
+#include "Containers.h"
 #include "Cudaops.cuh"
 #include "math.h"
 using namespace std;
@@ -26,8 +27,7 @@ class Raytracer {
 public:
 	Raytracer() {};
 	void initRaytracer(Camera camera);
-	int a;
-	Volume *volume;
+	Block *blocks;
 	cv::Mat render(Camera camera);
 	~Raytracer();
 
@@ -42,7 +42,6 @@ private:
 	float cos_yaws[RAYS_PER_DIM];
 	
 
-	float*** all_step_vectors;		//RAYy, RAYx, RAYstepvector(x, y, z)
 	float* origin = new float[3];	//x, y, z
 	CudaOperator CudaOps;
 

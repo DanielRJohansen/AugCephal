@@ -29,6 +29,14 @@ Mat HU_norm_image(Mat img, float max, float min) {
 	return img_;
 } 
 int main() {
+	/*CudaOperator CO;
+	testObject *t;
+	t = new testObject[50];
+	for (int i = 0; i < 50; i++) cout << t[i].var << " ";
+
+	CO.objectTesting(t);
+	for (int i = 0; i < 50; i++) cout << t[i].var << " ";
+	*/
 	Environment Env;
 	//Env.Run();
 	//Ray R(camera, 3.14 * 0.5, 3.14*0., 1.);
