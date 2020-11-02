@@ -1,46 +1,66 @@
 #include "Environment.h"
 
-#define KEY_UP 72
-#define KEY_DOWN 80
-#define KEY_LEFT 75
-#define KEY_RIGHT 77
+
 
 void Environment::Run() {
-	int a = 1;
 	cout << "Environment running" << endl;
 	
 	int c = 0;
 	cout << "Camera rotation stepsize " << camera->rotation_step << endl;
 	cout << "Camera initial position " << camera->x << " " << camera->y
 		<< " " << camera->z << endl << endl;
-	while (true) {
-		bool move = true;
-		c = 0;
-		switch ((c = _getch())) {
-		case KEY_UP:
-			cout << endl << "Up" << endl;//key up
-			camera->updatePos('u');
-			break;
-		case KEY_DOWN:
-			cout << endl << "Down" << endl;   // key down
-			camera->updatePos('d');
-			break;
-		case KEY_LEFT:
-			cout << endl << "Left" << endl;  // key left
-			camera->updatePos('l');
-			break;
-		case KEY_RIGHT:
-			cout << endl << "Right" << endl;  // key right
-			camera->updatePos('r');
-			break;
-		default:
-			move = false;	// Only case where we dont need to render
-			break;
+
+	sf::RenderWindow window(sf::VideoMode(512, 512), "SFML first", sf::Style::Close | sf::Style::Resize);
+	sf::Texture texture;
+	sf::Sprite sprite;
+
+
+	while (window.isOpen()) {
+		window.clear();
+
+		// Handle events
+		sf::Event event;	// Create new each time so no event is applied twice
+		if (window.pollEvent(event)) {
+			if (handleEvents(event)) {	//If relevant event happened
+				cout << "Updating sprite " << endl;
+				//for (int i = 0; i < 512; i++) { cout << (int)image->getPixel(i, i).b << " "; }
+				texture.loadFromImage(*image);
+				sprite.setTexture(texture, true);
+			}
 		}
-		if (move) {
-			cv::Mat first_im = RT.render();
-			cout << "showing image";
-			cv::imshow("Image", first_im);
-		}
-	}	
+
+		
+
+		window.draw(sprite);
+		window.display();
+	}
+}
+
+
+void Environment::updateSprite() {
+	
+}
+
+
+bool Environment::handleEvents(sf::Event event) {
+	switch (event.key.code)
+	{
+	case(sf::Keyboard::Up):
+		camera->updatePos('u');
+		break;
+	case(sf::Keyboard::Down):
+		camera->updatePos('d');
+		break;
+	case(sf::Keyboard::Left):
+		camera->updatePos('l');
+		break;
+	case(sf::Keyboard::Right):
+		camera->updatePos('r');
+		break;
+	default:
+		return false;		// Do nothing new with no keypress
+	}
+
+	RT.render();	
+	return true;
 }

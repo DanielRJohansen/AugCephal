@@ -1,12 +1,16 @@
 #include "Raytracing.h"
 
 
-void Raytracer::initRaytracer(Camera *c) { 
-	rayptr = (Ray*)malloc(NUM_RAYS * sizeof(Ray));
+void Raytracer::initRaytracer(Camera *c, sf::Image *im) {
 	camera = c;
+	image = im;
+
+	rayptr = (Ray*)malloc(NUM_RAYS * sizeof(Ray));
 	initRays();
+
 	blocks = new Block[512 * 512 * 30];
 	CudaOps.newVolume(blocks);
+
 	cout << "Volume size " << 512*512*30*sizeof(Block)/1000000. << " MB" << endl;
 	cout << "Raytracer Initialized" << endl;
 }
@@ -31,16 +35,12 @@ void Raytracer::initRays() {
 }
 
 
-
-
-
-cv::Mat Raytracer::render() {
+void Raytracer::render() {
 	cout << "Rendering" << endl;
 	precalcSinCos();
 	castRays();
-	catchRays();
-	return projectRaysOnPlane();	//TODO: only calculate rays belonging to pixels,
-									// if focal point has changed.
+	CudaOps.rayStep(rayptr);
+	projectRaysOnPlane();	
 }
 
 
@@ -52,6 +52,7 @@ void Raytracer::precalcSinCos() {
 		cos_yaws[i] = cos(rayptr[xyToRayIndex(i, i)].relative_yaw + camera->plane_yaw);
 	}
 }
+
 
 void Raytracer::castRays() {
 	for (int y = 0; y < RAYS_PER_DIM; y++) {
@@ -65,25 +66,20 @@ void Raytracer::castRays() {
 			rayptr[xyToRayIndex(x, y)].origin = camera->origin;
 		}
 	}
-	CudaOps.rayStep(rayptr);
-	cout << "Rays cast" << endl;
+	//cout << "Rays cast" << endl;
 }
 
-void Raytracer::catchRays() {
-	for (int i = 200; i < 500; i++) {
-		for (int j = 0; j < NUM_RAYS; j++) {
-			//rayptr[j].rayStep(i);
-		}
-	}
-}
 
-cv::Mat Raytracer::projectRaysOnPlane() {
-	cv::Mat image = cv::Mat::zeros(cv::Size(RAYS_PER_DIM, RAYS_PER_DIM), CV_8U);
+void Raytracer::projectRaysOnPlane() {
+	cout << "Projecting";
 	for (int y = 0; y < 512; y++) {
 		for (int x = 0; x < 512; x++) {
-			image.at<uchar>(y, x) = rayptr[xyToRayIndex(x, y)].acc_color * 256;
+			float color = rayptr[xyToRayIndex(x, y)].acc_color * 256;
+			int c = (int)color;
+			image->setPixel(x, y, sf::Color(c, c, c));
+			//image.at<uchar>(y, x) = rayptr[xyToRayIndex(x, y)].acc_color * 256;
 		}
+		//cout << (int) image->getPixel(0, y).r << " ";
 	}
-	return image;
 }
 

@@ -1,8 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include <opencv2/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
+
 
 using namespace std;
 
@@ -50,7 +49,7 @@ struct Ray {
 struct Block {
 	Block() {}
 	Block(float c, float a) { color = c; alpha = a; }
-	float color = 0.5;
+	float color = 0.1;
 	float alpha = 1;
 };
 

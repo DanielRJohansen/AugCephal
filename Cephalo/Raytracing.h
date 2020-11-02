@@ -1,8 +1,7 @@
 #pragma once
 #include <iostream>
 #include "Camera.h"
-#include <opencv2/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include <SFML\graphics.hpp>
 #include "Constants.h"
 #include "Containers.h"
 #include "Cudaops.cuh"
@@ -26,9 +25,10 @@ struct RayInfo {
 class Raytracer {
 public:
 	Raytracer() {};
-	void initRaytracer(Camera *camera);
+	void initRaytracer(Camera *camera, sf::Image *im);
 	Block *blocks;
-	cv::Mat render();
+	sf::Image *image;	//
+	void render();
 	~Raytracer();
 
 private:
@@ -52,6 +52,6 @@ private:
 	void updateCameraOrigin();
 	void precalcSinCos();
 	void castRays();	// Calculates positions, returns as list
-	void catchRays();				// Determines ray rgba
-	cv::Mat projectRaysOnPlane();
+	void catchRays();				// Determines ray rgba, not implemented yet
+	void projectRaysOnPlane();
 };

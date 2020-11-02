@@ -13,8 +13,9 @@ __global__ void squareKernel(int* a)
 __global__ void stepKernel(Ray* rayptr, Block *blocks, bool *success, float* coor) {
     int index = blockIdx.x * RAYS_PER_DIM + threadIdx.x;  //This fucks shit up if RPD > 1024!!
     
-
-    for (int step = 0; step < 2000; step++) {
+    rayptr[index].acc_color = 0;
+    rayptr[index].acc_alpha = 0;
+    for (int step = 0; step < RAY_STEPS; step++) {
         if (true){//!rayptr[index].full) {
             float x_ = rayptr[index].origin.x + rayptr[index].step_vector.x * step;
             float y_ = rayptr[index].origin.y + rayptr[index].step_vector.y * step;
@@ -61,19 +62,19 @@ void CudaOperator::rayStep(Ray *rp) {
     cudaMallocManaged(&success, sizeof(bool));
     *success = false;
     float* coor;
-    cudaMallocManaged(&coor, 2000*sizeof(float));
+    cudaMallocManaged(&coor, RAY_STEPS *sizeof(float));
 
     stepKernel << <RAYS_PER_DIM, RAYS_PER_DIM >> > (rayptr, blocks, success, coor);    // RPD blocks (y), RPD threads(x)
     cudaDeviceSynchronize();
-    cout << "Success: " << *success << endl;
-    cout << rayptr[0].origin.y << endl;
+    //cout << "Success: " << *success << endl;
+    //cout << rayptr[0].origin.y << endl;
     for (int i = 0; i < 100; i++) {
         //cout << rayptr[i].acc_color << endl;
-        cout << coor[i] << " ";
+        //cout << coor[i] << " ";
     }
-    cout << endl;
+    //cout << endl;
     //cout << rayptr[120].acc_color << "  " << rayptr[140].acc_color;
-    cout << "Raystep complete "<< endl;
+    //cout << "Raystep complete "<< endl;
 
     //Finally the CUDA altered rayptr must be copied back to the Raytracer rayptr
     cudaMemcpy(rp, rayptr, NUM_RAYS * sizeof(Ray), cudaMemcpyDeviceToHost);
