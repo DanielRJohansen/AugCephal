@@ -9,6 +9,13 @@ void Raytracer::initRaytracer(Camera *c, sf::Image *im) {
 	initRays();
 
 	blocks = new Block[512 * 512 * 30];
+	for (int z = 0; z < 30; z++) {
+		for (int y = 0; y < RAYS_PER_DIM; y++) {
+			for (int x = 0; x < RAYS_PER_DIM; x++) {
+				blocks[z * 512 * 512 + y * 512 + x].color *= z/512.;
+			}
+		}
+	}
 	CudaOps.newVolume(blocks);
 
 	cout << "Volume size " << 512*512*30*sizeof(Block)/1000000. << " MB" << endl;
@@ -23,38 +30,27 @@ void Raytracer::initRays() {
 		for (int x = 0; x < RAYS_PER_DIM; x++) {
 			Ray ray;
 			float x_ = -0.5 + 0.5 / rpd + x / rpd;// Shift by half increment to have
-			float y_ = -0.5 + 0.5 / rpd + y / rpd;
+			float y_ = 0.5 - 0.5 / rpd - y / rpd;
 			float d = sqrt(FOCAL_LEN* FOCAL_LEN + x_ * x_ + y_ * y_) ;
 			
 			ray.rel_unit_vector = Float3(x_, y_, FOCAL_LEN) * (1. / d);	//Make length equal 1
 			if (y == 0 && x == 0) {
 				ray.rel_unit_vector.print();
 				cout << endl;
-			}
-			
-			rayptr[xyToRayIndex(x, y)] = ray;
+			}			
+			rayptr[xyToRayIndex(y, x)] = ray;	// Yes xy is swapped, this works, so schhh!
 		}
 	}
 }
 
 
 void Raytracer::render() {
-	//cout << "Rendering" << endl;
-	//precalcSinCos();
 	castRays();
 	CudaOps.rayStep(rayptr);
 	projectRaysOnPlane();	
 }
 
 
-void Raytracer::precalcSinCos() {
-	for (int i = 0; i < RAYS_PER_DIM; i++) {	// The indexing here is lazy, but it works \_O
-		sin_pitches[i] = sin(rayptr[xyToRayIndex(i, i)].relative_pitch + camera->plane_pitch);
-		cos_pitches[i] = cos(rayptr[xyToRayIndex(i, i)].relative_pitch + camera->plane_pitch);
-		sin_yaws[i] = sin(rayptr[xyToRayIndex(i, i)].relative_yaw + camera->plane_yaw);
-		cos_yaws[i] = cos(rayptr[xyToRayIndex(i, i)].relative_yaw + camera->plane_yaw);
-	}
-}
 
 
 void Raytracer::castRays() {

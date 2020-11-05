@@ -49,8 +49,6 @@ private:
 	int rayIndexToX(int index) { return index % RAYS_PER_DIM; }
 	int rayIndexToY(int index) { return index / RAYS_PER_DIM; }
 
-	void updateCameraOrigin();
-	void precalcSinCos();
 	void castRays();	// Calculates positions, returns as list
 	void catchRays();				// Determines ray rgba, not implemented yet
 	void projectRaysOnPlane();

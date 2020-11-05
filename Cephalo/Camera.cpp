@@ -28,7 +28,7 @@ void Camera::calcFocalPlane() {
 	//cout << "Cam pitch yaw " << pitch << " " << yaw << endl;
 
 	// It's a fix and it works, shut up!
-	plane_pitch = pitch;
+	plane_pitch = 3.1415 - pitch;
 	plane_yaw = yaw + 3.1415;
 
 	
