@@ -7,11 +7,9 @@ using namespace std;
 class Camera {
 public:
 	Camera() { updatePos('n');}
-	float z;
-	float y;
-	float x;
+
 	Float3 origin;
-	float radius = 512;
+	float radius = CAM_RADIUS;
 
 	float plane_pitch; //Two planes, this is the camera plane, later the focal plane!
 	float plane_yaw;
@@ -19,7 +17,7 @@ public:
 	Float3 focal_plane_point;		//x, y, z
 	Float3 focal_plane_normal;		//x, y, z
 	
-	double rotation_step = 2 * 3.1415 / 20; // 20 clicks per rotation
+	double rotation_step = CAM_ROTATION_STEP;
 
 	void updatePos(char key_pressed);
 private:

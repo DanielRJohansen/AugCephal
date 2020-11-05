@@ -3,6 +3,7 @@
 #define vol_x_range VOL_X
 #define vol_y_range VOL_Y
 #define vol_z_range VOL_Z
+#define RAY_SS 1
 //cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
 __global__ void squareKernel(int* a)
 {
@@ -12,19 +13,50 @@ __global__ void squareKernel(int* a)
 
 __global__ void stepKernel(Ray* rayptr, Block *blocks, bool *success, float* coor) {
     int index = blockIdx.x * RAYS_PER_DIM + threadIdx.x;  //This fucks shit up if RPD > 1024!!
-    
+
+    //Reset ray
     rayptr[index].acc_color = 0;
     rayptr[index].acc_alpha = 0;
-    for (int step = 0; step < RAY_STEPS; step++) {
+    rayptr[index].full = false;
+
+
+
+
+    float sin_pitch = sin(rayptr[index].cam_pitch);
+    float cos_pitch = cos(rayptr[index].cam_pitch);
+    float sin_yaw = sin(rayptr[index].cam_yaw);
+    float cos_yaw = cos(rayptr[index].cam_yaw);
+
+    float x = rayptr[index].rel_unit_vector.x;
+    float y = rayptr[index].rel_unit_vector.y;
+    float z = rayptr[index].rel_unit_vector.z;
+
+    float x_y = cos_pitch * x + sin_pitch * z;
+    float y_y = y;
+    float z_y = -sin_pitch * x + cos_pitch * z;
+
+    // Rotate relative vector about z
+    float x_z = cos_yaw * x_y - sin_yaw * y_y;
+    float y_z = sin_yaw * x_y + cos_yaw * y_y;
+    float z_z = z_y;
+    
+    float x_ = x_z * RAY_SS;
+    float y_ = y_z * RAY_SS;
+    float z_ = z_z * RAY_SS;
+
+    for (int step = 20; step < RAY_STEPS; step++) {
         if (true){//!rayptr[index].full) {
-            float x_ = rayptr[index].origin.x + rayptr[index].step_vector.x * step;
-            float y_ = rayptr[index].origin.y + rayptr[index].step_vector.y * step;
-            float z_ = rayptr[index].origin.z + rayptr[index].step_vector.z * step;
-            int vol_x = (int)x_ + vol_x_range / 2;
-            int vol_y = (int)y_ + vol_y_range / 2;
-            int vol_z = (int)z_ + vol_z_range / 2;
-            if (index == 0) {
-                coor[step] = z_;
+            //float x = rayptr[index].origin.x + rayptr[index].step_vector.x * step;
+            //float y = rayptr[index].origin.y + rayptr[index].step_vector.y * step;
+            //float z = rayptr[index].origin.z + rayptr[index].step_vector.z * step;
+            float x = rayptr[index].origin.x + x_ * step;
+            float y = rayptr[index].origin.y + y_ * step;
+            float z = rayptr[index].origin.z + z_ * step;
+            int vol_x = (int)x + vol_x_range / 2;
+            int vol_y = (int)y + vol_y_range / 2;
+            int vol_z = (int)z + vol_z_range / 2;
+            if (index == 12800-256) {
+                coor[step] = y;
             }
                 
             if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && // Only proceed if coordinate is within volume!
@@ -44,7 +76,6 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks, bool *success, float* coo
 CudaOperator::CudaOperator(){
     //cout << (NUM_RAYS * sizeof(Ray))/1000000. << " MB" << "  " << sizeof(Block)/1000000. << " MB" <<endl;
     cudaMallocManaged(&rayptr, NUM_RAYS * sizeof(Ray));
-    cudaMallocManaged(&t, 50 * sizeof(testObject));
     cudaMallocManaged(&blocks, 512*512*30*sizeof(Block));
     cout << "Cuda initialized" << endl;
     }
@@ -118,22 +149,22 @@ __global__ void testKernel(testObject *t, float* a, bool *finished)
 }
 void CudaOperator::objectTesting(testObject* te) {
     //t = te;
-    cudaMemcpy(t, te, 50 * sizeof(testObject), cudaMemcpyHostToDevice);
-    cout << t[0].var << endl;
+    //cudaMemcpy(t, te, 50 * sizeof(testObject), cudaMemcpyHostToDevice);
+    //cout << t[0].var << endl;
     float* a;
     cudaMallocManaged(&a, 50 * sizeof(float));
 
     bool* finished;
     cudaMallocManaged(&finished, sizeof(bool));
     *finished = false;
-    testKernel << <1, 50 >> > (t, a, finished);
+    //testKernel << <1, 50 >> > (t, a, finished);
     cudaDeviceSynchronize();
     cout <<"Finished: " << *finished << endl;
     for (int i = 0; i < 50; i++) {
-        cout << t[i].var << " ";
+     //   cout << t[i].var << " ";
     }
     cout << endl;
-    cudaMemcpy(te, t, 50 * sizeof(testObject), cudaMemcpyDeviceToHost);
+    //cudaMemcpy(te, t, 50 * sizeof(testObject), cudaMemcpyDeviceToHost);
 
 
 }

@@ -18,17 +18,20 @@ Raytracer::~Raytracer() {}
 
 
 void Raytracer::initRays() {
-	float ray_range = asin((OBJECT_SIZE / 2. )/ camera->radius) * 2;
-	float ray_increment = ray_range / RAYS_PER_DIM;
-	float start_angle = - ray_range / 2. + ray_increment / 2.;	// Shift by half increment to have
-													// same amount of rays above and below 0
+	float rpd = (float)RAYS_PER_DIM;
 	for (int y = 0; y < RAYS_PER_DIM; y++) {
-		float relative_pitch = start_angle + ray_increment * y;
 		for (int x = 0; x < RAYS_PER_DIM; x++) {
-			float relative_yaw = - start_angle - ray_increment * x;	// Flip the angles here!
 			Ray ray;
-			ray.relative_pitch = relative_pitch;
-			ray.relative_yaw = relative_yaw;
+			float x_ = -0.5 + 0.5 / rpd + x / rpd;// Shift by half increment to have
+			float y_ = -0.5 + 0.5 / rpd + y / rpd;
+			float d = sqrt(FOCAL_LEN* FOCAL_LEN + x_ * x_ + y_ * y_) ;
+			
+			ray.rel_unit_vector = Float3(x_, y_, FOCAL_LEN) * (1. / d);	//Make length equal 1
+			if (y == 0 && x == 0) {
+				ray.rel_unit_vector.print();
+				cout << endl;
+			}
+			
 			rayptr[xyToRayIndex(x, y)] = ray;
 		}
 	}
@@ -36,8 +39,8 @@ void Raytracer::initRays() {
 
 
 void Raytracer::render() {
-	cout << "Rendering" << endl;
-	precalcSinCos();
+	//cout << "Rendering" << endl;
+	//precalcSinCos();
 	castRays();
 	CudaOps.rayStep(rayptr);
 	projectRaysOnPlane();	
@@ -55,31 +58,23 @@ void Raytracer::precalcSinCos() {
 
 
 void Raytracer::castRays() {
-	for (int y = 0; y < RAYS_PER_DIM; y++) {
-		for (int x = 0; x < RAYS_PER_DIM; x++) {
-			float x_ = 1 * sin_pitches[y] * cos_yaws[x];
-			float y_ = 1 * sin_pitches[y] * sin_yaws[x];
-			float z_ = 1 * cos_pitches[y];
-			
-			rayptr[xyToRayIndex(x, y)].step_vector = Float3(x_ * RAY_STEPSIZE,
-				y_ * RAY_STEPSIZE, z_ * RAY_STEPSIZE);
-			rayptr[xyToRayIndex(x, y)].origin = camera->origin;
-		}
+	for (int i = 0; i < NUM_RAYS; i++) {
+		rayptr[i].cam_pitch = camera->plane_pitch;
+		rayptr[i].cam_yaw = camera->plane_yaw;
+		rayptr[i].origin = camera->origin;
 	}
-	//cout << "Rays cast" << endl;
 }
 
 
 void Raytracer::projectRaysOnPlane() {
-	cout << "Projecting";
 	for (int y = 0; y < 512; y++) {
 		for (int x = 0; x < 512; x++) {
 			float color = rayptr[xyToRayIndex(x, y)].acc_color * 256;
-			int c = (int)color;
+			int c;
+			if (color > 255) c = 255;
+			else c = (int)color;
 			image->setPixel(x, y, sf::Color(c, c, c));
-			//image.at<uchar>(y, x) = rayptr[xyToRayIndex(x, y)].acc_color * 256;
 		}
-		//cout << (int) image->getPixel(0, y).r << " ";
 	}
 }
 

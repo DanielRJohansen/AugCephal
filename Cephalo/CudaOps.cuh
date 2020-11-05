@@ -20,7 +20,6 @@ public:
 	void rayStep(Ray *rp);
 	void doStuff();
 	void objectTesting(testObject *t);
-	testObject *t;
 	Ray* rayptr;
 	Block *blocks;			//X, Y, Z, [color, alpha]
 	int a = 0;

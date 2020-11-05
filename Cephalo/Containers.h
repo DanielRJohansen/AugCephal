@@ -27,24 +27,17 @@ struct Float3	//float3 taken by cuda
 struct Ray {
 	float relative_pitch;
 	float relative_yaw;
+	Float3 rel_unit_vector;
 	Float3 step_vector;	//x, y, z
 	Float3 origin;		//x, y, z
-	
-	int render_x;
-	int render_y;
-	float test = 0.55;
-	
+	float cam_pitch;
+	float cam_yaw;
+
+
 	float acc_color = 0;	//0..1
 	float acc_alpha = 0;	//0..1
 	bool full = false;		//
 
-	void reset(float x, float y, float z, float x_, float y_, float z_) { // origin, step_vector
-		acc_color = 0;
-		acc_alpha = 0;
-		full = false;
-		origin = Float3(x, y, z);
-		step_vector = Float3(x_, y_, z_);
-	}
 };
 struct Block {
 	Block() {}
