@@ -25,8 +25,9 @@ struct RayInfo {
 class Raytracer {
 public:
 	Raytracer() {};
-	void initRaytracer(Camera *camera, sf::Image *im);
-	Block *blocks;
+	void initRaytracer(Camera *camera, sf::Image *im, Block* vol);
+	void newVolume(Block* volume) { CudaOps.newVolume(volume); }
+
 	sf::Image *image;	//
 	void render();
 	~Raytracer();

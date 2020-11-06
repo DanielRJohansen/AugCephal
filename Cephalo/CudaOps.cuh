@@ -18,12 +18,8 @@ public:
 	CudaOperator();
 	void newVolume(Block* blocks);
 	void rayStep(Ray *rp);
-	void doStuff();
-	void objectTesting(testObject *t);
 	Ray* rayptr;
 	Block *blocks;			//X, Y, Z, [color, alpha]
-	int a = 0;
 private:
 	
-	void square(int* a, int* b, int n);
 };

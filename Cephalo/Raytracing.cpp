@@ -1,24 +1,16 @@
 #include "Raytracing.h"
+#include <ctime>
 
-
-void Raytracer::initRaytracer(Camera *c, sf::Image *im) {
+void Raytracer::initRaytracer(Camera *c, sf::Image *im, Block* volume) {
 	camera = c;
 	image = im;
 
 	rayptr = (Ray*)malloc(NUM_RAYS * sizeof(Ray));
 	initRays();
 
-	blocks = new Block[512 * 512 * 30];
-	for (int z = 0; z < 30; z++) {
-		for (int y = 0; y < RAYS_PER_DIM; y++) {
-			for (int x = 0; x < RAYS_PER_DIM; x++) {
-				blocks[z * 512 * 512 + y * 512 + x].color *= z/512.;
-			}
-		}
-	}
-	CudaOps.newVolume(blocks);
+	CudaOps.newVolume(volume);
 
-	cout << "Volume size " << 512*512*30*sizeof(Block)/1000000. << " MB" << endl;
+	cout << "Volume size " << VOL_X*VOL_Y*VOL_Z*sizeof(Block)/1000000. << " MB" << endl;
 	cout << "Raytracer Initialized" << endl;
 }
 Raytracer::~Raytracer() {}
@@ -45,9 +37,15 @@ void Raytracer::initRays() {
 
 
 void Raytracer::render() {
+	time_t t0;
 	castRays();
+	time_t t1;
 	CudaOps.rayStep(rayptr);
+	time_t t2;
 	projectRaysOnPlane();	
+	time_t t3;
+	int a = 10;
+	printf("Cast time: %.2   Step time: %.2   Projection time: %.2", t1 - t0, t2 - t1, t3 - t2);
 }
 
 
@@ -63,8 +61,8 @@ void Raytracer::castRays() {
 
 
 void Raytracer::projectRaysOnPlane() {
-	for (int y = 0; y < 512; y++) {
-		for (int x = 0; x < 512; x++) {
+	for (int y = 0; y < RAYS_PER_DIM; y++) {
+		for (int x = 0; x < RAYS_PER_DIM; x++) {
 			float color = rayptr[xyToRayIndex(x, y)].acc_color * 256;
 			int c;
 			if (color > 255) c = 255;

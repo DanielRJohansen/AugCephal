@@ -89,6 +89,7 @@
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="ProxyMain.cpp" />
     <ClCompile Include="Raytracing.cpp" />
+    <ClCompile Include="VolumeMaker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
@@ -98,6 +99,7 @@
     <ClInclude Include="Environment.h" />
     <ClInclude Include="Raytracing.h" />
     <ClInclude Include="Tools.h" />
+    <ClInclude Include="VolumeMaker.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

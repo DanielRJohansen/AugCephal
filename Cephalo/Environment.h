@@ -6,17 +6,20 @@
 class Environment {
 
 public:
-	Environment() {
+	Environment(Block* volume) {
 		camera = new Camera();
 		image = new sf::Image();
-		image->create(512, 512, sf::Color(0, 255, 0));
-		RT.initRaytracer(camera, image);
+		image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
+		RT.initRaytracer(camera, image, volume);
 	}
+	void newVolume(Block* vol);
 
-	int a = 1;
 	Camera *camera;
 	sf::Image *image;
 	Raytracer RT;
+
+	Block* volume;
+
 	void Run();
 private:
 	bool handleEvents(sf::Event event);

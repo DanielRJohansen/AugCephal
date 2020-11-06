@@ -41,8 +41,8 @@ struct Ray {
 };
 struct Block {
 	Block() {}
-	Block(float c, float a) { color = c; alpha = a; }
-	float color = 0.1;
-	float alpha = 1;
+
+	float value = 0;
+	bool air = false;
 };
 

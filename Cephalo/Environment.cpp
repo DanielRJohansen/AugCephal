@@ -7,7 +7,8 @@ void Environment::Run() {
 	cout << "Camera rotation stepsize " << camera->rotation_step << endl;
 
 
-	sf::RenderWindow window(sf::VideoMode(512, 512), "SFML first", sf::Style::Close | sf::Style::Resize);
+	sf::RenderWindow window(sf::VideoMode(RAYS_PER_DIM, RAYS_PER_DIM), 
+		"3D body", sf::Style::Close | sf::Style::Resize);
 	sf::Texture texture;
 	sf::Sprite sprite;
 	RT.render();
