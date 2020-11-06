@@ -37,15 +37,25 @@ void Raytracer::initRays() {
 
 
 void Raytracer::render() {
-	time_t t0;
+	cout << "rendering" << endl;
+	//time_t start, finish;
+
+	//time(&start);
 	castRays();
-	time_t t1;
+	//time(&finish);
+	//float t1 = difftime(finish, start);
+
+	//time(&start);
 	CudaOps.rayStep(rayptr);
-	time_t t2;
-	projectRaysOnPlane();	
-	time_t t3;
-	int a = 10;
-	printf("Cast time: %.2   Step time: %.2   Projection time: %.2", t1 - t0, t2 - t1, t3 - t2);
+	//time(&finish);
+	//float t2 = difftime(finish, start);
+
+	//time(&start);
+	projectRaysOnPlane();
+	//time(&finish);
+	//float t3 = difftime(finish, start);
+
+	//printf("Cast time: %f   Step time: %f   Projection time: %f", t1, t2, t3);
 }
 
 
