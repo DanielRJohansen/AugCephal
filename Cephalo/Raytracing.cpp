@@ -37,7 +37,6 @@ void Raytracer::initRays() {
 
 
 void Raytracer::render() {
-	cout << "rendering" << endl;
 	//time_t start, finish;
 
 	//time(&start);
@@ -56,6 +55,8 @@ void Raytracer::render() {
 	//float t3 = difftime(finish, start);
 
 	//printf("Cast time: %f   Step time: %f   Projection time: %f", t1, t2, t3);
+	cout << "Rendering finished" << endl;
+
 }
 
 

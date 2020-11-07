@@ -41,7 +41,7 @@ struct Ray {
 };
 
 struct Cluster {
-	vector<Block> blocks;
+	//vector<Block> blocks;
 	float mean;
 	
 	void mergeCluster(Cluster c2);
@@ -52,6 +52,9 @@ struct Block {
 
 	float value = 0;
 	Cluster *cluster;
+
 	bool air = false;
+	bool bone = false;
+	bool metal = false;
 };
 

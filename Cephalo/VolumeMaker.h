@@ -6,6 +6,8 @@
 #include <opencv2/opencv.hpp>
 #include "Containers.h"
 #include "Constants.h"
+#include "CudaOps.cuh"
+
 using namespace std;
 using namespace cv;
 

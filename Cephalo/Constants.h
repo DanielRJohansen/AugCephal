@@ -22,4 +22,4 @@ const int CAM_RADIUS = 512;
 const float CAM_ROTATION_STEP = 2 * 3.1415 / 20; // 20 clicks per rotation
 
 
-const float CLUSTER_MAX_SEP;
+const float CLUSTER_MAX_SEP = 10;

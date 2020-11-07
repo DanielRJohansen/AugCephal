@@ -19,7 +19,9 @@ void read_directory(const string& name, stringvec& v)
 VolumeMaker::VolumeMaker() {
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
-    medianFilter();
+    CudaOperator CudaOps;
+    CudaOps.medianFilter(copyVolume(volume), volume);
+    //medianFilter();
     //copyVolume(volume, volume_original);
     //medianFilter();
 }
@@ -59,15 +61,16 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
                 volume[xyzToIndex(x, y, z)].value = (hu - min) * norm_key;
             else
                 volume[xyzToIndex(x, y, z)].value = 0;
-            volume[xyzToIndex(x, y, z)].clustermean = volume[xyzToIndex(x, y, z)].value;
+            //volume[xyzToIndex(x, y, z)].cluster->mean = volume[xyzToIndex(x, y, z)].value;
         }
     }
 
 }
 Block* VolumeMaker::copyVolume(Block* from) {
-    Block* to = new Block(VOL_X * VOL_Y * VOL_Z);
+    Block* to = new Block[VOL_X * VOL_Y * VOL_Z];
     for (int i = 0; i < VOL_X * VOL_Y * VOL_Z; i++) {
         to[i] = from[i];
+        //cout << to[i].value << "  " << from[i].value << endl;
     }
     return to;
 }

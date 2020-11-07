@@ -5,11 +5,6 @@
 #define vol_z_range VOL_Z
 #define RAY_SS 1
 //cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
-__global__ void squareKernel(int* a)
-{
-    int i = blockIdx.x * 512 + threadIdx.x;
-    a[i] = i;
-}
 
 __global__ void stepKernel(Ray* rayptr, Block *blocks) {
     int index = blockIdx.x * RAYS_PER_DIM + threadIdx.x;  //This fucks shit up if RPD > 1024!!
@@ -71,6 +66,54 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks) {
 }
 
 
+__global__ void medianFilterKernel(Block* original, Block* volume) {
+    
+    int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
+    int x = threadIdx.x;
+
+    float* top;
+    //top = (float*)malloc(9 * sizeof(float));
+    cudaMalloc(&top, 9 * sizeof(float));
+    circularWindow window;
+    int top_index;
+    top[4] = 0.12;
+    original[0].value = top[4];/*
+    if (y * x != 0 && x < VOL_X-1 && y < VOL_Y-1) {   //No need to dso this if on the edge
+        for (int z = 0; z < 2; z++) {
+            top_index = 0;
+            for (int yoff = -1; yoff < 2; yoff++) {
+                for (int xoff = -1; xoff < 2; xoff++) {
+                    int vol_index = z * VOL_Y * VOL_X + (y+yoff) * VOL_X + x+xoff;
+                    //top[0] = 1; // original[vol_index].value;
+                    top_index++;
+                }
+            }
+            //window.addTop(top);
+        }
+    }
+    
+    
+    for (int z = 0; z < VOL_Z-1; z++) {
+        int vol_index = z * VOL_Y * VOL_X + y * VOL_X + x;
+
+        // If any is 0, we are on the edge
+        if (x*y*z == 0 || x == (VOL_X-1) || y == (VOL_Y - 1) || z == (VOL_Z-1)) {
+            //volume[vol_index].air = true;
+        }
+        else {  // Copy top
+            top_index = 0;
+            for (int yoff = -1; yoff < 2; yoff++) {
+                for (int xoff = -1; xoff < 2; xoff++) {
+                    int vol_index = (z + 1) * VOL_Y * VOL_X + (y + yoff) * VOL_X + x + xoff;
+                    top[top_index] == original[vol_index].value;
+                }
+            }
+            //volume[vol_index].value = 255;// window.step(top);
+        }
+    }
+    delete top;*/
+}
+
 CudaOperator::CudaOperator(){
     cudaMallocManaged(&rayptr, NUM_RAYS * sizeof(Ray));
     cudaMallocManaged(&blocks, VOL_X*VOL_Y*VOL_Z*sizeof(Block));
@@ -85,30 +128,75 @@ void CudaOperator::newVolume(Block* bs) {
 
 
 void CudaOperator::rayStep(Ray *rp) {
-    time_t start, finish;
-
-    time(&start);
+    // Copy rayptr to device
     cudaMemcpy(rayptr, rp, NUM_RAYS * sizeof(Ray), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
-    time(&finish);
-    float t1 = difftime(finish, start);
 
-    time(&start);
     stepKernel << <RAYS_PER_DIM, RAYS_PER_DIM >> > (rayptr, blocks);    // RPD blocks (y), RPD threads(x)
     cudaDeviceSynchronize();
-    time(&finish);
-    float t2 = difftime(finish, start);
-    
-    
 
     //Finally the CUDA altered rayptr must be copied back to the Raytracer rayptr
-    time(&start);
     cudaMemcpy(rp, rayptr, NUM_RAYS * sizeof(Ray), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
-    time(&finish);
-    float t3 = difftime(finish, start);
-    printf("CopyD time: %f   Step time: %f   CopyH time: %f", t1, t2, t3);
-    cout << t2 << endl;
 }
 
 
+void CudaOperator::medianFilter(Block* ori, Block* vol) {
+    // Copy rayptr to device
+    int num_blocks = VOL_X * VOL_Y * VOL_Z;
+    Block* original; Block* volume;
+    cudaMallocManaged(&original, num_blocks * sizeof(Block));
+    cudaMallocManaged(&volume, num_blocks * sizeof(Block));
+
+    cudaMemcpy(original, ori, num_blocks * sizeof(Block), cudaMemcpyHostToDevice);
+    cudaMemcpy(volume, vol, num_blocks * sizeof(Block), cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+
+    medianFilterKernel << <VOL_X, VOL_Y >> > (original, volume);    // RPD blocks (y), RPD threads(x)
+    cudaDeviceSynchronize();
+    cout << ori[2].value << endl << endl << endl;
+    
+    //Finally the CUDA altered rayptr must be copied back to the Raytracer rayptr
+    //cudaMemcpy(vol, volume, num_blocks * sizeof(Block), cudaMemcpyDeviceToHost);
+    //cudaDeviceSynchronize();
+}
+
+
+__device__ circularWindow::circularWindow() {
+    window = new float[size];
+    window_copy = new float[size];
+    window_sorted = new float[size];
+}
+__device__ void circularWindow::addTop(float *top) {
+    for (int i = 0; i < 9; i++) {
+        window[head + i] = top[i];
+    }
+    if (head == size) 
+        head = 0;
+}
+__device__ void circularWindow::sortWindow() {
+    copyWindow();
+    int lowest_index = 0;
+
+    for (int i = 0; i < size; i++) {
+        int lowest = INT_MAX;
+        for (int j = 0; j < size; j++) {
+            if (window_copy[j] < lowest) {
+                lowest = window_copy[j];
+                lowest_index = j;
+            }
+        }
+        window_sorted[i] = window_copy[lowest_index];
+        window_copy[lowest_index] = INT_MAX;
+    }
+}
+__device__ void circularWindow::copyWindow() {
+    for (int i = 0; i < size; i++) {
+        window_copy[i] = window[i];
+    }
+}
+__device__ float circularWindow::step(float* top) { 
+    addTop(top); 
+    sortWindow(); 
+    return window_sorted[14]; 
+}
