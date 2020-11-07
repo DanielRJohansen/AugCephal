@@ -17,8 +17,11 @@ void read_directory(const string& name, stringvec& v)
 
 
 VolumeMaker::VolumeMaker() {
-    volume = new Block[512 * 512 * VOL_Z];
+    volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
+    medianFilter();
+    //copyVolume(volume, volume_original);
+    //medianFilter();
 }
 void VolumeMaker::loadScans() {
     stringvec v;
@@ -39,6 +42,7 @@ void VolumeMaker::loadScans() {
 }
 
 void VolumeMaker::insertImInVolume(Mat img, int z) {
+    
     float min = -400;
     float max = 400;
     float norm_key = 1. / (max - min);
@@ -55,7 +59,74 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
                 volume[xyzToIndex(x, y, z)].value = (hu - min) * norm_key;
             else
                 volume[xyzToIndex(x, y, z)].value = 0;
+            volume[xyzToIndex(x, y, z)].clustermean = volume[xyzToIndex(x, y, z)].value;
         }
     }
 
+}
+Block* VolumeMaker::copyVolume(Block* from) {
+    Block* to = new Block(VOL_X * VOL_Y * VOL_Z);
+    for (int i = 0; i < VOL_X * VOL_Y * VOL_Z; i++) {
+        to[i] = from[i];
+    }
+    return to;
+}
+
+void VolumeMaker::cluster() {
+    Block* vol_copy = copyVolume(volume);
+    for (int z = 0; z < VOL_Z; z++) {
+        printf("Clustering Z %d  \n", z);
+        for (int y = 0; y < VOL_Y; y++) {
+            for (int x = 0; x < VOL_X; x++) {
+                
+                for (int zoff = 0; zoff < 2; zoff++) {
+                    for (int yoff = 0; yoff < 2; yoff++) {
+                        for (int xoff = 0; xoff < 2; xoff++) {
+                            if (xoff + yoff + zoff == 0) // Cannot cluster with itself
+                                continue;
+                            float clusterdif = vol_copy[xyzToIndex(x + xoff, y + yoff, z + zoff)].cluster->mean -
+                                vol_copy[xyzToIndex(x, y, z)].cluster->mean;
+                            if (abs(clusterdif) > CLUSTER_MAX_SEP) {
+
+                            }
+                        }
+                    }
+                }
+
+
+            }
+        }
+    }
+}
+
+void VolumeMaker::medianFilter() {
+    Block* vol_copy = copyVolume(volume);
+    for (int z = 0; z < VOL_Z; z++) {
+        printf("Filtering layer %d  \n", z);
+        for (int y = 0; y < VOL_Y; y++) {
+            for (int x = 0; x < VOL_X; x++) {
+
+                int block_index = xyzToIndex(x, y, z);
+                if (x * y * z == 0 || x == VOL_X - 1 || y == VOL_Y - 1 || z == VOL_Z - 1) {    // Set all edges to air to no (out of mem problems)
+                    volume[block_index].air = true;
+                }     
+                else {
+                    //float window_values[27];
+                    vector <float>window(27);
+                    int i = 0;
+                    for (int z_off = -1; z_off < 2; z_off++) {
+                        for (int y_off = -1; y_off < 2; y_off++) {
+                            for (int x_off = -1; x_off < 2; x_off++) {
+                                window[i] = vol_copy[xyzToIndex(x+x_off, y+y_off, z+z_off)].value;
+                                //cout << window[i] << endl;
+                                i++;
+                            }
+                        }
+                    }
+                    sort(window.begin(), window.end());
+                    volume[block_index].value = window[14];
+                }
+            }
+        }
+    }
 }

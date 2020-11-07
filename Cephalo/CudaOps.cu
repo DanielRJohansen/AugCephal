@@ -61,7 +61,7 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks) {
             volume_index = vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
 
             if (blocks[volume_index].air)
-                continue;
+                continue; 
             else {
                 rayptr[index].acc_color += blocks[volume_index].value;
                 rayptr[index].full = true;

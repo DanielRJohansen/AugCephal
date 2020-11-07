@@ -21,7 +21,11 @@ public:
 
 private:
 	string folder_path = "E:\\NIH_images\\003412_03_01\\";
+
 	void loadScans();
 	int xyzToIndex(int x, int y, int z) { return z * 512 * 512 + y * 512 + x; }
 	void insertImInVolume(Mat im, int zcoord);
+	void medianFilter();
+	Block* copyVolume(Block* from);
+	void cluster();
 };

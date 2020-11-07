@@ -12,6 +12,7 @@ using namespace std;
 
 
 int main() {
+
 	VolumeMaker VM;
 
 	Environment Env(VM.volume);

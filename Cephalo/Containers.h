@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-
+#include <vector>
 
 using namespace std;
 
@@ -39,10 +39,19 @@ struct Ray {
 	bool full = false;		//
 
 };
+
+struct Cluster {
+	vector<Block> blocks;
+	float mean;
+	
+	void mergeCluster(Cluster c2);
+	void reCenter();
+};
 struct Block {
 	Block() {}
 
 	float value = 0;
+	Cluster *cluster;
 	bool air = false;
 };
 
