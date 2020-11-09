@@ -20,7 +20,7 @@ VolumeMaker::VolumeMaker() {
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
     CudaOperator CudaOps;
-    CudaOps.medianFilter(copyVolume(volume), volume);
+    //CudaOps.medianFilter(copyVolume(volume), volume);
     //medianFilter();
     //copyVolume(volume, volume_original);
     //medianFilter();
@@ -46,21 +46,33 @@ void VolumeMaker::loadScans() {
 void VolumeMaker::insertImInVolume(Mat img, int z) {
     
     float min = -400;
-    float max = 400;
+    float max = 300;
     float norm_key = 1. / (max - min);
     Mat img_ = cv::Mat::zeros(Size(512, 512), CV_8UC1);
     for (int y = 0; y < img.cols; y++) {
         for (int x = 0; x < img.rows; x++) {
             double hu = img.at<uint16_t>(y, x) - 32768;
-            if (hu < min)
+            if (hu < min) {
                 volume[xyzToIndex(x, y, z)].air = true;
-
-            if (hu > max)
-                volume[xyzToIndex(x, y, z)].value = 1;
-            else if (hu > min)
-                volume[xyzToIndex(x, y, z)].value = (hu - min) * norm_key;
-            else
                 volume[xyzToIndex(x, y, z)].value = 0;
+            }
+            else if (hu > max) {
+                volume[xyzToIndex(x, y, z)].value = 1;
+                volume[xyzToIndex(x, y, z)].bone = true;
+
+            }
+            else if (hu > 100 && hu < 300) {
+                volume[xyzToIndex(x, y, z)].soft_tissue = true;
+                volume[xyzToIndex(x, y, z)].value = (hu - min) * norm_key;
+
+            }
+            else if (hu > -120 && hu < -90) {
+                volume[xyzToIndex(x, y, z)].fat = true;
+                volume[xyzToIndex(x, y, z)].value = (hu - min) * norm_key;
+            }
+            else 
+                volume[xyzToIndex(x, y, z)].value = (hu - min) * norm_key;
+            
             //volume[xyzToIndex(x, y, z)].cluster->mean = volume[xyzToIndex(x, y, z)].value;
         }
     }

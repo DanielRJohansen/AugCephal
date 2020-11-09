@@ -9,12 +9,14 @@
 //#include <cv.h>
 using namespace std;
 
-
+class A {
+public:
+	float h[10] = { 0 };
+};
 
 int main() {
 
 	VolumeMaker VM;
-
 	Environment Env(VM.volume);
 	Env.Run();
 	//Ray R(camera, 3.14 * 0.5, 3.14*0., 1.);

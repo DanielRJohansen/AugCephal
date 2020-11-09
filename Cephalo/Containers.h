@@ -32,6 +32,7 @@ struct Ray {
 	Float3 origin;		//x, y, z
 	float cam_pitch;
 	float cam_yaw;
+	float alpha = 0;
 
 
 	float acc_color = 0;	//0..1
@@ -51,10 +52,13 @@ struct Block {
 	Block() {}
 
 	float value = 0;
+	float alpha = 0.3;
 	Cluster *cluster;
 
 	bool air = false;
 	bool bone = false;
 	bool metal = false;
+	bool soft_tissue = false;
+	bool fat = false;
 };
 

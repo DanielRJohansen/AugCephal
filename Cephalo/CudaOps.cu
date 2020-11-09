@@ -12,6 +12,7 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks) {
     //Reset ray
     Ray ray = rayptr[index];
     rayptr[index].acc_color = 0;
+    rayptr[index].alpha = 0;
     rayptr[index].full = false;
 
     float sin_pitch = sin(ray.cam_pitch);
@@ -55,45 +56,51 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks) {
             
             volume_index = vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
 
-            if (blocks[volume_index].air)
+            if (blocks[volume_index].air || blocks[volume_index].bone || blocks[volume_index].soft_tissue || blocks[volume_index].fat)
                 continue; 
             else {
-                rayptr[index].acc_color += blocks[volume_index].value;
-                rayptr[index].full = true;
+                rayptr[index].acc_color += blocks[volume_index].value * blocks[volume_index].alpha;
+                rayptr[index].alpha += blocks[volume_index].alpha;
+                if (rayptr[index].alpha >= 1)
+                    rayptr[index].full = true;
             }    
         }
     }
 }
 
 
-__global__ void medianFilterKernel(Block* original, Block* volume) {
+__global__ void idunno(circularWindow* windows, int* a) {
+
+    if ( threadIdx.x == 1) {
+        circularWindow window = windows[0];
+        a[0] = window.wsize;
+        a[1] = 1;
+
+    }
+}
+
+__global__ void medianFilterKernel(Block* original, Block* volume, circularWindow* windows, int* finished) {
     
     int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
     int x = threadIdx.x;
+    int id = y * VOL_X + x;
+    
+    circularWindow window = windows[id];
 
-    float* top;
-    //top = (float*)malloc(9 * sizeof(float));
-    cudaMalloc(&top, 9 * sizeof(float));
-    circularWindow window;
-    int top_index;
-    top[4] = 0.12;
-    original[0].value = top[4];/*
-    if (y * x != 0 && x < VOL_X-1 && y < VOL_Y-1) {   //No need to dso this if on the edge
+    if (y * x != 0 && x < VOL_X-1 && y < VOL_Y-1) {   //Can't do this if on the edge
         for (int z = 0; z < 2; z++) {
-            top_index = 0;
+
             for (int yoff = -1; yoff < 2; yoff++) {
                 for (int xoff = -1; xoff < 2; xoff++) {
                     int vol_index = z * VOL_Y * VOL_X + (y+yoff) * VOL_X + x+xoff;
-                    //top[0] = 1; // original[vol_index].value;
-                    top_index++;
+                    window.add(original[vol_index].value);
                 }
             }
-            //window.addTop(top);
         }
     }
     
     
-    for (int z = 0; z < VOL_Z-1; z++) {
+    for (int z = 1; z < VOL_Z - 1; z++) {
         int vol_index = z * VOL_Y * VOL_X + y * VOL_X + x;
 
         // If any is 0, we are on the edge
@@ -101,17 +108,19 @@ __global__ void medianFilterKernel(Block* original, Block* volume) {
             //volume[vol_index].air = true;
         }
         else {  // Copy top
-            top_index = 0;
             for (int yoff = -1; yoff < 2; yoff++) {
                 for (int xoff = -1; xoff < 2; xoff++) {
-                    int vol_index = (z + 1) * VOL_Y * VOL_X + (y + yoff) * VOL_X + x + xoff;
-                    top[top_index] == original[vol_index].value;
+                    int vol_index_window = (z + 1) * VOL_Y * VOL_X + (y + yoff) * VOL_X + x + xoff;
+                    window.add(original[vol_index_window].value);
                 }
             }
-            //volume[vol_index].value = 255;// window.step(top);
+            
+            volume[vol_index].value = window.step();
+            //volume[vol_index].value = window.step();
         }
     }
-    delete top;*/
+    
+    finished[1] = 1;
 }
 
 CudaOperator::CudaOperator(){
@@ -145,58 +154,74 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
     // Copy rayptr to device
     int num_blocks = VOL_X * VOL_Y * VOL_Z;
     Block* original; Block* volume;
+    circularWindow* windows;
+    int* finished = new int[2];
+    cudaMallocManaged(&finished, sizeof(int));
     cudaMallocManaged(&original, num_blocks * sizeof(Block));
     cudaMallocManaged(&volume, num_blocks * sizeof(Block));
+    cudaMallocManaged(&windows, num_blocks * sizeof(circularWindow));
+
+    // Hacky workaround to move the objects onto the device.
+    circularWindow* cc;
+    cc = new circularWindow[num_blocks];
+    cudaMemcpy(windows, cc, num_blocks * sizeof(circularWindow), cudaMemcpyHostToDevice);
+
+
+   
+
 
     cudaMemcpy(original, ori, num_blocks * sizeof(Block), cudaMemcpyHostToDevice);
     cudaMemcpy(volume, vol, num_blocks * sizeof(Block), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
 
-    medianFilterKernel << <VOL_X, VOL_Y >> > (original, volume);    // RPD blocks (y), RPD threads(x)
+    medianFilterKernel << <VOL_Y, VOL_X >> > (original, volume, windows, finished);    // RPD blocks (y), RPD threads(x)
     cudaDeviceSynchronize();
-    cout << ori[2].value << endl << endl << endl;
+
+    cout << "Finished " << finished[1] << endl;
+    
     
     //Finally the CUDA altered rayptr must be copied back to the Raytracer rayptr
-    //cudaMemcpy(vol, volume, num_blocks * sizeof(Block), cudaMemcpyDeviceToHost);
-    //cudaDeviceSynchronize();
+    cudaMemcpy(vol, volume, num_blocks * sizeof(Block), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+
+    cudaFree(original);
+    cudaFree(volume);
+    cudaFree(windows);
 }
 
 
-__device__ circularWindow::circularWindow() {
+/*__device__ circularWindow::circularWindow() {
     window = new float[size];
     window_copy = new float[size];
     window_sorted = new float[size];
-}
-__device__ void circularWindow::addTop(float *top) {
-    for (int i = 0; i < 9; i++) {
-        window[head + i] = top[i];
-    }
-    if (head == size) 
+}*/
+__device__ void circularWindow::add(float val) {  
+    window[head] = val;
+    head++;
+    if (head == 27) // Doesn't work if i put size, noooooo idea :/
         head = 0;
 }
 __device__ void circularWindow::sortWindow() {
     copyWindow();
     int lowest_index = 0;
-
-    for (int i = 0; i < size; i++) {
-        int lowest = INT_MAX;
-        for (int j = 0; j < size; j++) {
+    for (int i = 0; i < 27; i++) {
+        float lowest = 9999;
+        for (int j = 0; j < 27; j++) {
             if (window_copy[j] < lowest) {
                 lowest = window_copy[j];
                 lowest_index = j;
             }
         }
         window_sorted[i] = window_copy[lowest_index];
-        window_copy[lowest_index] = INT_MAX;
+        window_copy[lowest_index] = 9999;
     }
 }
 __device__ void circularWindow::copyWindow() {
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < 27; i++) {
         window_copy[i] = window[i];
     }
 }
-__device__ float circularWindow::step(float* top) { 
-    addTop(top); 
+__device__ float circularWindow::step() {
     sortWindow(); 
-    return window_sorted[14]; 
+    return window_sorted[14];
 }
