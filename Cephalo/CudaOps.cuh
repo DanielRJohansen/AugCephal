@@ -32,7 +32,7 @@ private:
 
 class circularWindow {
 public:
-	int wsize = 27;
+	int size = 27;
 	float best = 0;
 
 	__device__ void add(float val);

@@ -23,3 +23,7 @@ const float CAM_ROTATION_STEP = 2 * 3.1415 / 20; // 20 clicks per rotation
 
 
 const float CLUSTER_MAX_SEP = 10;
+const float HU_MIN = -400;
+const float HU_MAX = 300;
+
+

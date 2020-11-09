@@ -1,5 +1,5 @@
 #pragma once
-
+#include "constants.h"
 #include <iostream>
 #include <vector>
 
@@ -23,6 +23,17 @@ struct Float3	//float3 taken by cuda
 	inline Float3 operator+(const Float3& a) const { return Float3(x + a.x, y + a.y, z + a.z); }
 };
 
+struct Color {
+	Color() {};
+	Color(float red, float gre, float blu) { r = red; g = gre; b = blu; };
+	float r;
+	float g;
+	float b;
+
+	Color add(Color c);
+	Color mul(float s);
+	Color cutOff(Color c);
+};
 
 struct Ray {
 	float relative_pitch;
@@ -33,7 +44,7 @@ struct Ray {
 	float cam_pitch;
 	float cam_yaw;
 	float alpha = 0;
-
+	Color color = Color(0, 0, 0);
 
 	float acc_color = 0;	//0..1
 	float acc_alpha = 0;	//0..1
@@ -48,12 +59,29 @@ struct Cluster {
 	void mergeCluster(Cluster c2);
 	void reCenter();
 };
-struct Block {
-	Block() {}
 
+
+
+struct Category {
+	Category(string n, float sta, float sto, Color c);
+
+
+	string name;
+	float start;
+	float centroid;
+	float stop;
+	float variance;
+	float var_scalar = 0.2;
+	Color color;
+};
+
+struct Block {
+
+	float alpha = 1;
 	float value = 0;
-	float alpha = 0.3;
 	Cluster *cluster;
+	Color color;
+	string name;
 
 	bool air = false;
 	bool bone = false;
@@ -62,3 +90,11 @@ struct Block {
 	bool fat = false;
 };
 
+
+struct ColorScheme {
+	ColorScheme();
+	int upper_limit = 300;
+	int lower_limit = -400;
+	Color colors[400 + 300];
+	int* id[400 + 300];
+};

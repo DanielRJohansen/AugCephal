@@ -43,6 +43,7 @@ private:
 	float cos_yaws[RAYS_PER_DIM];
 	
 	CudaOperator CudaOps;
+	ColorScheme colorscheme;
 
 	void initRays();
 	

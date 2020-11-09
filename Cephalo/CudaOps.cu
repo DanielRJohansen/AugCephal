@@ -12,6 +12,9 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks) {
     //Reset ray
     Ray ray = rayptr[index];
     rayptr[index].acc_color = 0;
+    rayptr[index].color.r = 0;
+    rayptr[index].color.g = 0;
+    rayptr[index].color.b = 0;
     rayptr[index].alpha = 0;
     rayptr[index].full = false;
 
@@ -52,13 +55,17 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks) {
         vol_z = (int)z + vol_z_range / 2;
                 
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && // Only proceed if coordinate is within volume!
-            vol_x < vol_x_range && vol_y < vol_y_range && vol_z < vol_z_range) {
-            
+            vol_x < vol_x_range && vol_y < vol_y_range && vol_z < vol_z_range) {           
             volume_index = vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
-
-            if (blocks[volume_index].air || blocks[volume_index].bone || blocks[volume_index].soft_tissue || blocks[volume_index].fat)
+            //Block block = blocks[volume_index];
+            //if (blocks[volume_index].air || blocks[volume_index].bone || blocks[volume_index].soft_tissue || blocks[volume_index].fat)
+            if (blocks[volume_index].air)
                 continue; 
             else {
+                rayptr[index].color.r += blocks[volume_index].color.r * blocks[volume_index].alpha;
+                rayptr[index].color.g += blocks[volume_index].color.g * blocks[volume_index].alpha;
+                rayptr[index].color.b += blocks[volume_index].color.b * blocks[volume_index].alpha;
+
                 rayptr[index].acc_color += blocks[volume_index].value * blocks[volume_index].alpha;
                 rayptr[index].alpha += blocks[volume_index].alpha;
                 if (rayptr[index].alpha >= 1)
@@ -69,15 +76,7 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks) {
 }
 
 
-__global__ void idunno(circularWindow* windows, int* a) {
 
-    if ( threadIdx.x == 1) {
-        circularWindow window = windows[0];
-        a[0] = window.wsize;
-        a[1] = 1;
-
-    }
-}
 
 __global__ void medianFilterKernel(Block* original, Block* volume, circularWindow* windows, int* finished) {
     
@@ -100,7 +99,7 @@ __global__ void medianFilterKernel(Block* original, Block* volume, circularWindo
     }
     
     
-    for (int z = 1; z < VOL_Z - 1; z++) {
+    for (int z = 2; z < VOL_Z - 1; z++) {
         int vol_index = z * VOL_Y * VOL_X + y * VOL_X + x;
 
         // If any is 0, we are on the edge
@@ -151,8 +150,10 @@ void CudaOperator::rayStep(Ray *rp) {
 
 
 void CudaOperator::medianFilter(Block* ori, Block* vol) {
-    // Copy rayptr to device
     int num_blocks = VOL_X * VOL_Y * VOL_Z;
+
+    cout << "Starting median filter of kernel size 5... Good luck (:" << endl;
+    cout << "Requires space " << num_blocks * sizeof(circularWindow) / 1000000 << " Mb" << endl;
     Block* original; Block* volume;
     circularWindow* windows;
     int* finished = new int[2];
@@ -204,9 +205,9 @@ __device__ void circularWindow::add(float val) {
 __device__ void circularWindow::sortWindow() {
     copyWindow();
     int lowest_index = 0;
-    for (int i = 0; i < 27; i++) {
+    for (int i = 0; i < size; i++) {
         float lowest = 9999;
-        for (int j = 0; j < 27; j++) {
+        for (int j = 0; j < size; j++) {
             if (window_copy[j] < lowest) {
                 lowest = window_copy[j];
                 lowest_index = j;
@@ -217,7 +218,7 @@ __device__ void circularWindow::sortWindow() {
     }
 }
 __device__ void circularWindow::copyWindow() {
-    for (int i = 0; i < 27; i++) {
+    for (int i = 0; i < size; i++) {
         window_copy[i] = window[i];
     }
 }

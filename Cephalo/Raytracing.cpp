@@ -74,11 +74,12 @@ void Raytracer::castRays() {
 void Raytracer::projectRaysOnPlane() {
 	for (int y = 0; y < RAYS_PER_DIM; y++) {
 		for (int x = 0; x < RAYS_PER_DIM; x++) {
-			float color = rayptr[xyToRayIndex(x, y)].acc_color * 256;
-			int c;
-			if (color > 255) c = 255;
-			else c = (int)color;
-			image->setPixel(x, y, sf::Color(c, c, c));
+			int col = (int) (rayptr[xyToRayIndex(x, y)].acc_color * 256);
+			if (col > 255) col = 255;
+
+			Color c = rayptr[xyToRayIndex(x, y)].color;
+			image->setPixel(x, y, sf::Color(c.r, c.g, c.b));
+			//image->setPixel(x, y, sf::Color(col, col, col));
 		}
 	}
 }

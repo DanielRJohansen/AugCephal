@@ -20,7 +20,9 @@ VolumeMaker::VolumeMaker() {
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
     CudaOperator CudaOps;
-    //CudaOps.medianFilter(copyVolume(volume), volume);
+    CudaOps.medianFilter(copyVolume(volume), volume);
+ 
+    categorizeBlocks();
     //medianFilter();
     //copyVolume(volume, volume_original);
     //medianFilter();
@@ -45,44 +47,41 @@ void VolumeMaker::loadScans() {
 
 void VolumeMaker::insertImInVolume(Mat img, int z) {
     
-    float min = -400;
-    float max = 300;
-    float norm_key = 1. / (max - min);
+    float norm_key = 1. / (HU_MAX - HU_MIN);
     Mat img_ = cv::Mat::zeros(Size(512, 512), CV_8UC1);
     for (int y = 0; y < img.cols; y++) {
         for (int x = 0; x < img.rows; x++) {
             double hu = img.at<uint16_t>(y, x) - 32768;
-            if (hu < min) {
+            if (hu < HU_MIN) {
                 volume[xyzToIndex(x, y, z)].air = true;
                 volume[xyzToIndex(x, y, z)].value = 0;
             }
-            else if (hu > max) {
+            else if (hu > HU_MAX) {
                 volume[xyzToIndex(x, y, z)].value = 1;
                 volume[xyzToIndex(x, y, z)].bone = true;
 
             }
             else if (hu > 100 && hu < 300) {
                 volume[xyzToIndex(x, y, z)].soft_tissue = true;
-                volume[xyzToIndex(x, y, z)].value = (hu - min) * norm_key;
+                volume[xyzToIndex(x, y, z)].value = (hu - HU_MIN) * norm_key;
 
             }
             else if (hu > -120 && hu < -90) {
                 volume[xyzToIndex(x, y, z)].fat = true;
-                volume[xyzToIndex(x, y, z)].value = (hu - min) * norm_key;
+                volume[xyzToIndex(x, y, z)].value = (hu - HU_MIN) * norm_key;
             }
             else 
-                volume[xyzToIndex(x, y, z)].value = (hu - min) * norm_key;
+                volume[xyzToIndex(x, y, z)].value = (hu - HU_MIN) * norm_key;
             
             //volume[xyzToIndex(x, y, z)].cluster->mean = volume[xyzToIndex(x, y, z)].value;
         }
     }
-
 }
+
 Block* VolumeMaker::copyVolume(Block* from) {
     Block* to = new Block[VOL_X * VOL_Y * VOL_Z];
     for (int i = 0; i < VOL_X * VOL_Y * VOL_Z; i++) {
         to[i] = from[i];
-        //cout << to[i].value << "  " << from[i].value << endl;
     }
     return to;
 }
@@ -107,12 +106,39 @@ void VolumeMaker::cluster() {
                         }
                     }
                 }
-
-
             }
         }
     }
 }
+
+void VolumeMaker::categorizeBlocks() {
+    ColorScheme colorscheme;
+    for (int z = 0; z < VOL_Z; z++) {
+        printf("Categorizing z level %d  \n", z);
+        for (int y = 0; y < VOL_Y; y++) {
+            for (int x = 0; x < VOL_X; x++) {
+                int block_index = xyzToIndex(x, y, z);
+                int hu_index =(int) (volume[block_index].value * (colorscheme.upper_limit- colorscheme.lower_limit -1));
+                //if (z == 2)
+                  //  cout << block_index << " " << hu_index  << "  " << volume[block_index].value << endl;
+                
+                volume[block_index].color = colorscheme.colors[hu_index];
+                //volume[block_index].name = colorscheme.names[hu_index];
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
 
 void VolumeMaker::medianFilter() {
     Block* vol_copy = copyVolume(volume);

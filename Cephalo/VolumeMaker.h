@@ -30,4 +30,5 @@ private:
 	void medianFilter();
 	Block* copyVolume(Block* from);
 	void cluster();
+	void categorizeBlocks();
 };
