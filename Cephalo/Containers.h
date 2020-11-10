@@ -63,15 +63,14 @@ struct Cluster {
 
 
 struct Category {
-	Category(string n, float sta, float sto, Color c);
+	Category(int id, float sta, float sto, Color c);
 
 
-	string name;
+	int id;
 	float start;
 	float centroid;
 	float stop;
-	float variance;
-	float var_scalar = 0.2;
+	float var_scalar = 0.1;
 	Color color;
 };
 
@@ -81,7 +80,8 @@ struct Block {
 	float value = 0;
 	Cluster *cluster;
 	Color color;
-	string name;
+	int cat_index;
+	int prev_cat_index;
 
 	bool air = false;
 	bool bone = false;
@@ -93,8 +93,9 @@ struct Block {
 
 struct ColorScheme {
 	ColorScheme();
+	Category *categories;
 	int upper_limit = 300;
 	int lower_limit = -400;
 	Color colors[400 + 300];
-	int* id[400 + 300];
+	int cat_indexes[400 + 300];
 };

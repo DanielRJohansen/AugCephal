@@ -86,6 +86,7 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Containers.cpp" />
+    <ClCompile Include="deleted_routines.cpp" />
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="ProxyMain.cpp" />
     <ClCompile Include="Raytracing.cpp" />

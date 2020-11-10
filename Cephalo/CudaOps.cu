@@ -129,6 +129,7 @@ CudaOperator::CudaOperator(){
     }
 
 
+
 void CudaOperator::newVolume(Block* bs) { 
     cudaMemcpy(blocks, bs, VOL_X*VOL_Y*VOL_Z * sizeof(Block), cudaMemcpyHostToDevice);
     //Volume only needs to go one way as it is not altered.

@@ -23,25 +23,26 @@ Color Color::mul(float s) {
 
 
 
-Category::Category(string n, float sta, float sto, Color c) {
-	name = n;
+Category::Category(int idd, float sta, float sto, Color c) {
+	id = idd;
 	start = sta; 
 	stop = sto;
 	color = c;
 	centroid = (start + stop) / 2;
-	variance = (stop - start) / 2 * var_scalar;
+	//variance = (stop - start) / 2 * var_scalar;
 }
 
 
 ColorScheme::ColorScheme() {
-	Category lung("lung", -700, -120, Color(212, 163, 163)); //Shoudl be 45
-	Category fat("fat", -120, -90, Color(225, 203, 52));
-	Category fluids("fluids", -90, 20, Color(128, 128, 200));
-	Category muscle("muscle", 20, 55, Color(201, 99, 99)); //Should be 35
-	Category clot("clot", 55, 200, Color(161, 44, 44));
-	Category bone("bone", 200, 2000, Color(255, 255, 255));
-	Category categories[6] = {lung, fat, fluids, muscle, clot, bone };
-	//Category categories[2] = { fat, muscle };
+	Category lung(0, -700, -120, Color(212, 163, 163)); //Shoudl be 45
+	Category fat(1, -120, -90, Color(225, 203, 52));
+	Category fluids(2, -90, 20, Color(128, 128, 200));
+	Category muscle(3, 20, 55, Color(201, 99, 99)); //Should be 35
+	Category clot(4, 55, 200, Color(161, 44, 44));
+	Category bone(5, 200, 2000, Color(255, 255, 255));
+	Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
+	categories = cats;
+
 	float hu;
 	for (int i = 0; i < 700; i++) {
 		colors[i] = Color(100, 100, 100);
@@ -49,12 +50,12 @@ ColorScheme::ColorScheme() {
 		for (int j = 0; j < 6; j++) {
 			
 			if (hu > categories[j].start && hu< categories[j].stop) {
-				//float diff = ((float)i - categories[j].centroid) * categories[j].variance;;
+				float diff = ((float)i - categories[j].centroid)/(700) * categories[j].var_scalar;;
 				colors[i] = categories[j].color;// .mul(1 + diff);
 				//names[i] = categories[j].name;
 				break;
 			}
 		}
-		cout << colors[i].r << endl;
+		//cout << colors[i].r << endl;
 	}
 }

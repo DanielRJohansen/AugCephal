@@ -19,7 +19,7 @@ class VolumeMaker
 public:
 	VolumeMaker();
 	Block* volume;
-
+	ColorScheme colorscheme;
 
 private:
 	string folder_path = "E:\\NIH_images\\003412_03_01\\";
@@ -27,8 +27,19 @@ private:
 	void loadScans();
 	int xyzToIndex(int x, int y, int z) { return z * 512 * 512 + y * 512 + x; }
 	void insertImInVolume(Mat im, int zcoord);
+
 	void medianFilter();
-	Block* copyVolume(Block* from);
 	void cluster();
 	void categorizeBlocks();
+
+	void open(int cat_index);
+	void close(int cat_index);
+	void dilate(int cat_index);
+	void erode(int cat_index);
+	void assignColorFromCat();
+
+
+	Block* copyVolume(Block* from);
+
+	
 };
