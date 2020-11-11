@@ -19,10 +19,8 @@ int main() {
 	VolumeMaker VM;
 	Environment Env(VM.volume);
 	Env.Run();
-	//Ray R(camera, 3.14 * 0.5, 3.14*0., 1.);
 
 	return 0;
-
 }
 
 

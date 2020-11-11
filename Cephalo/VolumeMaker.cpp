@@ -5,6 +5,7 @@
 
 
 VolumeMaker::VolumeMaker() {
+
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
     CudaOperator CudaOps;
@@ -35,7 +36,7 @@ void VolumeMaker::loadScans() {
     for (int i = 2; i < VOL_Z+2; i++) {
         string im_path = folder_path;
         im_path.append(v[i]);
-        cout << '\r' << im_path << endl;
+        cout << '\r' << im_path;
 
         Mat img = imread(im_path, cv::IMREAD_UNCHANGED);
         int z = i - 2;
@@ -45,6 +46,7 @@ void VolumeMaker::loadScans() {
         }
         insertImInVolume(img, z);
     }
+    cout << endl;
 }
 
 void VolumeMaker::insertImInVolume(Mat img, int z) {
@@ -115,15 +117,18 @@ void VolumeMaker::cluster() {
 
 void VolumeMaker::categorizeBlocks() {
     for (int z = 0; z < VOL_Z; z++) {
-        printf(" \r Categorizing z level %d  \n", z);
+        printf(" \r Categorizing z level %d ", z);
         for (int y = 0; y < VOL_Y; y++) {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
                 int hu_index =(int) (volume[block_index].value * (colorscheme.upper_limit- colorscheme.lower_limit -1));
+                if (block_index == 93051)
+                    cout << "here  " << hu_index << "    " << endl;;
                 //if (z == 2)
                   //  cout << block_index << " " << hu_index  << "  " << volume[block_index].value << endl;               
                 volume[block_index].color = colorscheme.colors[hu_index];
                 volume[block_index].cat_index = colorscheme.cat_indexes[hu_index];
+                volume[block_index].prev_cat_index = volume[block_index].cat_index;
             }
         }
     }
@@ -146,12 +151,15 @@ void VolumeMaker::dilate(int cat_i) {
         for (int y = 0; y < VOL_Y; y++) {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
-                if (volume[block_index].cat_index = cat_i) {
+                if (volume[block_index].prev_cat_index == cat_i) {
                     for (int z_ = -1; z_ < 2; z_++) {
                         for (int y_ = -1; y_ < 2; y_++) {
                             for (int x_ = -1; x_ < 2; x_++) {
                                 int block_index_ = xyzToIndex(x+x_, y+y_, y+z_);
-                                volume[block_index_].cat_index = cat_i;
+                                if (block_index_ >= 0 && block_index_ < VOL_X * VOL_Y * VOL_Z) {
+                                    volume[block_index_].prev_cat_index = volume[block_index_].cat_index;
+                                    volume[block_index_].cat_index = cat_i;
+                                }                               
                             }                               
                         }
                     }
@@ -169,15 +177,17 @@ void VolumeMaker::erode(int cat_i) {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
 
-                if (volume[block_index].cat_index = cat_i) {
+                if (volume[block_index].cat_index == cat_i) {
                     for (int z_ = -1; z_ < 2; z_++) {
                         for (int y_ = -1; y_ < 2; y_++) {
                             for (int x_ = -1; x_ < 2; x_++) {
                                 int block_index_ = xyzToIndex(x+x_, y+y_, z+z_);
-                                if (volume[block_index_].cat_index != cat_i) {
-                                    volume[block_index_].cat_index = volume[block_index_].prev_cat_index;
-                                    goto EROSION_DONE;
-                                }
+                                if (block_index_ > 0 && block_index_ < VOL_X * VOL_Y * VOL_Z) {
+                                    if (volume[block_index_].cat_index != cat_i) {
+                                        volume[block_index_].cat_index = volume[block_index_].prev_cat_index;
+                                        goto EROSION_DONE;
+                                    }
+                                }                               
                             }
                         }
                     }
@@ -190,8 +200,8 @@ void VolumeMaker::erode(int cat_i) {
 }
 void VolumeMaker::assignColorFromCat() {
     for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
+        cout << i << "  " <<volume[i].cat_index << endl;
         volume[i].color = colorscheme.categories[volume[i].cat_index].color;
-        cout << volume[i].cat_index << "     " << volume[i].color.r << endl;
     }
 }
 

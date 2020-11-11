@@ -63,6 +63,7 @@ struct Cluster {
 
 
 struct Category {
+	Category() {};
 	Category(int id, float sta, float sto, Color c);
 
 

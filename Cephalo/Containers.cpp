@@ -41,7 +41,11 @@ ColorScheme::ColorScheme() {
 	Category clot(4, 55, 200, Color(161, 44, 44));
 	Category bone(5, 200, 2000, Color(255, 255, 255));
 	Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
-	categories = cats;
+	categories = new Category[6];
+
+	for (int i = 0; i < 6; i++) {
+		categories[i] = cats[i];
+	}
 
 	float hu;
 	for (int i = 0; i < 700; i++) {
@@ -52,6 +56,9 @@ ColorScheme::ColorScheme() {
 			if (hu > categories[j].start && hu< categories[j].stop) {
 				float diff = ((float)i - categories[j].centroid)/(700) * categories[j].var_scalar;;
 				colors[i] = categories[j].color;// .mul(1 + diff);
+				cat_indexes[i] = categories[j].id;
+				cout << cat_indexes[i] << endl;
+				//cout << colors[i].r << endl;
 				//names[i] = categories[j].name;
 				break;
 			}
