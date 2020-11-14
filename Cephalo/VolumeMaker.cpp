@@ -13,21 +13,18 @@ VolumeMaker::VolumeMaker() {
     loadScans();
     CudaOperator CudaOps;
     CudaOps.medianFilter(copyVolume(volume), volume);
-
-    categorizeBlocks();
-    //open(0);    // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
-
-    open(0);
-    open(0);
-    open(0);
-    open(0);
-    open(0);
-    open(0);
-
-    //open(3);
-    //open(2);
+    CudaOps.medianFilter(copyVolume(volume), volume);
+    categorizeBlocks();   
+    close(5);
+    //open(5);    // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
+    //close(0);
     //open(1);
-    //assignColorFromCat();
+    //open(3);
+    //open(4);
+    int ignores[4] = {0,2,3,4};
+
+    setIgnores(ignores, 4);
+    assignColorFromCat();
     printf("\n");
 }
 std::ofstream outfile("E:\\NormImages\\gl3.txt");
@@ -100,7 +97,7 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
         for (int x = 0; x < img.rows; x++) {
             double hu = img.at<uint16_t>(y, x) - 32768;
             if (hu < HU_MIN) {
-                volume[xyzToIndex(x, y, z)].air = true;
+                volume[xyzToIndex(x, y, z)].ignore = true;
                 volume[xyzToIndex(x, y, z)].value = 0;
             }
             else if (hu > HU_MAX) {
@@ -165,16 +162,8 @@ void VolumeMaker::categorizeBlocks() {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
                 int hu_index =(int) (volume[block_index].value * (colorscheme.upper_limit- colorscheme.lower_limit -1));
-                //if (z == 2)
-                  //  cout << block_index << " " << hu_index  << "  " << volume[block_index].value << endl;               
-                volume[block_index].color = colorscheme.colors[hu_index];
                 volume[block_index].cat_index = colorscheme.cat_indexes[hu_index];
                 volume[block_index].prev_cat_index = volume[block_index].cat_index;
-                if (volume[block_index].cat_index != 0) {
-                    //cout << hu_index << endl;
-                    //cout << volume[block_index].cat_index << "  " << volume[block_index].prev_cat_index << endl << endl;
-                }
-                
             }
         }
     }
@@ -182,7 +171,7 @@ void VolumeMaker::categorizeBlocks() {
 
 void VolumeMaker::open(int cat_i) {
     dilate(cat_i);
-    //erode(cat_i);
+    erode(cat_i);
     //assignColorFromCat();
     updatePreviousCat();
 }
@@ -190,11 +179,12 @@ void VolumeMaker::close(int cat_i) {
     erode(cat_i);
     dilate(cat_i);
     //assignColorFromCat();
+    updatePreviousCat();
 }
 void VolumeMaker::dilate(int cat_i) {
     printf("\n");
     for (int z = 0; z < VOL_Z; z++) {
-        printf(" \r Dilating %s %f", colorscheme.category_ids[cat_i].c_str(), ((double)z/VOL_Z) +1./ (double)VOL_Z);
+        printf(" \r Dilating %s %d", colorscheme.category_ids[cat_i].c_str(), z);
         for (int y = 0; y < VOL_Y; y++) {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
@@ -202,9 +192,9 @@ void VolumeMaker::dilate(int cat_i) {
                     for (int z_ = -1; z_ < 2; z_++) {
                         for (int y_ = -1; y_ < 2; y_++) {
                             for (int x_ = -1; x_ < 2; x_++) {
-                                int block_index_ = xyzToIndex(x + x_, y + y_, y + z_);
+                                int block_index_ = xyzToIndex(x + x_, y + y_, z + z_);
                                 if (block_index_ >= 0 && block_index_ < VOL_X * VOL_Y * VOL_Z) {
-                                    volume[block_index_].prev_cat_index = volume[block_index_].cat_index;
+                                    //volume[block_index_].prev_cat_index = volume[block_index_].cat_index;
                                     volume[block_index_].cat_index = cat_i;
                                 }
                             }
@@ -219,11 +209,10 @@ void VolumeMaker::dilate(int cat_i) {
 void VolumeMaker::erode(int cat_i) {
     printf("\n");
     for (int z = 0; z < VOL_Z; z++) {
-        printf(" \r Eroding %s %f", colorscheme.category_ids[cat_i].c_str(), (float)z / VOL_Z);
+        printf(" \r Eroding %s %d", colorscheme.category_ids[cat_i].c_str(), z);
         for (int y = 0; y < VOL_Y; y++) {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
-
                 if (volume[block_index].cat_index == cat_i) {
                     for (int z_ = -1; z_ < 2; z_++) {
                         for (int y_ = -1; y_ < 2; y_++) {
@@ -231,7 +220,7 @@ void VolumeMaker::erode(int cat_i) {
                                 int block_index_ = xyzToIndex(x+x_, y+y_, z+z_);
                                 if (block_index_ > 0 && block_index_ < VOL_X * VOL_Y * VOL_Z) {
                                     if (volume[block_index_].cat_index != cat_i) {
-                                        volume[block_index_].cat_index = volume[block_index_].prev_cat_index;
+                                        volume[block_index].cat_index = volume[block_index].prev_cat_index;
                                         goto EROSION_DONE;
                                     }
                                 }                               
@@ -251,6 +240,15 @@ void VolumeMaker::updatePreviousCat() {
     }
 }
 
+void VolumeMaker::setIgnores(int* categories, int amount) {
+    for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
+        for (int j = 0; j < amount; j++) {
+            if (volume[i].cat_index == categories[j]) {
+                volume[i].ignore = true;
+            }
+        }
+    }
+}
 
 void VolumeMaker::assignColorFromCat() {
     for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {

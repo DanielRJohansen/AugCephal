@@ -85,7 +85,8 @@ struct Block {
 	int cat_index;
 	int prev_cat_index;
 
-	bool air = false;
+	bool ignore = false;
+
 	bool bone = false;
 	bool metal = false;
 	bool soft_tissue = false;

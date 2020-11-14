@@ -59,7 +59,7 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks) {
             volume_index = vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
             //Block block = blocks[volume_index];
             //if (blocks[volume_index].air || blocks[volume_index].bone || blocks[volume_index].soft_tissue || blocks[volume_index].fat)
-            if (blocks[volume_index].air)
+            if (blocks[volume_index].ignore)
                 continue; 
             else {
                 rayptr[index].color.r += blocks[volume_index].color.r * blocks[volume_index].alpha;

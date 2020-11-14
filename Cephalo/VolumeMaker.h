@@ -39,6 +39,7 @@ private:
 	void erode(int cat_index);
 	void updatePreviousCat();
 
+	void setIgnores(int* categories, int amount);
 	void assignColorFromCat();
 
 
