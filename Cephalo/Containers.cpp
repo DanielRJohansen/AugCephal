@@ -53,16 +53,12 @@ ColorScheme::ColorScheme() {
 		hu = (i + lower_limit);
 		for (int j = 0; j < 6; j++) {
 			
-			if (hu > categories[j].start && hu< categories[j].stop) {
+			if (hu > categories[j].start && hu<= categories[j].stop) {
 				float diff = ((float)i - categories[j].centroid)/(700) * categories[j].var_scalar;;
 				colors[i] = categories[j].color;// .mul(1 + diff);
 				cat_indexes[i] = categories[j].id;
-				cout << cat_indexes[i] << endl;
-				//cout << colors[i].r << endl;
-				//names[i] = categories[j].name;
 				break;
 			}
 		}
-		//cout << colors[i].r << endl;
 	}
 }

@@ -2,6 +2,7 @@
 #include "constants.h"
 #include <iostream>
 #include <vector>
+#include <string>
 
 using namespace std;
 
@@ -99,4 +100,6 @@ struct ColorScheme {
 	int lower_limit = -400;
 	Color colors[400 + 300];
 	int cat_indexes[400 + 300];
+	string category_ids[6] = { "lung", "fat", "fluids", "muscle", "clot", "bone" };
+
 };

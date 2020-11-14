@@ -34,8 +34,11 @@ private:
 
 	void open(int cat_index);
 	void close(int cat_index);
+
 	void dilate(int cat_index);
 	void erode(int cat_index);
+	void updatePreviousCat();
+
 	void assignColorFromCat();
 
 

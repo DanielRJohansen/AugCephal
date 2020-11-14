@@ -66,7 +66,7 @@ __global__ void stepKernel(Ray* rayptr, Block *blocks) {
                 rayptr[index].color.g += blocks[volume_index].color.g * blocks[volume_index].alpha;
                 rayptr[index].color.b += blocks[volume_index].color.b * blocks[volume_index].alpha;
 
-                rayptr[index].acc_color += blocks[volume_index].value * blocks[volume_index].alpha;
+                //rayptr[index].acc_color += blocks[volume_index].value * blocks[volume_index].alpha;
                 rayptr[index].alpha += blocks[volume_index].alpha;
                 if (rayptr[index].alpha >= 1)
                     rayptr[index].full = true;
@@ -153,7 +153,7 @@ void CudaOperator::rayStep(Ray *rp) {
 void CudaOperator::medianFilter(Block* ori, Block* vol) {
     int num_blocks = VOL_X * VOL_Y * VOL_Z;
 
-    cout << "Starting median filter of kernel size 5... Good luck (:" << endl;
+    cout << "Starting median filter of kernel size 3" << endl;
     cout << "Requires space " << num_blocks * sizeof(circularWindow) / 1000000 << " Mb" << endl;
     Block* original; Block* volume;
     circularWindow* windows;
