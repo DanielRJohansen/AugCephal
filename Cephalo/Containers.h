@@ -54,11 +54,9 @@ struct Ray {
 };
 
 struct Cluster {
-	//vector<Block> blocks;
-	float mean;
-	
-	void mergeCluster(Cluster c2);
-	void reCenter();
+	Cluster(int i, int s) { id = i; size = s; };
+	int id;
+	int size;
 };
 
 
@@ -78,13 +76,14 @@ struct Category {
 
 struct Block {
 
-	float alpha = 1;
+	float alpha = 1./10;
 	float value = 0;
-	Cluster *cluster;
+	//Cluster *cluster;
 	Color color;
 	int cat_index;
 	int prev_cat_index;
 
+	int cluster_id = -1;// No cluster
 	bool ignore = false;
 
 	bool bone = false;

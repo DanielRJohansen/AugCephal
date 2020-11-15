@@ -24,22 +24,30 @@ public:
 private:
 	string folder_path = "E:\\NIH_images\\003412_03_01\\";
 
+	//Initial functions
 	void loadScans();
-	int xyzToIndex(int x, int y, int z) { return z * 512 * 512 + y * 512 + x; }
 	void insertImInVolume(Mat im, int zcoord);
 
+	// Helper functions
+	int xyzToIndex(int x, int y, int z);
+	bool isLegal(int x, int y, int z);
+	bool isNotClustered(int bi);
+	bool isCategory(int bi, int cat_id);
+
 	void medianFilter();
-	void cluster();
 	void categorizeBlocks();
+
+	void cluster(int category_index, int min_cluster_size);
+	int propagateCluster(int x, int y, int z, int cluster_id, int category_index, int depth);
+	//returns the increase in cluster size. Requires reserve stack size 4Gb.
 
 	void open(int cat_index);
 	void close(int cat_index);
-
 	void dilate(int cat_index);
 	void erode(int cat_index);
 	void updatePreviousCat();
 
-	void setIgnores(int* categories, int amount);
+	void setIgnores(vector<int> ignores);
 	void assignColorFromCat();
 
 
