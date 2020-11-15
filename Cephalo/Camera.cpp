@@ -1,15 +1,19 @@
 #include "Camera.h"
 
 
-void Camera::updatePos(char key_pressed) {	//char n to skip change
-	if (key_pressed == 'u')
+void Camera::updatePos(string action) {	//char n to skip change
+	if (action == "u")
 		pitch -= rotation_step;
-	else if (key_pressed == 'd')
+	else if (action == "d")
 		pitch += rotation_step;
-	else if (key_pressed == 'l')
+	else if (action == "l")
 		yaw -= rotation_step;
-	else if (key_pressed == 'r')
+	else if (action == "r")
 		yaw += rotation_step;
+	else if (action == "zoom_in")
+		radius -= CAM_RADIUS_INC;
+	else if (action == "zoom_out")
+		radius += CAM_RADIUS_INC;
 	cylindricToCartesian();
 	calcFocalPlane();
 }

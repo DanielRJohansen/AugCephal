@@ -18,6 +18,8 @@ class VolumeMaker
 {
 public:
 	VolumeMaker();
+	VolumeMaker(bool default_config);
+
 	Block* volume;
 	ColorScheme colorscheme;
 

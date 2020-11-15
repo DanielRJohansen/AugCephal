@@ -2,11 +2,9 @@
 #include "Environment.h"
 #include "Raytracing.h"
 #include "CudaOps.cuh"
-#include "VolumeMaker.h"
-//#include "Camera.h"
-//#include "Tools.h"
-//#include <opencv2/imgproc/imgproc.hpp>
-//#include <cv.h>
+#include <thread>
+
+
 using namespace std;
 
 class A {
@@ -16,8 +14,8 @@ public:
 
 int main() {
 
-	VolumeMaker VM;
-	Environment Env(VM.volume);
+	Environment Env;
+
 	Env.Run();
 
 	return 0;

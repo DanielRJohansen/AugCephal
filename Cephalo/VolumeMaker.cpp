@@ -5,31 +5,30 @@
 #include <fstream>  
 
 
+VolumeMaker::VolumeMaker() {}
 
 
-VolumeMaker::VolumeMaker() {
-
+VolumeMaker::VolumeMaker(bool default_config) {
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
     CudaOperator CudaOps;
     CudaOps.medianFilter(copyVolume(volume), volume);
     categorizeBlocks();   
-    open(5);
-    //close(2);
-    open(1);
-    cluster(5, 20);
-    cluster(1, 10);
-    cluster(2, 10);
-    //open(5);    // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
-    //close(0);
-    //open(1);
-    //open(3);
-    //open(4);
-    vector<int> ignores = {0,2,4};
 
-    setIgnores(ignores);
+    // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
+    if (default_config) {
+        open(5);
+        //close(2);
+        open(1);
+        cluster(5, 20);
+        cluster(1, 10);
+        cluster(2, 10);
+        vector<int> ignores = { 0,2,4 };
+
+        setIgnores(ignores);
+    }
+    
     assignColorFromCat();
-    printf("\n");
 }
 std::ofstream outfile("E:\\NormImages\\gl3.txt");
 

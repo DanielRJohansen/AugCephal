@@ -6,7 +6,7 @@ using namespace std;
 
 class Camera {
 public:
-	Camera() { updatePos('n');}
+	Camera() { updatePos("n");}
 
 	Float3 origin;
 	float radius = CAM_RADIUS;
@@ -19,7 +19,7 @@ public:
 	
 	double rotation_step = CAM_ROTATION_STEP;
 
-	void updatePos(char key_pressed);
+	void updatePos(string action);
 private:
 	void cylindricToCartesian();
 	void calcFocalPlane();
