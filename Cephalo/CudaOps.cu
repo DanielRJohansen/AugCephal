@@ -163,9 +163,6 @@ void CudaOperator::rayStepMS(Ray* rp, CompactCam cc) {
         cudaStreamCreate(&(stream[i]));
     }
     printf("Sending\n");
-    //cudaMemcpy(&compact_cam, &cc, sizeof(CompactCam), cudaMemcpyHostToDevice);
-    printf("%f       %f           %f", cc.origin.x, cc.origin.y, cc.origin.z);
-
 
 
     for (int i = 0; i < N_STREAMS; i++) {
