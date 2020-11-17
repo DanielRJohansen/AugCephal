@@ -15,15 +15,16 @@ VolumeMaker::VolumeMaker(bool default_config) {
     CudaOps.medianFilter(copyVolume(volume), volume);
     categorizeBlocks();   
     // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
+    // air = -1, unknown = -2
     if (default_config) {
         open(5);
-        close(0);
+        //close(0);
         //close(2);
-        cluster(5, 2000);
-        //cluster(0, 500);
-        cluster(3, 50);
+        cluster(5, 5000);
+        cluster(0, 5000);
+        cluster(3, 500);
         cluster(1, 10);
-        cluster(2, 10);
+        //cluster(2, 10);
         //vector<int> ignores_tmp = { 0,2,4 };
         //setIgnores(ignores_tmp);
     }
@@ -105,22 +106,10 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
             }
             else if (hu > HU_MAX) {
                 volume[xyzToIndex(x, y, z)].value = 1;
-                volume[xyzToIndex(x, y, z)].bone = true;
 
-            }
-            else if (hu > 100 && hu < 300) {
-                volume[xyzToIndex(x, y, z)].soft_tissue = true;
-                volume[xyzToIndex(x, y, z)].value = (hu - HU_MIN) * norm_key;
-
-            }
-            else if (hu > -120 && hu < -90) {
-                volume[xyzToIndex(x, y, z)].fat = true;
-                volume[xyzToIndex(x, y, z)].value = (hu - HU_MIN) * norm_key;
             }
             else 
                 volume[xyzToIndex(x, y, z)].value = (hu - HU_MIN) * norm_key;
-            
-            //volume[xyzToIndex(x, y, z)].cluster->mean = volume[xyzToIndex(x, y, z)].value;
         }
     }
 }
@@ -160,8 +149,11 @@ void VolumeMaker::cluster(int category_index, int min_cluster_size) {           
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
                 if (volume[block_index].cluster_id != 0 && volume[block_index].cat_index == category_index) {
-                    if (clusters[volume[block_index].cluster_id].size < min_cluster_size)
+                    if (clusters[volume[block_index].cluster_id].size < min_cluster_size) {
                         volume[block_index].ignore = true;
+                        volume[block_index].cat_index = -2; //Is unknown now;
+                    }
+                        
                 }              
             }
         }
@@ -196,6 +188,11 @@ void VolumeMaker::categorizeBlocks() {
         for (int y = 0; y < VOL_Y; y++) {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
+                if (volume[block_index].ignore) {
+                    volume[block_index].cat_index = colorscheme.cat_indexes[0];
+                    volume[block_index].prev_cat_index = volume[block_index].cat_index;
+                    continue;
+                }
                 int hu_index =(int) (volume[block_index].value * (colorscheme.upper_limit- colorscheme.lower_limit -1));
                 volume[block_index].cat_index = colorscheme.cat_indexes[hu_index];
                 volume[block_index].prev_cat_index = volume[block_index].cat_index;
@@ -300,7 +297,8 @@ bool VolumeMaker::setIgnore(int cat_index, bool hide) {
 }
 void VolumeMaker::assignColorFromCat() {
     for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
-        //cout << i << "  " <<volume[i].cat_index << endl;
+        if (volume[i].ignore)  //This is air
+            continue;
         volume[i].color = colorscheme.categories[volume[i].cat_index].color;
         //volume[i].color = colorscheme.categories[5].color;
     }

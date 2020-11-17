@@ -37,28 +37,21 @@ void Raytracer::initRays() {
 
 
 void Raytracer::render() {
-	castRays();
-	CudaOps.rayStepMS(rayptr);
+	//castRays();
+	CudaOps.rayStepMS(rayptr, CompactCam(camera->origin, camera->plane_pitch, camera->plane_yaw, camera->radius));
 	projectRaysOnPlane();
 }
 
 
 
 
-void Raytracer::castRays() {
-	for (int i = 0; i < NUM_RAYS; i++) {
-		rayptr[i].cam_pitch = camera->plane_pitch;
-		rayptr[i].cam_yaw = camera->plane_yaw;
-		rayptr[i].origin = camera->origin;
-	}
-}
 
 
 void Raytracer::projectRaysOnPlane() {
 	for (int y = 0; y < RAYS_PER_DIM; y++) {
 		for (int x = 0; x < RAYS_PER_DIM; x++) {
-			int col = (int) (rayptr[xyToRayIndex(x, y)].acc_color * 256);
-			if (col > 255) col = 255;
+			//int col = (int) (rayptr[xyToRayIndex(x, y)].acc_color * 256);
+			//if (col > 255) col = 255;
 
 			Color c = rayptr[xyToRayIndex(x, y)].color;
 			image->setPixel(x, y, sf::Color(c.r, c.g, c.b));

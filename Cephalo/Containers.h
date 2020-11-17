@@ -37,17 +37,13 @@ struct Color {
 };
 
 struct Ray {
-	float relative_pitch;
-	float relative_yaw;
+	//float relative_pitch;
+	//float relative_yaw;
 	Float3 rel_unit_vector;
 	Float3 step_vector;	//x, y, z
-	Float3 origin;		//x, y, z
-	float cam_pitch;
-	float cam_yaw;
 	float alpha = 0;
 	Color color = Color(0, 0, 0);
 
-	float acc_color = 0;	//0..1
 	float acc_alpha = 0;	//0..1
 	bool full = false;		//
 
@@ -85,21 +81,27 @@ struct Block {
 
 	int cluster_id = -1;// No cluster
 	bool ignore = false;
-
-	bool bone = false;
-	bool metal = false;
-	bool soft_tissue = false;
-	bool fat = false;
 };
 
 
 struct ColorScheme {
 	ColorScheme();
 	Category *categories;
-	int upper_limit = 300;
-	int lower_limit = -400;
+	int upper_limit = HU_MAX;
+	int lower_limit = HU_MIN;
 	Color colors[400 + 300];
 	int cat_indexes[400 + 300];
 	string category_ids[6] = { "lung", "fat", "fluids", "muscle", "clot", "bone" };
 
+
+};
+
+struct CompactCam {
+	CompactCam(Float3 origin, float pitch, float yaw, float r);
+	Float3 origin;
+	float radius;
+	float sin_pitch;
+	float cos_pitch;
+	float sin_yaw;
+	float cos_yaw;
 };

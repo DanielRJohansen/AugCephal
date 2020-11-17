@@ -20,9 +20,10 @@ public:
 	CudaOperator();
 	void newVolume(Block* blocks);
 	void rayStep(Ray *rp);
-	void rayStepMS(Ray* rp);
+	void rayStepMS(Ray* rp, CompactCam cc);
 
 	Ray* rayptr;
+	CompactCam* compact_cam;
 	Float2 *ray_block;
 	Block *blocks;			//X, Y, Z, [color, alpha]
 	

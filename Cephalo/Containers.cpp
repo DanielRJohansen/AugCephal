@@ -44,7 +44,10 @@ ColorScheme::ColorScheme() {
 	}
 
 	float hu;
-	for (int i = 0; i < 700; i++) {
+	// We need to not only ignore air, but also not assign a recognizeable category, so it can't be un-ignored.
+	colors[0] = Color(0, 0, 0);
+	cat_indexes[0] = -1;
+	for (int i = 1; i < 700; i++) {
 		colors[i] = Color(100, 100, 100);
 		hu = (i + lower_limit);
 		for (int j = 0; j < 6; j++) {
@@ -57,4 +60,13 @@ ColorScheme::ColorScheme() {
 			}
 		}
 	}
+}
+
+CompactCam::CompactCam(Float3 o, float p, float y, float r) {
+	origin = o;
+	sin_pitch = sin(p);
+	cos_pitch = cos(p);
+	sin_yaw = sin(y);
+	cos_yaw = cos(y);
+	radius = r;
 }
