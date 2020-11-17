@@ -29,7 +29,10 @@ public:
 	void newVolume(Block* volume) { CudaOps.newVolume(volume); }
 
 	sf::Image *image;	//
+
+	void updateVol(Block* vol) { CudaOps.newVolume(vol); }
 	void render();
+
 	~Raytracer();
 
 private:

@@ -21,7 +21,7 @@ void Raytracer::initRays() {
 	for (int y = 0; y < RAYS_PER_DIM; y++) {
 		for (int x = 0; x < RAYS_PER_DIM; x++) {
 			Ray ray;
-			float x_ = -0.5 + 0.5 / rpd + x / rpd;// Shift by half increment to have
+			float x_ = 0.5 - 0.5 / rpd - x / rpd;// Shift by half increment to have
 			float y_ = 0.5 - 0.5 / rpd - y / rpd;
 			float d = sqrt(FOCAL_LEN* FOCAL_LEN + x_ * x_ + y_ * y_) ;
 			
@@ -37,26 +37,9 @@ void Raytracer::initRays() {
 
 
 void Raytracer::render() {
-	//time_t start, finish;
-
-	//time(&start);
 	castRays();
-	//time(&finish);
-	//float t1 = difftime(finish, start);
-
-	//time(&start);
-	CudaOps.rayStep(rayptr);
-	//time(&finish);
-	//float t2 = difftime(finish, start);
-
-	//time(&start);
+	CudaOps.rayStepMS(rayptr);
 	projectRaysOnPlane();
-	//time(&finish);
-	//float t3 = difftime(finish, start);
-
-	//printf("Cast time: %f   Step time: %f   Projection time: %f", t1, t2, t3);
-	cout << "Rendering finished" << endl;
-
 }
 
 

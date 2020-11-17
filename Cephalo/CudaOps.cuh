@@ -20,14 +20,19 @@ public:
 	CudaOperator();
 	void newVolume(Block* blocks);
 	void rayStep(Ray *rp);
+	void rayStepMS(Ray* rp);
+
 	Ray* rayptr;
+	Float2 *ray_block;
 	Block *blocks;			//X, Y, Z, [color, alpha]
 	
 
 	// For VolumeMaker
 	void medianFilter(Block *original, Block* volume);
 private:
-	
+	int blocks_per_sm;
+	int stream_size;
+	int stream_bytes;
 };
 
 class circularWindow {

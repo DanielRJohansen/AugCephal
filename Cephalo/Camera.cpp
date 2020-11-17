@@ -3,13 +3,13 @@
 
 void Camera::updatePos(string action) {	//char n to skip change
 	if (action == "u")
-		pitch -= rotation_step;
-	else if (action == "d")
 		pitch += rotation_step;
+	else if (action == "d")
+		pitch -= rotation_step;
 	else if (action == "l")
-		yaw -= rotation_step;
-	else if (action == "r")
 		yaw += rotation_step;
+	else if (action == "r")
+		yaw -= rotation_step;
 	else if (action == "zoom_in")
 		radius -= CAM_RADIUS_INC;
 	else if (action == "zoom_out")

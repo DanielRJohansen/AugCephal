@@ -14,18 +14,18 @@ VolumeMaker::VolumeMaker(bool default_config) {
     CudaOperator CudaOps;
     CudaOps.medianFilter(copyVolume(volume), volume);
     categorizeBlocks();   
-
     // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
     if (default_config) {
         open(5);
+        close(0);
         //close(2);
-        open(1);
-        cluster(5, 20);
+        cluster(5, 2000);
+        //cluster(0, 500);
+        cluster(3, 50);
         cluster(1, 10);
         cluster(2, 10);
-        vector<int> ignores = { 0,2,4 };
-
-        setIgnores(ignores);
+        //vector<int> ignores_tmp = { 0,2,4 };
+        //setIgnores(ignores_tmp);
     }
     
     assignColorFromCat();
@@ -78,7 +78,7 @@ void VolumeMaker::loadScans() {
         cout << '\r' << im_path;
 
         Mat img = imread(im_path, cv::IMREAD_UNCHANGED);
-        int z = i - 2;
+        int z = VOL_Z-1-i + 2;
         if (img.empty()) {
             cout << "imload failed" << endl;
             return;
@@ -219,7 +219,7 @@ void VolumeMaker::close(int cat_i) {
 void VolumeMaker::dilate(int cat_i) {
     printf("\n");
     for (int z = 0; z < VOL_Z; z++) {
-        printf(" \r Dilating %s %d", colorscheme.category_ids[cat_i].c_str(), z);
+        //printf(" \r Dilating %s %d", colorscheme.category_ids[cat_i].c_str(), z);
         for (int y = 0; y < VOL_Y; y++) {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
@@ -244,7 +244,7 @@ void VolumeMaker::dilate(int cat_i) {
 void VolumeMaker::erode(int cat_i) {
     printf("\n");
     for (int z = 0; z < VOL_Z; z++) {
-        printf(" \r Eroding %s %d", colorscheme.category_ids[cat_i].c_str(), z);
+        //printf(" \r Eroding %s %d", colorscheme.category_ids[cat_i].c_str(), z);
         for (int y = 0; y < VOL_Y; y++) {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
@@ -277,21 +277,32 @@ void VolumeMaker::updatePreviousCat() {
 
 void VolumeMaker::setIgnores(vector<int> ignores) {
     for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
-        for (int j = 0; j < ignores.size(); j++) {
-            if (volume[i].cat_index == ignores[j]) {
+        for (int j = 0; j < 6; j++) {
+            if (ignores[volume[i].cat_index]) {
                 volume[i].ignore = true;
                 break;
             }
         }
     }
 }
-
+bool VolumeMaker::setIgnore(int cat_index, bool hide) {
+    if (ignores[cat_index] == hide) {   // Check if anything is changed
+        return false;
+    }
+    ignores[cat_index] = hide;
+    //printf("Ignoring category %d \n", cat_index);
+    for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
+        if (volume[i].cat_index == cat_index) {
+            volume[i].ignore = hide;
+        }       
+    }
+    return true;
+}
 void VolumeMaker::assignColorFromCat() {
     for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
         //cout << i << "  " <<volume[i].cat_index << endl;
         volume[i].color = colorscheme.categories[volume[i].cat_index].color;
         //volume[i].color = colorscheme.categories[5].color;
-
     }
 }
 

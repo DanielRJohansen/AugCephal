@@ -2,8 +2,8 @@
 
 
 Environment::Environment() {
-	VolumeMaker VM(false);
-	volume = VM.volume;
+	VM = new VolumeMaker(true);
+	volume = VM->volume;
 	camera = new Camera();
 	image = new sf::Image();
 	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
@@ -37,7 +37,11 @@ void Environment::Run() {
 				sprite.setTexture(texture, true);
 			}
 		}
-
+		if (handleTasks()) {
+			texture.loadFromImage(*image);
+			sprite.setTexture(texture, true);
+		}
+		
 
 		window.draw(sprite);
 		window.display();
@@ -49,16 +53,22 @@ void Environment::updateSprite() {
 	
 }
 
-
+bool Environment::handleTasks() {
+	if (volume_updated) {
+		RT.render();
+		volume_updated = false;
+		return true;
+	}
+}
 bool Environment::handleEvents(sf::Event event) {
 	string action;
-	if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+	/*if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
 		action = "zoom_in";
 	}
 	else if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
 		action = "zoom_out";
-	}
-	else if (event.type == sf::Event::KeyPressed) {
+	}*/
+	if (event.type == sf::Event::KeyPressed) {
 		switch (event.key.code)
 		{
 		case(sf::Keyboard::Up):
@@ -72,6 +82,12 @@ bool Environment::handleEvents(sf::Event event) {
 			break;
 		case(sf::Keyboard::Right):
 			action = 'r';
+			break;
+		case(sf::Keyboard::I):
+			action = "zoom_in";
+			break;
+		case(sf::Keyboard::O):
+			action = "zoom_out";
 			break;
 		default:
 			return false;		// Do nothing new with no keypress
@@ -87,12 +103,50 @@ bool Environment::handleEvents(sf::Event event) {
 
 void Environment::handleConsole() {
 	string type;
+	int type_index;
+	bool hide;
 	string types[6] = { "lung", "fat", "fluids", "muscle", "clot", "bone" };
 
 	while (true) {
+		if (volume_updated) {
+			continue;
+		}
 		printf("Change type visibility? (%s,%s,%s,%s,%s,%s)\n", types[0].c_str(), types[1].c_str(), 
 			types[2].c_str(), types[3].c_str(), types[4].c_str(), types[5].c_str());
 		cin >> type;
-		cout << type;
+		printf("Hide/Show (1/0) \n");
+		cin >> hide;
+
+		// I'm sorry...
+		if (type == "lung") {
+			type_index = 0;
+		}
+		else if (type == "fat") {
+			type_index = 1;
+		}
+		else if (type == "fluids") {
+			type_index = 2;
+		}
+		else if (type == "muscle") {
+			type_index = 3;
+		}
+		else if (type == "clot") {
+			type_index = 4;
+		}
+		else if (type == "bone") {
+			type_index = 5;
+		}
+		else
+			continue;
+		if (VM->setIgnore(type_index, hide)) {
+			printf("Updating volume...");
+			RT.updateVol(VM->volume);
+			volume_updated = true;
+			printf(" Volume updated\n");
+		}
 	}
+}
+
+void Environment::scheduleTask(Task t) {
+	tasks.push_back(t);
 }

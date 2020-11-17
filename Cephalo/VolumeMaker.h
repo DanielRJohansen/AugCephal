@@ -20,6 +20,8 @@ public:
 	VolumeMaker();
 	VolumeMaker(bool default_config);
 
+	bool setIgnore(int cat_index, bool hide);
+
 	Block* volume;
 	ColorScheme colorscheme;
 
@@ -49,11 +51,12 @@ private:
 	void erode(int cat_index);
 	void updatePreviousCat();
 
+	bool ignores[6] = { false };
+
 	void setIgnores(vector<int> ignores);
+
 	void assignColorFromCat();
 
-
 	Block* copyVolume(Block* from);
-
 	
 };

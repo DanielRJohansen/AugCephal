@@ -33,8 +33,8 @@ ColorScheme::ColorScheme() {
 	Category lung(0, -700, -120, Color(212, 163, 163)); //Shoudl be 45
 	Category fat(1, -120, -90, Color(225, 203, 52));
 	Category fluids(2, -90, 20, Color(128, 128, 200));
-	Category muscle(3, 20, 55, Color(201, 99, 99)); //Should be 35
-	Category clot(4, 55, 200, Color(161, 44, 44));
+	Category muscle(3, 20, 55, Color(161, 44, 44)); //Should be 35
+	Category clot(4, 55, 200, Color(201, 99, 99));
 	Category bone(5, 200, 2000, Color(255, 255, 255));
 	Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
 	categories = new Category[6];

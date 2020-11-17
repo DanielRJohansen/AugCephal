@@ -76,7 +76,7 @@ struct Category {
 
 struct Block {
 
-	float alpha = 1./10;
+	float alpha = 1./5;
 	float value = 0;
 	//Cluster *cluster;
 	Color color;
