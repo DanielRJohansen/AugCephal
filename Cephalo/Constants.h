@@ -19,7 +19,7 @@ const int CAM_RADIUS_INC = 100;
 //Dataset specific!!
 const int VOL_X = 512;
 const int VOL_Y = 512;
-const int VOL_Z = 61;
+const int VOL_Z = 38;
 //const int VOL_MAX_WIDTH = sqrt(VOL_X * VOL_X + VOL_Y * VOL_Y + VOL_Z*VOL_Z);
 
 

@@ -26,8 +26,8 @@ public:
 	ColorScheme colorscheme;
 
 private:
-	string folder_path = "E:\\NIH_images\\003412_03_01\\";
-
+	//string folder_path = "E:\\NIH_images\\003412_03_01\\";
+	string folder_path = "E:\\NIH_images\\002411_02_02\\";
 	//Initial functions
 	void loadScans();
 	void insertImInVolume(Mat im, int zcoord);

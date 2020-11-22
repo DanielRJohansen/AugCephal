@@ -30,14 +30,17 @@ public:
 	CompactCam* compact_cam;
 	Float2 *ray_block;
 	Block *blocks;			//X, Y, Z, [color, alpha]
-	
+	uint8_t* dev_image;
+	uint8_t* host_image;
+
 
 	// For VolumeMaker
 	void medianFilter(Block *original, Block* volume);
 private:
 	int blocks_per_sm;
 	int stream_size;
-	int stream_bytes;
+	int ray_stream_bytes;
+	int image_stream_bytes;
 };
 
 class circularWindow {

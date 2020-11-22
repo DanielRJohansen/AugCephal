@@ -1,4 +1,59 @@
 /*
+* 
+* 
+*
+
+
+void CudaOperator::rayStepMS(Ray* rp, CompactCam cc) {
+    cudaStream_t stream[N_STREAMS];
+    for (int i = 0; i < N_STREAMS; i++) {
+        cudaStreamCreate(&(stream[i]));
+    }
+    printf("Sending\n");
+
+
+    for (int i = 0; i < N_STREAMS; i++) {
+        int offset = i * stream_size;
+        cudaMemcpyAsync(&rayptr[offset], &rp[offset], stream_bytes, cudaMemcpyHostToDevice, stream[i]);
+    }
+
+
+    printf("to device\n");
+    for (int i = 0; i < N_STREAMS; i++) {
+        int offset = i * stream_size;
+        stepKernelMS << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr,
+            blocks, cc, offset);
+    }
+    printf("execution\n");
+    for (int i = 0; i < N_STREAMS; i++) {
+        int offset = i * stream_size;
+        cudaMemcpyAsync(&rp[offset], &rayptr[offset], stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
+
+    }
+
+    printf("Received\n");
+    cudaDeviceSynchronize();
+    for (int i = 0; i < N_STREAMS; i++) {
+        cudaStreamDestroy(stream[i]);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 __global__ void stepKernel(Ray* rayptr, Block *blocks, Float2* ray_block) {
     int ray_x = threadIdx.x + 1024 * ray_block->x;
     int ray_y = blockIdx.x + 1024 * ray_block->y;

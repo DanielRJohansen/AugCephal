@@ -2,7 +2,7 @@
 
 
 Environment::Environment() {
-	VM = new VolumeMaker(true);
+	VM = new VolumeMaker(false);
 	volume = VM->volume;
 	camera = new Camera();
 	image = new sf::Image();
@@ -24,25 +24,29 @@ void Environment::Run() {
 	sf::Sprite sprite;
 	RT.render(cuda_texture);
 	texture.loadFromImage(*image);
-	sprite.setTexture(texture, true);
-
-
-
+	//sprite.setTexture(texture, true);
+	/*
+	uint8_t* arr = new uint8_t[400 * 400 * 4];
+	for (int i = 0; i < 400 * 400 * 4; i++) {
+		arr[i] = 255;
+	}
+	cuda_texture->update(arr);*/
+	sprite.setTexture(*cuda_texture, true);
 
 	while (window.isOpen()) {
 		window.clear();
-
+		
 		// Handle events
 		sf::Event event;	// Create new each time so no event is applied twice
 		if (window.pollEvent(event)) {
 			if (handleEvents(event)) {	//If relevant event happened
-				texture.loadFromImage(*image);
-				sprite.setTexture(texture, true);
+				//texture.loadFromImage(*image);
+				sprite.setTexture(*cuda_texture, true);
 			}
 		}
 		if (handleTasks()) {
-			texture.loadFromImage(*image);
-			sprite.setTexture(texture, true);
+			//texture.loadFromImage(*image);
+			sprite.setTexture(*cuda_texture, true);
 		}
 		
 
@@ -58,7 +62,7 @@ void Environment::updateSprite() {
 
 bool Environment::handleTasks() {
 	if (volume_updated) {
-		RT.render();
+		RT.render(cuda_texture);
 		volume_updated = false;
 		return true;
 	}
@@ -100,7 +104,7 @@ bool Environment::handleEvents(sf::Event event) {
 		return false;	// Key release events
 	
 	camera->updatePos(action);
-	RT.render();	
+	RT.render(cuda_texture);	
 	return true;
 }
 

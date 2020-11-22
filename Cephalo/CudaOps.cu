@@ -13,7 +13,7 @@ __global__ void testKernel(Ray* rayptr, int a) {
     return;
 }
 
-__global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offset) {
+__global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offset, uint8_t* image) {
     int index = blockIdx.x*THREADS_PER_BLOCK + threadIdx.x+offset;
     Ray ray = rayptr[index];
 
@@ -74,6 +74,10 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
         }
     }
     rayptr[index] = ray;
+    image[index * 4 + 0] = ray.color.r;
+    image[index * 4 + 1] = ray.color.g;
+    image[index * 4 + 2] = ray.color.b;
+    image[index * 4 + 3] = 255;
 }
 
 
@@ -126,7 +130,9 @@ CudaOperator::CudaOperator(){
     cudaMallocManaged(&blocks, VOL_X*VOL_Y*VOL_Z*sizeof(Block));
     cudaMallocManaged(&ray_block, 4 * sizeof(Float2));
     cudaMallocManaged(&compact_cam, sizeof(CompactCam));
-    
+    cudaMallocManaged(&dev_image, NUM_RAYS * 4 * sizeof(uint8_t));
+    host_image = new uint8_t[NUM_RAYS * 4];
+
     for (int y = 0; y < RAY_BLOCKS_PER_DIM; y++) {
         for (int x = 0; x < RAY_BLOCKS_PER_DIM; x++) {
             ray_block[y * RAY_BLOCKS_PER_DIM + x] = Float2(x, y);
@@ -134,7 +140,8 @@ CudaOperator::CudaOperator(){
     }
     blocks_per_sm = NUM_RAYS / (THREADS_PER_BLOCK * N_STREAMS);
     stream_size = blocks_per_sm * THREADS_PER_BLOCK;
-    stream_bytes = stream_size * sizeof(Ray);
+    ray_stream_bytes = stream_size * sizeof(Ray);
+    image_stream_bytes = stream_size * 4 * sizeof(uint8_t);
     printf("Blocks per SM: %d \n", blocks_per_sm);
 
     cout << "Cuda initialized" << endl;
@@ -144,48 +151,9 @@ CudaOperator::CudaOperator(){
 
 void CudaOperator::newVolume(Block* bs) { 
     cudaMemcpy(blocks, bs, VOL_X*VOL_Y*VOL_Z * sizeof(Block), cudaMemcpyHostToDevice);
-    //Volume only needs to go one way as it is not altered.
 }
 
 
-
-
-
-
-
-void CudaOperator::rayStepMS(Ray* rp, CompactCam cc) {
-    cudaStream_t stream[N_STREAMS];
-    for (int i = 0; i < N_STREAMS; i++) {
-        cudaStreamCreate(&(stream[i]));
-    }
-    printf("Sending\n");
-
-
-    for (int i = 0; i < N_STREAMS; i++) {
-        int offset = i * stream_size;
-        cudaMemcpyAsync(&rayptr[offset], &rp[offset], stream_bytes, cudaMemcpyHostToDevice, stream[i]);
-    }
-
-
-    printf("to device\n");
-    for (int i = 0; i < N_STREAMS; i++) {
-        int offset = i * stream_size;
-        stepKernelMS << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr,
-            blocks, cc, offset);
-    }
-    printf("execution\n");
-    for (int i = 0; i < N_STREAMS; i++) {
-        int offset = i * stream_size;
-        cudaMemcpyAsync(&rp[offset], &rayptr[offset], stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
-
-    }
-
-    printf("Received\n");
-    cudaDeviceSynchronize();
-    for (int i = 0; i < N_STREAMS; i++) {
-        cudaStreamDestroy(stream[i]);
-    }
-}
 void CudaOperator::rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture) {
     cudaStream_t stream[N_STREAMS];
     for (int i = 0; i < N_STREAMS; i++) {
@@ -196,7 +164,7 @@ void CudaOperator::rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture) {
 
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
-        cudaMemcpyAsync(&rayptr[offset], &rp[offset], stream_bytes, cudaMemcpyHostToDevice, stream[i]);
+        cudaMemcpyAsync(&rayptr[offset], &rp[offset], ray_stream_bytes, cudaMemcpyHostToDevice, stream[i]);
     }
 
 
@@ -204,21 +172,25 @@ void CudaOperator::rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture) {
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
         stepKernelMS << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr,
-            blocks, cc, offset);
+            blocks, cc, offset, dev_image);
     }
     printf("execution\n");
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
-        cudaMemcpyAsync(&rp[offset], &rayptr[offset], stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
-
+        //cudaMemcpyAsync(&rp[offset], &rayptr[offset], ray_stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
+        cudaMemcpyAsync(&host_image[offset*4], &dev_image[offset*4], image_stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
     }
 
     printf("Received\n");
     cudaDeviceSynchronize();
+    texture->update(host_image);
+
     for (int i = 0; i < N_STREAMS; i++) {
         cudaStreamDestroy(stream[i]);
     }
 }
+
+
 void CudaOperator::medianFilter(Block* ori, Block* vol) {
     int num_blocks = VOL_X * VOL_Y * VOL_Z;
 

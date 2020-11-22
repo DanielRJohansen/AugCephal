@@ -31,7 +31,7 @@ Category::Category(int idd, float sta, float sto, Color c) {
 
 ColorScheme::ColorScheme() {
 	Category lung(0, -700, -120, Color(212, 163, 163)); //Shoudl be 45
-	Category fat(1, -120, -90, Color(225, 203, 52));
+	Category fat(1, -120, -90, Color(241, 194, 125));
 	Category fluids(2, -90, 20, Color(128, 128, 200));
 	Category muscle(3, 20, 55, Color(161, 44, 44)); //Should be 35
 	Category clot(4, 55, 200, Color(201, 99, 99));
