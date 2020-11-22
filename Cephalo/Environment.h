@@ -21,6 +21,8 @@ public:
 	Raytracer RT;
 	VolumeMaker *VM;
 
+	sf::Texture* cuda_texture;
+
 	Block* volume;
 	void handleConsole();
 

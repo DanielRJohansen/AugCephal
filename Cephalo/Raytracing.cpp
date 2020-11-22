@@ -8,6 +8,7 @@ void Raytracer::initRaytracer(Camera *c, sf::Image *im, Block* volume) {
 	rayptr = (Ray*)malloc(NUM_RAYS * sizeof(Ray));
 	initRays();
 
+
 	CudaOps.newVolume(volume);
 
 	cout << "Volume size " << VOL_X*VOL_Y*VOL_Z*sizeof(Block)/1000000. << " MB" << endl;
@@ -35,7 +36,11 @@ void Raytracer::initRays() {
 	}
 }
 
-
+void Raytracer::render(sf::Texture* texture) {
+	//castRays();
+	CudaOps.rayStepMS(rayptr, CompactCam(camera->origin, camera->plane_pitch, camera->plane_yaw, camera->radius), texture);
+	projectRaysOnPlane();
+}
 void Raytracer::render() {
 	//castRays();
 	CudaOps.rayStepMS(rayptr, CompactCam(camera->origin, camera->plane_pitch, camera->plane_yaw, camera->radius));

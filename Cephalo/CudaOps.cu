@@ -43,11 +43,7 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
     float y_ = y_z * RAY_SS;
     float z_ = z_y * RAY_SS;
 
-    // Lets init some values
-    int vol_x, vol_y, vol_z;
-    int volume_index;
 
-    //int start_at = 
     for (int step = 20; step < RAY_STEPS; step++) {
         if (ray.full) {
             break;
@@ -56,13 +52,13 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
         x = cc.origin.x + x_ * step;
         y = cc.origin.y + y_ * step;
         z = cc.origin.z + z_ * step;
-        vol_x = (int)x + vol_x_range / 2;
-        vol_y = (int)y + vol_y_range / 2;
-        vol_z = (int)z + vol_z_range / 2;
+        int vol_x = (int)x + vol_x_range / 2;
+        int vol_y = (int)y + vol_y_range / 2;
+        int vol_z = (int)z + vol_z_range / 2;
 
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && // Only proceed if coordinate is within volume!
             vol_x < vol_x_range && vol_y < vol_y_range && vol_z < vol_z_range) {
-            volume_index = vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
+            int volume_index = vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
             Block block = blocks[volume_index];
             if (block.ignore)
                 continue;
@@ -190,7 +186,39 @@ void CudaOperator::rayStepMS(Ray* rp, CompactCam cc) {
         cudaStreamDestroy(stream[i]);
     }
 }
+void CudaOperator::rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture) {
+    cudaStream_t stream[N_STREAMS];
+    for (int i = 0; i < N_STREAMS; i++) {
+        cudaStreamCreate(&(stream[i]));
+    }
+    printf("Sending\n");
 
+
+    for (int i = 0; i < N_STREAMS; i++) {
+        int offset = i * stream_size;
+        cudaMemcpyAsync(&rayptr[offset], &rp[offset], stream_bytes, cudaMemcpyHostToDevice, stream[i]);
+    }
+
+
+    printf("to device\n");
+    for (int i = 0; i < N_STREAMS; i++) {
+        int offset = i * stream_size;
+        stepKernelMS << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr,
+            blocks, cc, offset);
+    }
+    printf("execution\n");
+    for (int i = 0; i < N_STREAMS; i++) {
+        int offset = i * stream_size;
+        cudaMemcpyAsync(&rp[offset], &rayptr[offset], stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
+
+    }
+
+    printf("Received\n");
+    cudaDeviceSynchronize();
+    for (int i = 0; i < N_STREAMS; i++) {
+        cudaStreamDestroy(stream[i]);
+    }
+}
 void CudaOperator::medianFilter(Block* ori, Block* vol) {
     int num_blocks = VOL_X * VOL_Y * VOL_Z;
 

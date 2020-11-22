@@ -6,6 +6,8 @@ Environment::Environment() {
 	volume = VM->volume;
 	camera = new Camera();
 	image = new sf::Image();
+	cuda_texture = new sf::Texture;
+	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);
 	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
 	RT.initRaytracer(camera, image, volume);
 }
@@ -20,9 +22,10 @@ void Environment::Run() {
 		"3D body", sf::Style::Close | sf::Style::Resize);
 	sf::Texture texture;
 	sf::Sprite sprite;
-	RT.render();
+	RT.render(cuda_texture);
 	texture.loadFromImage(*image);
 	sprite.setTexture(texture, true);
+
 
 
 

@@ -6,6 +6,8 @@
 #include <iostream>
 #include "Constants.h"
 #include "Containers.h"
+#include <SFML\graphics.hpp>
+
 #include <ctime>
 
 using namespace std;
@@ -21,6 +23,8 @@ public:
 	void newVolume(Block* blocks);
 	void rayStep(Ray *rp);
 	void rayStepMS(Ray* rp, CompactCam cc);
+
+	void rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture);
 
 	Ray* rayptr;
 	CompactCam* compact_cam;

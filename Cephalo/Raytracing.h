@@ -31,6 +31,7 @@ public:
 	sf::Image *image;	//
 
 	void updateVol(Block* vol) { CudaOps.newVolume(vol); }
+	void render(sf::Texture* texture);
 	void render();
 
 	~Raytracer();
