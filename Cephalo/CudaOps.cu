@@ -3,7 +3,7 @@
 #define vol_x_range VOL_X
 #define vol_y_range VOL_Y
 #define vol_z_range VOL_Z
-#define RAY_SS 1
+#define RAY_SS 0.8
 //cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
 
 
@@ -14,16 +14,16 @@ __global__ void testKernel(Ray* rayptr, int a) {
 }
 
 __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offset, uint8_t* image) {
+    // 30 ms
     int index = blockIdx.x*THREADS_PER_BLOCK + threadIdx.x+offset;
-    Ray ray = rayptr[index];
-
+    Ray ray = rayptr[index];    // This operation alone takes ~60 ms
+    // 90 ms
 
     //Reset ray
     ray.color.r = 0;
     ray.color.g = 0;
     ray.color.b = 0;
     ray.alpha = 0;
-    ray.full = false;
 
 
     float x = ray.rel_unit_vector.x;
@@ -39,15 +39,23 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
     float x_z = cc.cos_yaw * x_y - cc.sin_yaw * y;
     float y_z = cc.sin_yaw * x_y + cc.cos_yaw * y;
 
+    CudaFloat3 unit_vector(x_y, y_z, z_y);
+    unit_vector *= 30;
+    CudaRay cray(unit_vector*23)
+
     float x_ = x_z * RAY_SS;
     float y_ = y_z * RAY_SS;
     float z_ = z_y * RAY_SS;
+    
+    // 110 ms
 
+    Block* cached_block;
+    cached_block = &blocks[0];  // Init Block, doesn't matter is never used before another is loaded.
+    int prev_vol_index = -1;    // Impossible index
+    
+    // 140 ms
 
     for (int step = 20; step < RAY_STEPS; step++) {
-        if (ray.full) {
-            break;
-        }
 
         x = cc.origin.x + x_ * step;
         y = cc.origin.y + y_ * step;
@@ -59,21 +67,42 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && // Only proceed if coordinate is within volume!
             vol_x < vol_x_range && vol_y < vol_y_range && vol_z < vol_z_range) {
             int volume_index = vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
-            Block block = blocks[volume_index];
-            if (block.ignore)
-                continue;
-            else {
-                ray.color.r += block.color.r * block.alpha;
-                ray.color.g += block.color.g * block.alpha;
-                ray.color.b += block.color.b * block.alpha;
 
-                ray.alpha += block.alpha;
-                if (ray.alpha >= 1)
-                    ray.full = true;
+
+            if (vol_x < 64 && vol_z < 64 && vol_y < 64) {
+                ray.color.b = 255;
+                break;
             }
+
+            if (volume_index == prev_vol_index) {
+                if (cached_block->ignore) { continue; }
+            }
+            else {
+                prev_vol_index = volume_index;
+                if (blocks[volume_index].ignore) { continue; } 
+                else { cached_block = &blocks[volume_index]; }
+            }
+            /*Block cached_block = blocks[volume_index];
+            if (cached_block.ignore)
+                continue;*/
+            /*Block c_block = blocks[volume_index]; 
+            if (c_block.ignore)
+                continue;
+            float alpha = c_block.alpha;
+            ray.color.r += c_block.color.r * alpha;
+            ray.color.g += c_block.color.g * alpha;
+            ray.color.b += c_block.color.b * alpha;
+             ray.alpha += c_block.alpha;*/
+            
+            ray.color.r += cached_block->color.r * cached_block->alpha;
+            ray.color.g += cached_block->color.g * cached_block->alpha;
+            ray.color.b += cached_block->color.b * cached_block->alpha;
+            ray.alpha += cached_block->alpha;
+           
+            if (ray.alpha >= 1)
+                break;
         }
     }
-    rayptr[index] = ray;
     image[index * 4 + 0] = ray.color.r;
     image[index * 4 + 1] = ray.color.g;
     image[index * 4 + 2] = ray.color.b;
@@ -85,44 +114,33 @@ __global__ void medianFilterKernel(Block* original, Block* volume, circularWindo
     
     int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
     int x = threadIdx.x;
+    if (x == 0 || y == 0 || x == VOL_X - 1 || y == VOL_Y - 1)
+        return;
     int id = y * VOL_X + x;
     
-    circularWindow window = windows[id];
+    circularWindow window;
 
-    if (y * x != 0 && x < VOL_X-1 && y < VOL_Y-1) {   //Can't do this if on the edge
-        for (int z = 0; z < 2; z++) {
-
-            for (int yoff = -1; yoff < 2; yoff++) {
-                for (int xoff = -1; xoff < 2; xoff++) {
-                    int vol_index = z * VOL_Y * VOL_X + (y+yoff) * VOL_X + x+xoff;
-                    window.add(original[vol_index].value);
-                }
+    for (int z = 0; z < 2; z++) {
+        for (int yoff = -1; yoff < 2; yoff++) {
+            for (int xoff = -1; xoff < 2; xoff++) {
+                int vol_index = z * VOL_Y * VOL_X + (y+yoff) * VOL_X + x+xoff;
+                window.add(original[vol_index].value);
             }
         }
     }
-    
-    
-    for (int z = 2; z < VOL_Z - 1; z++) {
+
+    for (int z = 1; z < VOL_Z - 1; z++) {
         int vol_index = z * VOL_Y * VOL_X + y * VOL_X + x;
-
-        // If any is 0, we are on the edge
-        if (x*y*z == 0 || x == (VOL_X-1) || y == (VOL_Y - 1) || z == (VOL_Z-1)) {
-            //volume[vol_index].air = true;
-        }
-        else {  // Copy top
-            for (int yoff = -1; yoff < 2; yoff++) {
-                for (int xoff = -1; xoff < 2; xoff++) {
-                    int vol_index_window = (z + 1) * VOL_Y * VOL_X + (y + yoff) * VOL_X + x + xoff;
-                    window.add(original[vol_index_window].value);
-                }
+        for (int yoff = -1; yoff < 2; yoff++) {
+            for (int xoff = -1; xoff < 2; xoff++) {
+                int vol_index_window = (z + 1) * VOL_Y * VOL_X + (y + yoff) * VOL_X + x + xoff;
+                window.add(original[vol_index_window].value);
             }
-            
-            volume[vol_index].value = window.step();
-            //volume[vol_index].value = window.step();
-        }
+        }            
+        volume[vol_index].value = window.step();
     }
     
-    finished[1] = 1;
+    *finished = 1;
 }
 
 CudaOperator::CudaOperator(){
@@ -159,7 +177,6 @@ void CudaOperator::rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture) {
     for (int i = 0; i < N_STREAMS; i++) {
         cudaStreamCreate(&(stream[i]));
     }
-    printf("Sending\n");
 
 
     for (int i = 0; i < N_STREAMS; i++) {
@@ -168,21 +185,20 @@ void CudaOperator::rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture) {
     }
 
 
-    printf("to device\n");
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
         stepKernelMS << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr,
             blocks, cc, offset, dev_image);
     }
-    printf("execution\n");
+    printf("Rendering...");
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
         //cudaMemcpyAsync(&rp[offset], &rayptr[offset], ray_stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
         cudaMemcpyAsync(&host_image[offset*4], &dev_image[offset*4], image_stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
     }
 
-    printf("Received\n");
-    cudaDeviceSynchronize();
+    printf("  Received!\n");
+    //cudaDeviceSynchronize();
     texture->update(host_image);
 
     for (int i = 0; i < N_STREAMS; i++) {
@@ -195,14 +211,15 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
     int num_blocks = VOL_X * VOL_Y * VOL_Z;
 
     cout << "Starting median filter of kernel size 3" << endl;
-    cout << "Requires space " << num_blocks * sizeof(circularWindow) / 1000000 << " Mb" << endl;
+    cout << "Requires space " << (VOL_X*VOL_Y * sizeof(circularWindow) + 2*num_blocks*sizeof(Block))/ 1000000 << " Mb" << endl;
     Block* original; Block* volume;
     circularWindow* windows;
-    int* finished = new int[2];
+    int* finished = new int;
+    *finished = 0;
     cudaMallocManaged(&finished, sizeof(int));
     cudaMallocManaged(&original, num_blocks * sizeof(Block));
     cudaMallocManaged(&volume, num_blocks * sizeof(Block));
-    cudaMallocManaged(&windows, num_blocks * sizeof(circularWindow));
+    cudaMallocManaged(&windows, VOL_X*VOL_Y * sizeof(circularWindow));
 
     // Hacky workaround to move the objects onto the device.
     circularWindow* cc;
@@ -220,7 +237,7 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
     medianFilterKernel << <VOL_Y, VOL_X >> > (original, volume, windows, finished);    // RPD blocks (y), RPD threads(x)
     cudaDeviceSynchronize();
 
-    cout << "Finished " << finished[1] << endl;
+    cout << "Finished " << *finished << endl;
     
     
     //Finally the CUDA altered rayptr must be copied back to the Raytracer rayptr
@@ -241,14 +258,14 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
 __device__ void circularWindow::add(float val) {  
     window[head] = val;
     head++;
-    if (head == 27) // Doesn't work if i put size, noooooo idea :/
+    if (head == 27) 
         head = 0;
 }
 __device__ void circularWindow::sortWindow() {
     copyWindow();
     int lowest_index = 0;
     for (int i = 0; i < size; i++) {
-        float lowest = 9999;
+        float lowest = 99999;
         for (int j = 0; j < size; j++) {
             if (window_copy[j] < lowest) {
                 lowest = window_copy[j];
@@ -256,7 +273,7 @@ __device__ void circularWindow::sortWindow() {
             }
         }
         window_sorted[i] = window_copy[lowest_index];
-        window_copy[lowest_index] = 9999;
+        window_copy[lowest_index] = 99999;
     }
 }
 __device__ void circularWindow::copyWindow() {

@@ -9,10 +9,11 @@ VolumeMaker::VolumeMaker() {}
 
 
 VolumeMaker::VolumeMaker(bool default_config) {
+    //CudaOperator CudaOps;
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
-    CudaOperator CudaOps;
-    CudaOps.medianFilter(copyVolume(volume), volume);
+    
+    //CudaOps.medianFilter(copyVolume(volume), volume);
     categorizeBlocks();   
     // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
     // air = -1, unknown = -2
@@ -87,6 +88,7 @@ void VolumeMaker::loadScans() {
         //saveNormIm(img, i - 2);
         insertImInVolume(img, z);
     }
+
     cout << endl;
     outfile.close();
 
@@ -96,9 +98,9 @@ void VolumeMaker::loadScans() {
 
 void VolumeMaker::insertImInVolume(Mat img, int z) { 
     float norm_key = 1. / (HU_MAX - HU_MIN);
-    Mat img_ = cv::Mat::zeros(Size(512, 512), CV_8UC1);
-    for (int y = 0; y < img.cols; y++) {
-        for (int x = 0; x < img.rows; x++) {
+    //Mat img_ = cv::Mat::zeros(Size(512, 512), CV_8UC1);
+    for (int y = 0; y < VOL_Y; y++) {
+        for (int x = 0; x < VOL_X; x++) {
             double hu = img.at<uint16_t>(y, x) - 32768;
             if (hu < HU_MIN) {
                 volume[xyzToIndex(x, y, z)].ignore = true;
@@ -184,18 +186,22 @@ int VolumeMaker::propagateCluster(int x, int y, int z, int cluster_id, int categ
 
 void VolumeMaker::categorizeBlocks() {
     for (int z = 0; z < VOL_Z; z++) {
-        printf(" \r Categorizing z level %d ", z);
+        //printf(" \r Categorizing z level %d ", z);
         for (int y = 0; y < VOL_Y; y++) {
             for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
                 if (volume[block_index].ignore) {
                     volume[block_index].cat_index = colorscheme.cat_indexes[0];
                     volume[block_index].prev_cat_index = volume[block_index].cat_index;
-                    continue;
                 }
-                int hu_index =(int) (volume[block_index].value * (colorscheme.upper_limit- colorscheme.lower_limit -1));
-                volume[block_index].cat_index = colorscheme.cat_indexes[hu_index];
-                volume[block_index].prev_cat_index = volume[block_index].cat_index;
+                else {
+                    int hu_index = (int)((volume[block_index].value * (HU_MAX - HU_MIN - 1)));
+                    if (hu_index < 0 || hu_index > 699)
+                        printf("%f      %d \n",  volume[block_index].value, hu_index);
+                    volume[block_index].cat_index = colorscheme.cat_indexes[hu_index];
+                    volume[block_index].prev_cat_index = volume[block_index].cat_index;
+                }
+                
             }
         }
     }
@@ -299,6 +305,7 @@ void VolumeMaker::assignColorFromCat() {
     for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
         if (volume[i].ignore)  //This is air
             continue;
+        //cout << i << " ";
         volume[i].color = colorscheme.categories[volume[i].cat_index].color;
         //volume[i].color = colorscheme.categories[5].color;
     }

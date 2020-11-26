@@ -27,7 +27,8 @@ public:
 
 private:
 	//string folder_path = "E:\\NIH_images\\003412_03_01\\";
-	string folder_path = "E:\\NIH_images\\002411_02_02\\";
+	string folder_path = "E:\\NIH_images\\004425_01_01\\";
+
 	//Initial functions
 	void loadScans();
 	void insertImInVolume(Mat im, int zcoord);

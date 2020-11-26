@@ -7,6 +7,7 @@
 #include "Constants.h"
 #include "Containers.h"
 #include <SFML\graphics.hpp>
+#include "CudaContainers.h"
 
 #include <ctime>
 
@@ -45,7 +46,7 @@ private:
 
 class circularWindow {
 public:
-	int size = 27;
+	const int size = 27;
 	float best = 0;
 
 	__device__ void add(float val);

@@ -88,6 +88,7 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Containers.cpp" />
+    <ClCompile Include="CudaContainers.cpp" />
     <ClCompile Include="deleted_routines.cpp" />
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="ProxyMain.cpp" />
@@ -98,6 +99,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="Containers.h" />
+    <ClInclude Include="CudaContainers.h" />
     <ClInclude Include="CudaOps.cuh" />
     <ClInclude Include="Environment.h" />
     <ClInclude Include="Raytracing.h" />

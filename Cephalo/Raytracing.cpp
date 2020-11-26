@@ -37,9 +37,14 @@ void Raytracer::initRays() {
 }
 
 void Raytracer::render(sf::Texture* texture) {
+	auto start = chrono::high_resolution_clock::now();
 	//castRays();
+
 	CudaOps.rayStepMS(rayptr, CompactCam(camera->origin, camera->plane_pitch, camera->plane_yaw, camera->radius), texture);
 	//projectRaysOnPlane();
+	auto stop = chrono::high_resolution_clock::now();
+	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+	printf("Rendering executed in %d ms.\n", duration);
 }
 
 

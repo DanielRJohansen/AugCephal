@@ -2,7 +2,7 @@
 
 
 Environment::Environment() {
-	VM = new VolumeMaker(false);
+	VM = new VolumeMaker(false);	//Do clustering
 	volume = VM->volume;
 	camera = new Camera();
 	image = new sf::Image();

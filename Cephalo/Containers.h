@@ -45,8 +45,6 @@ struct Ray {
 	Color color = Color(0, 0, 0);
 
 	float acc_alpha = 0;	//0..1
-	bool full = false;		//
-
 };
 
 struct Cluster {
@@ -71,7 +69,6 @@ struct Category {
 };
 
 struct Block {
-
 	float alpha = 1./5;
 	float value = 0;
 	//Cluster *cluster;
