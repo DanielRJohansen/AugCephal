@@ -50,7 +50,7 @@ void read_directory(const string& name, stringvec& v)
     }
 
 }
-void saveNormIm(Mat im, int number) {
+void saveNormIm(Mat im, int number, string foldername) {
     float norm_key = 1. / (700 +200);
     int a;
     for (int y = 0; y < im.cols; y++) {
@@ -68,10 +68,10 @@ void saveNormIm(Mat im, int number) {
                 im.at<uint16_t>(y, x) = (hu - HU_MIN) * norm_key * 65500;
                 a = (hu - HU_MIN) * norm_key * 65500;
             }
-            outfile << to_string(a) + ' ';
+            //outfile << to_string(a) + ' ';
         }
     }
-    //imwrite("E:\\NormImages\\" + to_string(number) + ".png", im);
+    imwrite("E:\\NormImages\\" +foldername+"\\"+ to_string(number) + ".png", im);
 }
 void VolumeMaker::loadScans() {
     stringvec v;
@@ -87,13 +87,12 @@ void VolumeMaker::loadScans() {
             cout << "imload failed" << endl;
             return;
         }
-        //saveNormIm(img, i - 2);
+        //saveNormIm(img, i - 2, "163slices");
         insertImInVolume(img, z);
     }
 
     cout << endl;
     outfile.close();
-
 }
 
 
@@ -110,7 +109,6 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
             }
             else if (hu > HU_MAX) {
                 volume[xyzToIndex(x, y, z)].value = 1;
-
             }
             else 
                 volume[xyzToIndex(x, y, z)].value = (hu - HU_MIN) * norm_key;
@@ -199,8 +197,8 @@ void VolumeMaker::categorizeBlocks() {
                 }
                 else {
                     int hu_index = (int)((volume[block_index].value * (HU_MAX - HU_MIN - 1)));
-                    if (hu_index < 0 || hu_index > 699)
-                        printf("%f      %d \n",  volume[block_index].value, hu_index);
+                    //if (hu_index > 200)
+                     //   printf("%f      %d \n",  volume[block_index].value, hu_index);
                     volume[block_index].cat_index = colorscheme.cat_indexes[hu_index];
                     volume[block_index].prev_cat_index = volume[block_index].cat_index;
                 }

@@ -43,12 +43,13 @@ ColorScheme::ColorScheme() {
 		categories[i] = cats[i];
 	}
 
-	float hu;
+	int hu;
 	// We need to not only ignore air, but also not assign a recognizeable category, so it can't be un-ignored.
 	colors[0] = Color(0, 0, 0);
 	cat_indexes[0] = -1;
 	for (int i = 1; i < 700; i++) {
-		colors[i] = Color(100, 100, 100);
+		colors[i] = Color(0, 0, 255);
+		cat_indexes[i] = -1;
 		hu = (i + lower_limit);
 		for (int j = 0; j < 6; j++) {
 			

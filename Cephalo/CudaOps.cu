@@ -4,6 +4,7 @@
 #define vol_y_range VOL_Y
 #define vol_z_range VOL_Z
 #define RAY_SS 0.8
+#define e 2.71828
 //cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
 
 
@@ -11,22 +12,35 @@ __device__ bool isInVolume(int x, int y, int z) {
     return x >= 0 && y >= 0 && z >= 0 && x < vol_x_range&& y < vol_y_range&& z < vol_z_range;
 }
 
+__device__ int xyzToIndex(int vol_x, int vol_y, int vol_z) {
+    return vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
+}
+
+__device__ float activationFunction(float counts) {
+    return 2 / (1 + powf(e, (-counts / 9))) - 1;
+}
 
 __device__ float lightSeeker(Block* volume, CudaFloat3 pos) {
-    float spread = 0.5;
-    float brightness = 0;
+    float spread = 1;
+    float brightness = 3;
     for (int y = 0; y < 3; y++) {
-        for (int x = 0; x < 3; y++) {
-            for (int z = 1; z < 5; z *= 2) {
+        for (int x = 0; x < 3; x++) {
+
+            // Upward seeking
+            for (int z = 2; z < 9; z *= 2) {
                 int vol_x = pos.x - spread + spread * x;
                 int vol_y = pos.y - spread + spread * y;
                 int vol_z = pos.z + z;
                 if (isInVolume(vol_x, vol_y, vol_z)) {
-                    //if (volume[])
+                    int index = xyzToIndex(vol_x, vol_y, vol_z);
+                    if (volume[index].ignore) { brightness += 1; }
+                    else { break; }
                 }
+                else { brightness += 1; }
             }
         }
     }
+    return activationFunction(brightness);
 }
 
 __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
@@ -76,7 +90,7 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
 
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && // Only proceed if coordinate is within volume!
             vol_x < vol_x_range && vol_y < vol_y_range && vol_z < vol_z_range) {
-            int volume_index = vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
+            int volume_index = xyzToIndex(vol_x, vol_y, vol_z);
 
             if (vol_z == 0) {
                 cray.color.r = 0;
@@ -97,6 +111,8 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
 
             
             CudaColor block_color = CudaColor(cached_block->color.r, cached_block->color.g, cached_block->color.b);
+            float brightness = lightSeeker(blocks, CudaFloat3(vol_x, vol_y, vol_z));
+            block_color = block_color * brightness;
             cray.color.add(block_color * cached_block->alpha);
             cray.alpha += cached_block->alpha;
             if (cray.alpha >= 1)
