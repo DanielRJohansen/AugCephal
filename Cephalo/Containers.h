@@ -17,7 +17,6 @@ struct Float3	//float3 taken by cuda
 	Float3(float s) : x(s), y(s), z(s) {}
 	Float3(float x, float y, float z) : x(x), y(y), z(z) {}
 	float x, y, z;
-	void print() { cout << x << " " << y << " " << z << endl; }
 	float dot(const Float3 a) { return (float)x * a.x + y * a.y + z * a.z; }
 	inline Float3 operator*(float s) const { return Float3(x * s, y * s, z * s); }
 	inline Float3 operator-(const Float3& a) const { return Float3(x - a.x, y - a.y, z - a.z); }
@@ -37,14 +36,7 @@ struct Color {
 };
 
 struct Ray {
-	//float relative_pitch;
-	//float relative_yaw;
 	Float3 rel_unit_vector;
-	Float3 step_vector;	//x, y, z
-	float alpha = 0;
-	Color color = Color(0, 0, 0);
-
-	float acc_alpha = 0;	//0..1
 };
 
 struct Cluster {
@@ -69,14 +61,14 @@ struct Category {
 };
 
 struct Block {
-	float alpha = 1./5;
+	float alpha = 1./3;
 	float value = 0;
 	//Cluster *cluster;
 	Color color;
 	int cat_index;
 	int prev_cat_index;
 
-	int cluster_id = -1;// No cluster
+	int cluster_id = NO_CLUSTER;// No cluster
 	bool ignore = false;
 };
 

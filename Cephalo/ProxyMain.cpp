@@ -12,9 +12,10 @@ public:
 	float h[10] = { 0 };
 };
 
+
+
+
 int main() {
-
-
 
 	Environment Env;
 

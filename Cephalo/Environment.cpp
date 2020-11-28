@@ -5,11 +5,15 @@ Environment::Environment() {
 	VM = new VolumeMaker(false);	//Do clustering
 	volume = VM->volume;
 	camera = new Camera();
+
 	image = new sf::Image();
+	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
 	cuda_texture = new sf::Texture;
 	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);
-	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
-	RT.initRaytracer(camera, image, volume);
+
+	RT.initRaytracer(camera, image);
+	RT.updateVol(volume);
+	RT.updateEmptySlices(VM->empty_y_slices, VM->empty_x_slices);
 }
 
 
@@ -24,13 +28,6 @@ void Environment::Run() {
 	sf::Sprite sprite;
 	RT.render(cuda_texture);
 	texture.loadFromImage(*image);
-	//sprite.setTexture(texture, true);
-	/*
-	uint8_t* arr = new uint8_t[400 * 400 * 4];
-	for (int i = 0; i < 400 * 400 * 4; i++) {
-		arr[i] = 255;
-	}
-	cuda_texture->update(arr);*/
 	sprite.setTexture(*cuda_texture, true);
 
 	while (window.isOpen()) {

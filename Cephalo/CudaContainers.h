@@ -6,22 +6,35 @@
 
 struct CudaColor {
 	__device__ CudaColor() {};
+	__device__ CudaColor(float r, float g, float b) : r(r), g(g), b(b) {};
+	__device__ inline void add(CudaColor c) { r += c.r; g += c.g; b += c.b; };
+	__device__ inline CudaColor operator*(float s) const { return CudaColor(r * s, g * s, b * s); }
 	float r = 0;
-	float b = 0;
 	float g = 0;
+	float b = 0;
 };
 
 struct CudaFloat3 {
 	__device__ CudaFloat3() {};
 	__device__ CudaFloat3(float x, float y, float z) : x(x), y(y), z(z) {};
-	float x, y, z;
 	__device__ inline CudaFloat3 operator*(float s) const { return CudaFloat3(x * s, y * s, z * s); }
+	float x, y, z;
+
 };
 
-class CudaRay {
+struct CudaRay {
 	__device__ CudaRay(CudaFloat3 step_vector) : step_vector(step_vector) {};
 	CudaColor color;
 	CudaFloat3 step_vector;
-	float alpha;
+	float alpha = 0;
 };
+
+/*struct CudaEmptyTracker {
+	__global__ CudaEmptyTracker(){}
+	__global__ CudaEmptyTracker(bool*x, bool* y) {}
+
+	bool* x_empty;
+	bool* y_empty;
+};*/
+
 

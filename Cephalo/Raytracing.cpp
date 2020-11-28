@@ -1,7 +1,7 @@
 #include "Raytracing.h"
 #include <ctime>
 
-void Raytracer::initRaytracer(Camera *c, sf::Image *im, Block* volume) {
+void Raytracer::initRaytracer(Camera *c, sf::Image *im) {
 	camera = c;
 	image = im;
 
@@ -9,7 +9,6 @@ void Raytracer::initRaytracer(Camera *c, sf::Image *im, Block* volume) {
 	initRays();
 
 
-	CudaOps.newVolume(volume);
 
 	cout << "Volume size " << VOL_X*VOL_Y*VOL_Z*sizeof(Block)/1000000. << " MB" << endl;
 	cout << "Raytracer Initialized" << endl;
@@ -26,11 +25,7 @@ void Raytracer::initRays() {
 			float y_ = 0.5 - 0.5 / rpd - y / rpd;
 			float d = sqrt(FOCAL_LEN* FOCAL_LEN + x_ * x_ + y_ * y_) ;
 			
-			ray.rel_unit_vector = Float3(x_, y_, FOCAL_LEN) * (1. / d);	//Make length equal 1
-			if (y == 0 && x == 0) {
-				ray.rel_unit_vector.print();
-				cout << endl;
-			}			
+			ray.rel_unit_vector = Float3(x_, y_, FOCAL_LEN) * (1. / d);	//Make length equal 1		
 			rayptr[xyToRayIndex(y, x)] = ray;	// Yes xy is swapped, this works, so schhh!
 		}
 	}

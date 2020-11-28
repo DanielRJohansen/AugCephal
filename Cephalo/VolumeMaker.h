@@ -23,6 +23,9 @@ public:
 	bool setIgnore(int cat_index, bool hide);
 
 	Block* volume;
+	bool* empty_y_slices;
+	bool* empty_x_slices;
+
 	ColorScheme colorscheme;
 
 private:
@@ -51,6 +54,12 @@ private:
 	void dilate(int cat_index);
 	void erode(int cat_index);
 	void updatePreviousCat();
+
+	void locateEmptyYSlices();
+	void locateEmptyXSlices();
+
+	bool xSliceIsEmpty(int y);
+	bool ySliceIsEmpty(int y);
 
 	bool ignores[6] = { false };
 

@@ -14,14 +14,12 @@
 using namespace std;
 
 
-struct testObject {
-	float var = 0.42;
-};
 
 class CudaOperator {
 public:
 	CudaOperator();
 	void newVolume(Block* blocks);
+	void updateEmptySlices(bool* yempty, bool* xempty);
 	void rayStep(Ray *rp);
 	void rayStepMS(Ray* rp, CompactCam cc);
 
@@ -29,6 +27,8 @@ public:
 
 	Ray* rayptr;
 	CompactCam* compact_cam;
+	bool* dev_empty_y_slices;
+	bool* dev_empty_x_slices;
 	Float2 *ray_block;
 	Block *blocks;			//X, Y, Z, [color, alpha]
 	uint8_t* dev_image;

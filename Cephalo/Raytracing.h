@@ -28,12 +28,13 @@ struct RayInfo {
 class Raytracer {
 public:
 	Raytracer() {};
-	void initRaytracer(Camera *camera, sf::Image *im, Block* vol);
+	void initRaytracer(Camera *camera, sf::Image *im);
 	void newVolume(Block* volume) { CudaOps.newVolume(volume); }
 
 	sf::Image *image;	//
 
 	void updateVol(Block* vol) { CudaOps.newVolume(vol); }
+	void updateEmptySlices(bool* yempty, bool* xempty) { CudaOps.updateEmptySlices(yempty, xempty); }// Only implemented for y as im lazy
 	void render(sf::Texture* texture);
 	void render();
 

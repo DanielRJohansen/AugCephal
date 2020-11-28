@@ -15,22 +15,24 @@ VolumeMaker::VolumeMaker(bool default_config) {
     
     //CudaOps.medianFilter(copyVolume(volume), volume);
     categorizeBlocks();   
+   
+
     // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
     // air = -1, unknown = -2
     if (default_config) {
         open(5);
-        //close(0);
-        //close(2);
-        cluster(5, 5000);
-        cluster(0, 5000);
-        cluster(3, 500);
-        cluster(1, 10);
+        cluster(5, 20000);
+        //cluster(0, 5000);
+        //cluster(3, 500);
+        //cluster(1, 10);
         //cluster(2, 10);
         //vector<int> ignores_tmp = { 0,2,4 };
         //setIgnores(ignores_tmp);
     }
     
     assignColorFromCat();
+    locateEmptyYSlices();
+    locateEmptyXSlices();
 }
 std::ofstream outfile("E:\\NormImages\\gl3.txt");
 
@@ -126,13 +128,14 @@ Block* VolumeMaker::copyVolume(Block* from) {
 
 int VolumeMaker::xyzToIndex(int x, int y, int z) { return z * 512 * 512 + y * 512 + x; }
 bool VolumeMaker::isLegal(int x, int y, int z) { return x >= 0 && y >= 0 && z >= 0 && x < VOL_X&& y < VOL_Y&& z < VOL_Z; }
-bool VolumeMaker::isNotClustered(int block_index) { return volume[block_index].cluster_id == -1; }
+bool VolumeMaker::isNotClustered(int block_index) { return volume[block_index].cluster_id == NO_CLUSTER; }
 bool VolumeMaker::isCategory(int block_index, int cat_id) { return volume[block_index].cat_index == cat_id; }
 
 void VolumeMaker::cluster(int category_index, int min_cluster_size) {               //Currently not in use
     int cluster_id = 0;
     int clustersize;
     vector<Cluster> clusters;
+    printf("\n");
     for (int z = 0; z < VOL_Z; z++) {
         for (int y = 0; y < VOL_Y; y++) {
             for (int x = 0; x < VOL_X; x++) {
@@ -153,7 +156,7 @@ void VolumeMaker::cluster(int category_index, int min_cluster_size) {           
                 if (volume[block_index].cluster_id != 0 && volume[block_index].cat_index == category_index) {
                     if (clusters[volume[block_index].cluster_id].size < min_cluster_size) {
                         volume[block_index].ignore = true;
-                        volume[block_index].cat_index = -2; //Is unknown now;
+                        volume[block_index].cat_index = UNKNOWN_CLUSTER; //Is unknown now;
                     }
                         
                 }              
@@ -311,4 +314,45 @@ void VolumeMaker::assignColorFromCat() {
     }
 }
 
-
+void VolumeMaker::locateEmptyYSlices() {
+    empty_y_slices = new bool[VOL_Y];
+    for (int y = 0; y < VOL_Y; y++) {
+        empty_y_slices[y] = ySliceIsEmpty(y);
+    }
+}
+void VolumeMaker::locateEmptyXSlices() {
+    empty_x_slices = new bool[VOL_X];
+    for (int x = 0; x < VOL_X; x++) {
+        empty_x_slices[x] = xSliceIsEmpty(x);
+    }
+}
+bool VolumeMaker::ySliceIsEmpty(int y) {
+    int non_ignores = 0;
+    for (int x = 0; x < VOL_X; x++) {
+        for (int z = 0; z < VOL_Z; z++) {
+            int block_index = xyzToIndex(x, y, z);
+            if (!volume[block_index].ignore) {
+                non_ignores++;
+                if (non_ignores > NON_IGNORES_THRESHOLD) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+bool VolumeMaker::xSliceIsEmpty(int x) {
+    int non_ignores = 0;
+    for (int y = 0; y < VOL_Y; y++) {
+        for (int z = 0; z < VOL_Z; z++) {
+            int block_index = xyzToIndex(x, y, z);
+            if (!volume[block_index].ignore) {
+                non_ignores++;
+                if (non_ignores > NON_IGNORES_THRESHOLD) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}

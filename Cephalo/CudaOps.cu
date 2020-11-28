@@ -7,28 +7,32 @@
 //cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
 
 
-
-__global__ void testKernel(Ray* rayptr, int a) {
-    int b = 0;
-    return;
+__device__ bool isInVolume(int x, int y, int z) {
+    return x >= 0 && y >= 0 && z >= 0 && x < vol_x_range&& y < vol_y_range&& z < vol_z_range;
 }
 
-__global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offset, uint8_t* image) {
-    // 30 ms
-    int index = blockIdx.x*THREADS_PER_BLOCK + threadIdx.x+offset;
-    Ray ray = rayptr[index];    // This operation alone takes ~60 ms
-    // 90 ms
 
-    //Reset ray
-    ray.color.r = 0;
-    ray.color.g = 0;
-    ray.color.b = 0;
-    ray.alpha = 0;
+__device__ float lightSeeker(Block* volume, CudaFloat3 pos) {
+    float spread = 0.5;
+    float brightness = 0;
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; y++) {
+            for (int z = 1; z < 5; z *= 2) {
+                int vol_x = pos.x - spread + spread * x;
+                int vol_y = pos.y - spread + spread * y;
+                int vol_z = pos.z + z;
+                if (isInVolume(vol_x, vol_y, vol_z)) {
+                    //if (volume[])
+                }
+            }
+        }
+    }
+}
 
-
-    float x = ray.rel_unit_vector.x;
-    float y = ray.rel_unit_vector.y;
-    float z = ray.rel_unit_vector.z;
+__device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
+    float x = ray->rel_unit_vector.x;
+    float y = ray->rel_unit_vector.y;
+    float z = ray->rel_unit_vector.z;
 
 
     // Rotate rel vector around y
@@ -39,13 +43,18 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
     float x_z = cc.cos_yaw * x_y - cc.sin_yaw * y;
     float y_z = cc.sin_yaw * x_y + cc.cos_yaw * y;
 
-    CudaFloat3 unit_vector(x_y, y_z, z_y);
-    unit_vector *= 30;
-    CudaRay cray(unit_vector*23)
+    return CudaFloat3(x_z, y_z, z_y);
+}
+__global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offset, uint8_t* image, bool* empty_y_slices, bool* empty_x_slices) {
+    // 30 ms
+    int index = blockIdx.x*THREADS_PER_BLOCK + threadIdx.x+offset;
+    Ray ray = rayptr[index];    // This operation alone takes ~60 ms
+    // 90 ms
 
-    float x_ = x_z * RAY_SS;
-    float y_ = y_z * RAY_SS;
-    float z_ = z_y * RAY_SS;
+
+    //CudaFloat3 unit_vector(x_z, y_z, z_y);
+    CudaFloat3 unit_vector = makeUnitVector(&ray, cc);
+    CudaRay cray(unit_vector * RAY_SS);
     
     // 110 ms
 
@@ -57,9 +66,10 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
 
     for (int step = 20; step < RAY_STEPS; step++) {
 
-        x = cc.origin.x + x_ * step;
-        y = cc.origin.y + y_ * step;
-        z = cc.origin.z + z_ * step;
+        int x = cc.origin.x + cray.step_vector.x * step;
+        int y = cc.origin.y + cray.step_vector.y * step;
+        int z = cc.origin.z + cray.step_vector.z * step;
+
         int vol_x = (int)x + vol_x_range / 2;
         int vol_y = (int)y + vol_y_range / 2;
         int vol_z = (int)z + vol_z_range / 2;
@@ -68,11 +78,13 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
             vol_x < vol_x_range && vol_y < vol_y_range && vol_z < vol_z_range) {
             int volume_index = vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
 
-
-            if (vol_x < 64 && vol_z < 64 && vol_y < 64) {
-                ray.color.b = 255;
+            if (vol_z == 0) {
+                cray.color.r = 0;
+                cray.color.g = 114;
+                cray.color.b = 158;
                 break;
             }
+            else if (empty_y_slices[vol_y] || empty_x_slices[vol_x]) { continue; }
 
             if (volume_index == prev_vol_index) {
                 if (cached_block->ignore) { continue; }
@@ -82,30 +94,18 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
                 if (blocks[volume_index].ignore) { continue; } 
                 else { cached_block = &blocks[volume_index]; }
             }
-            /*Block cached_block = blocks[volume_index];
-            if (cached_block.ignore)
-                continue;*/
-            /*Block c_block = blocks[volume_index]; 
-            if (c_block.ignore)
-                continue;
-            float alpha = c_block.alpha;
-            ray.color.r += c_block.color.r * alpha;
-            ray.color.g += c_block.color.g * alpha;
-            ray.color.b += c_block.color.b * alpha;
-             ray.alpha += c_block.alpha;*/
+
             
-            ray.color.r += cached_block->color.r * cached_block->alpha;
-            ray.color.g += cached_block->color.g * cached_block->alpha;
-            ray.color.b += cached_block->color.b * cached_block->alpha;
-            ray.alpha += cached_block->alpha;
-           
-            if (ray.alpha >= 1)
+            CudaColor block_color = CudaColor(cached_block->color.r, cached_block->color.g, cached_block->color.b);
+            cray.color.add(block_color * cached_block->alpha);
+            cray.alpha += cached_block->alpha;
+            if (cray.alpha >= 1)
                 break;
         }
     }
-    image[index * 4 + 0] = ray.color.r;
-    image[index * 4 + 1] = ray.color.g;
-    image[index * 4 + 2] = ray.color.b;
+    image[index * 4 + 0] = cray.color.r;
+    image[index * 4 + 1] = cray.color.g;
+    image[index * 4 + 2] = cray.color.b;
     image[index * 4 + 3] = 255;
 }
 
@@ -149,6 +149,8 @@ CudaOperator::CudaOperator(){
     cudaMallocManaged(&ray_block, 4 * sizeof(Float2));
     cudaMallocManaged(&compact_cam, sizeof(CompactCam));
     cudaMallocManaged(&dev_image, NUM_RAYS * 4 * sizeof(uint8_t));
+    cudaMallocManaged(&dev_empty_y_slices, VOL_Y * N_STREAMS * sizeof(bool));
+    cudaMallocManaged(&dev_empty_x_slices, VOL_Y * N_STREAMS * sizeof(bool));
     host_image = new uint8_t[NUM_RAYS * 4];
 
     for (int y = 0; y < RAY_BLOCKS_PER_DIM; y++) {
@@ -166,11 +168,21 @@ CudaOperator::CudaOperator(){
     }
 
 
-
 void CudaOperator::newVolume(Block* bs) { 
     cudaMemcpy(blocks, bs, VOL_X*VOL_Y*VOL_Z * sizeof(Block), cudaMemcpyHostToDevice);
 }
-
+void CudaOperator::updateEmptySlices(bool* y_empty, bool* x_empty) {
+    bool* host_empty_y_slices = new bool[VOL_Y];
+    bool* host_empty_x_slices = new bool[VOL_X];
+    for (int y = 0; y < VOL_Y; y++) {
+        host_empty_y_slices[y] = y_empty[y];
+    }
+    for (int x = 0; x < VOL_X; x++) {
+        host_empty_x_slices[x] = x_empty[x];
+    }
+    cudaMemcpy(dev_empty_y_slices, host_empty_y_slices,  VOL_Y * sizeof(bool), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_empty_x_slices, host_empty_x_slices, VOL_X * sizeof(bool), cudaMemcpyHostToDevice);
+}
 
 void CudaOperator::rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture) {
     cudaStream_t stream[N_STREAMS];
@@ -188,12 +200,11 @@ void CudaOperator::rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture) {
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
         stepKernelMS << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr,
-            blocks, cc, offset, dev_image);
+            blocks, cc, offset, dev_image, dev_empty_y_slices, dev_empty_x_slices);
     }
     printf("Rendering...");
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
-        //cudaMemcpyAsync(&rp[offset], &rayptr[offset], ray_stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
         cudaMemcpyAsync(&host_image[offset*4], &dev_image[offset*4], image_stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
     }
 
@@ -250,11 +261,10 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
 }
 
 
-/*__device__ circularWindow::circularWindow() {
-    window = new float[size];
-    window_copy = new float[size];
-    window_sorted = new float[size];
-}*/
+
+
+
+
 __device__ void circularWindow::add(float val) {  
     window[head] = val;
     head++;
