@@ -3,7 +3,7 @@
 #define vol_x_range VOL_X
 #define vol_y_range VOL_Y
 #define vol_z_range VOL_Z
-#define RAY_SS 0.8
+#define RAY_SS 0.7
 #define e 2.71828
 //cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
 
@@ -120,9 +120,9 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
         }
     }
     cray.color.cap();   //Caps each channel at 255
-    image[index * 4 + 0] = cray.color.r;
-    image[index * 4 + 1] = cray.color.g;
-    image[index * 4 + 2] = cray.color.b;
+    image[index * 4 + 0] = (int) cray.color.r;
+    image[index * 4 + 1] = (int) cray.color.g;
+    image[index * 4 + 2] = (int) cray.color.b;
     image[index * 4 + 3] = 255;
 }
 
@@ -154,7 +154,7 @@ __global__ void medianFilterKernel(Block* original, Block* volume, circularWindo
                 window.add(original[vol_index_window].value);
             }
         }            
-        volume[vol_index].value = window.step();
+        volume[vol_index].value = (volume[vol_index].value + window.step())/2;
     }
     
     *finished = 1;

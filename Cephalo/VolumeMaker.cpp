@@ -15,7 +15,7 @@ VolumeMaker::VolumeMaker(bool default_config) {
     
     CudaOperator CudaOps;
     CudaOps.medianFilter(copyVolume(volume), volume);
-    categorizeBlocks();   
+    //categorizeBlocks();   
    
 
     // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
@@ -53,7 +53,7 @@ void read_directory(const string& name, stringvec& v)
 
 }
 void saveNormIm(Mat im, int number, string foldername) {
-    float norm_key = 1. / (700 +200);
+    float norm_key = 1. / (700 + 200);
     int a;
     for (int y = 0; y < im.cols; y++) {
         for (int x = 0; x < im.rows; x++) {
@@ -73,7 +73,7 @@ void saveNormIm(Mat im, int number, string foldername) {
             //outfile << to_string(a) + ' ';
         }
     }
-    imwrite("E:\\NormImages\\" +foldername+"\\"+ to_string(number) + ".png", im);
+    imwrite("E:\\NormImages\\" + foldername + "\\" + to_string(number) + ".png", im);
 }
 void VolumeMaker::loadScans() {
     stringvec v;
@@ -105,15 +105,8 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
     for (int y = 0; y < VOL_Y; y++) {
         for (int x = 0; x < VOL_X; x++) {
             int hu = img.at<uint16_t>(y, x) - 32768;
-            if (hu < HU_MIN) {
-                volume[xyzToIndex(x, y, z)].ignore = true;
-                volume[xyzToIndex(x, y, z)].value = 0;
-            }
-            else if (hu > HU_MAX) {
-                volume[xyzToIndex(x, y, z)].value = 1;
-            }
-            else 
-                volume[xyzToIndex(x, y, z)].value = (hu - HU_MIN) * norm_key;
+            if (hu < -700) { volume[xyzToIndex(x, y, z)].ignore = true; }
+            if (hu > 10000) { volume[xyzToIndex(x, y, z)].ignore = true; }
             volume[xyzToIndex(x, y, z)].hu_val = hu;
         }
     }
@@ -319,6 +312,7 @@ void VolumeMaker::assignColor() {
         if (volume[i].ignore)  //This is air
             continue;
         volume[i].color = colormaker.colorFromHu(volume[i].hu_val);
+        //printf("%f        %f           %f\n", volume[i].color.r, volume[i].color.g, volume[i].color.b);
         volume[i].cat = colormaker.catFromHu(volume[i].hu_val);
     }
 }

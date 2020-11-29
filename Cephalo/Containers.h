@@ -62,7 +62,7 @@ struct Category {
 };
 
 struct Block {
-	float alpha = 1;
+	float alpha = 1;	//Basically how many cat switches we allow for
 	float value = 0;
 	//Cluster *cluster;
 	int hu_val;

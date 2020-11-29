@@ -105,8 +105,12 @@
     <ClInclude Include="CudaOps.cuh" />
     <ClInclude Include="Environment.h" />
     <ClInclude Include="Raytracing.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Tools.h" />
     <ClInclude Include="VolumeMaker.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Cephalo.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
