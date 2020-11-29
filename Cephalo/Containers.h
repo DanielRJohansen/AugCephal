@@ -29,7 +29,8 @@ struct Color {
 	float r;
 	float g;
 	float b;
-
+	inline Color operator*(float s) const { return Color(r * s, g * s, b * s); }
+	inline Color operator+(Color a) const { return Color(r + a.r, g + a.g, b + a.b); }
 	Color add(Color c);
 	Color mul(float s);
 	Color cutOff(Color c);
@@ -61,9 +62,12 @@ struct Category {
 };
 
 struct Block {
-	float alpha = 1./3;
+	float alpha = 1;
 	float value = 0;
 	//Cluster *cluster;
+	int hu_val;
+	int cat;
+
 	Color color;
 	int cat_index;
 	int prev_cat_index;

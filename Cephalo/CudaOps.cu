@@ -119,6 +119,7 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
                 break;
         }
     }
+    cray.color.cap();   //Caps each channel at 255
     image[index * 4 + 0] = cray.color.r;
     image[index * 4 + 1] = cray.color.g;
     image[index * 4 + 2] = cray.color.b;

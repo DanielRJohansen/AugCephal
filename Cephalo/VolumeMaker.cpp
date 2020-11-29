@@ -13,7 +13,8 @@ VolumeMaker::VolumeMaker(bool default_config) {
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
     
-    //CudaOps.medianFilter(copyVolume(volume), volume);
+    CudaOperator CudaOps;
+    CudaOps.medianFilter(copyVolume(volume), volume);
     categorizeBlocks();   
    
 
@@ -30,7 +31,8 @@ VolumeMaker::VolumeMaker(bool default_config) {
         //setIgnores(ignores_tmp);
     }
     
-    assignColorFromCat();
+    //assignColorFromCat();
+    assignColor();
     locateEmptyYSlices();
     locateEmptyXSlices();
 }
@@ -102,7 +104,7 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
     //Mat img_ = cv::Mat::zeros(Size(512, 512), CV_8UC1);
     for (int y = 0; y < VOL_Y; y++) {
         for (int x = 0; x < VOL_X; x++) {
-            double hu = img.at<uint16_t>(y, x) - 32768;
+            int hu = img.at<uint16_t>(y, x) - 32768;
             if (hu < HU_MIN) {
                 volume[xyzToIndex(x, y, z)].ignore = true;
                 volume[xyzToIndex(x, y, z)].value = 0;
@@ -112,6 +114,7 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
             }
             else 
                 volume[xyzToIndex(x, y, z)].value = (hu - HU_MIN) * norm_key;
+            volume[xyzToIndex(x, y, z)].hu_val = hu;
         }
     }
 }
@@ -309,6 +312,14 @@ void VolumeMaker::assignColorFromCat() {
         //cout << i << " ";
         volume[i].color = colorscheme.categories[volume[i].cat_index].color;
         //volume[i].color = colorscheme.categories[5].color;
+    }
+}
+void VolumeMaker::assignColor() {
+    for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
+        if (volume[i].ignore)  //This is air
+            continue;
+        volume[i].color = colormaker.colorFromHu(volume[i].hu_val);
+        volume[i].cat = colormaker.catFromHu(volume[i].hu_val);
     }
 }
 

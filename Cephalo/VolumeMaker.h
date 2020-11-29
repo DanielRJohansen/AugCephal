@@ -7,6 +7,7 @@
 #include "Containers.h"
 #include "Constants.h"
 #include "CudaOps.cuh"
+#include "ColorMaker.h"
 
 using namespace std;
 using namespace cv;
@@ -31,6 +32,8 @@ public:
 private:
 	//string folder_path = "E:\\NIH_images\\003412_03_01\\";
 	string folder_path = "E:\\NIH_images\\004425_01_01\\";
+
+	ColorMaker colormaker;
 
 	//Initial functions
 	void loadScans();
@@ -66,7 +69,7 @@ private:
 	void setIgnores(vector<int> ignores);
 
 	void assignColorFromCat();
-
+	void assignColor();
 	Block* copyVolume(Block* from);
 	
 };

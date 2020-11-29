@@ -87,6 +87,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="ColorMaker.cpp" />
     <ClCompile Include="Containers.cpp" />
     <ClCompile Include="CudaContainers.cpp" />
     <ClCompile Include="deleted_routines.cpp" />
@@ -97,6 +98,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="ColorMaker.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="Containers.h" />
     <ClInclude Include="CudaContainers.h" />

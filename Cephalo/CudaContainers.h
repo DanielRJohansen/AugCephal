@@ -8,6 +8,11 @@ struct CudaColor {
 	__device__ CudaColor() {};
 	__device__ CudaColor(float r, float g, float b) : r(r), g(g), b(b) {};
 	__device__ inline void add(CudaColor c) { r += c.r; g += c.g; b += c.b; };
+	__device__ inline void cap() { if (r > 255) { r = 255; }
+	if (g > 255) { g = 255; }
+	if (b > 255) { b = 255; }
+	}
+
 	__device__ inline CudaColor operator*(float s) const { return CudaColor(r * s, g * s, b * s); }
 	float r = 0;
 	float g = 0;
