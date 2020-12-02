@@ -1,7 +1,7 @@
 #pragma once
 
 
-const int RAYS_PER_DIM = 1600;// 1024; //Max SM's 68
+const int RAYS_PER_DIM = 1440;// 1024; //Max SM's 68
 const int RAY_BLOCKS_PER_DIM = 2;
 //const float OBJECT_SIZE = 600;
 const int NUM_RAYS = RAYS_PER_DIM * RAYS_PER_DIM;
@@ -29,12 +29,15 @@ const float CAM_ROTATION_STEP = 2 * 3.1415 / 20; // 20 clicks per rotation
 
 
 const float CLUSTER_MAX_SEP = 10;
-const float HU_MIN = -400;
-const float HU_MAX = 300;
+const int HU_MIN = -650;
+const int HU_MAX = 10000;
 
 const int NO_CLUSTER = -1;
 const int UNKNOWN_CLUSTER = -2;
 
 const int NON_IGNORES_THRESHOLD = 100;
+const float UNKNOWN_CAT = -2;
+
+const float BELONGING_COEFFICIENT = 1 / 0.01;
 
 

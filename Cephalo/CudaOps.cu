@@ -5,6 +5,8 @@
 #define vol_z_range VOL_Z
 #define RAY_SS 0.7
 #define e 2.71828
+__device__ const float TOO_FEW = -2000;
+__device__ const float ERASE = -2001;
 //cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
 
 
@@ -127,7 +129,7 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
 }
 
 
-__global__ void medianFilterKernel(Block* original, Block* volume, circularWindow* windows, int* finished) {
+__global__ void medianFilterKernel(Block* original, Block* volume, int* finished) {
     
     int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
     int x = threadIdx.x;
@@ -147,6 +149,7 @@ __global__ void medianFilterKernel(Block* original, Block* volume, circularWindo
     }
 
     for (int z = 1; z < VOL_Z - 1; z++) {
+        //volume[i].ignore = true;
         int vol_index = z * VOL_Y * VOL_X + y * VOL_X + x;
         for (int yoff = -1; yoff < 2; yoff++) {
             for (int xoff = -1; xoff < 2; xoff++) {
@@ -154,7 +157,10 @@ __global__ void medianFilterKernel(Block* original, Block* volume, circularWindo
                 window.add(original[vol_index_window].value);
             }
         }            
-        volume[vol_index].value = (volume[vol_index].value + window.step())/2;
+        float median_val = window.step();
+        if (median_val == ERASE) { volume[vol_index].ignore = true; }
+        else if (median_val != TOO_FEW) // Otherwise dont change the value
+            volume[vol_index].value = 0; (volume[vol_index].value + median_val) / 2.;
     }
     
     *finished = 1;
@@ -237,6 +243,8 @@ void CudaOperator::rayStepMS(Ray* rp, CompactCam cc, sf::Texture* texture) {
 
 void CudaOperator::medianFilter(Block* ori, Block* vol) {
     int num_blocks = VOL_X * VOL_Y * VOL_Z;
+    auto start = chrono::high_resolution_clock::now();
+
 
     cout << "Starting median filter of kernel size 3" << endl;
     cout << "Requires space " << (VOL_X*VOL_Y * sizeof(circularWindow) + 2*num_blocks*sizeof(Block))/ 1000000 << " Mb" << endl;
@@ -262,10 +270,14 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
     cudaMemcpy(volume, vol, num_blocks * sizeof(Block), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
 
-    medianFilterKernel << <VOL_Y, VOL_X >> > (original, volume, windows, finished);    // RPD blocks (y), RPD threads(x)
+    medianFilterKernel << <VOL_Y, VOL_X >> > (original, volume, finished);    // RPD blocks (y), RPD threads(x)
     cudaDeviceSynchronize();
 
-    cout << "Finished " << *finished << endl;
+
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+    cout << "Finished " << *finished;
+    printf("   Filter applied in %d ms.\n", duration);
     
     
     //Finally the CUDA altered rayptr must be copied back to the Raytracer rayptr
@@ -285,15 +297,15 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
 __device__ void circularWindow::add(float val) {  
     window[head] = val;
     head++;
-    if (head == 27) 
+    if (head == WINDOW_SIZE)
         head = 0;
 }
 __device__ void circularWindow::sortWindow() {
     copyWindow();
     int lowest_index = 0;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < WINDOW_SIZE; i++) {
         float lowest = 99999;
-        for (int j = 0; j < size; j++) {
+        for (int j = 0; j < WINDOW_SIZE; j++) {
             if (window_copy[j] < lowest) {
                 lowest = window_copy[j];
                 lowest_index = j;
@@ -304,11 +316,29 @@ __device__ void circularWindow::sortWindow() {
     }
 }
 __device__ void circularWindow::copyWindow() {
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < WINDOW_SIZE; i++) {
         window_copy[i] = window[i];
+    }
+}
+__device__ int circularWindow::numTooLows() {
+    int num = 0;
+    for (int i = 0; i < WINDOW_SIZE; i++) {
+        if (window_sorted[i] < HU_MIN) { num++; }   // As it is sorted, we do not need to check all
+        else { return num; }
+    }
+}
+__device__ int circularWindow::numTooHighs() {
+    int num = 0;
+    for (int i = WINDOW_SIZE -1; i >= 0; i--) {
+        if (window_sorted[i] > HU_MAX) { num++; }   // As it is sorted, we do not need to check all
+        else { return num; }
     }
 }
 __device__ float circularWindow::step() {
     sortWindow(); 
-    return window_sorted[14];
+    int tl = numTooLows();
+    int th = numTooHighs();
+    if ((tl + th) > 25) { return ERASE; }
+    if ((tl + th) > 20) { return TOO_FEW; }
+    return window_sorted[14 + (tl - th)/2];
 }

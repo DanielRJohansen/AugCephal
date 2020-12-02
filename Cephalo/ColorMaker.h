@@ -8,25 +8,25 @@
 #define e 2.71828
 #define pi 3.1415
 
-const int NUM_CATS = 12;
-
+const int NUM_CATS = 11;
+const int hu_indexes = HU_MAX - HU_MIN;
 
 
 class ColorMaker
 {
 public:
 	ColorMaker();
-	inline Color colorFromHu(int hu) {
-		//cout << hu << "     ";
-		return hu_lut[hu - min_hu]; }
-	inline int catFromHu(int hu) { return cat_lut[hu - min_hu]; }
+	inline Color colorFromHu(int hu) {		return col_lut[hu - HU_MIN]; }
+	inline int catFromHu(int hu) { return cat_lut[hu - HU_MIN]; }
+	inline float belongingFromHu(int hu) { return belonging_lut[hu]; }
+	Color forceColorFromCat(int cat, int prev_val);
 private:
 	Color colorFromValue();
 	void initCategories();
 
-	int min_hu = -700;
-	Color hu_lut[10700];
-	int cat_lut[10700];
+	Color col_lut[hu_indexes];
+	int cat_lut[hu_indexes];
+	float belonging_lut[hu_indexes];
 	void makeLUT();
 
 	Category categories[NUM_CATS];

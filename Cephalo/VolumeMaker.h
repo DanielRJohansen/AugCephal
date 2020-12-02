@@ -46,6 +46,7 @@ private:
 	bool isNotClustered(int bi);
 	bool isCategory(int bi, int cat_id);
 
+
 	void medianFilter();
 	void categorizeBlocks();
 
@@ -71,6 +72,7 @@ private:
 
 	void assignColorFromCat();
 	void assignColor();
+	void assignUnknowns(int unknown_id);
 	Block* copyVolume(Block* from);
 	
 };

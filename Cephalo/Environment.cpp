@@ -1,5 +1,6 @@
 #include "Environment.h"
 
+const int ILLEGAL_TYPE = -33;
 
 Environment::Environment() {
 	VM = new VolumeMaker(false);	//Do clustering
@@ -23,7 +24,7 @@ void Environment::Run() {
 	thr1 = thread(&Environment::handleConsole, this);
 
 	sf::RenderWindow window(sf::VideoMode(RAYS_PER_DIM, RAYS_PER_DIM), 
-		"3D body", sf::Style::Close | sf::Style::Resize);
+		"3D body", sf::Style::Close );
 	sf::Texture texture;
 	sf::Sprite sprite;
 	RT.render(cuda_texture);
@@ -105,6 +106,16 @@ bool Environment::handleEvents(sf::Event event) {
 	return true;
 }
 
+int idFromString(string input) {
+	string cats[10] = { "lung", "fat", "fluids", "water", "hematoma", "bloodclot",
+		"blood", "muscle", "cancellous", "cortical" };
+	for (int i = 0; i < 10; i++) {
+		if (cats[i] == input)
+			return i;
+	}
+	return ILLEGAL_TYPE;
+}
+
 void Environment::handleConsole() {
 	string type;
 	int type_index;
@@ -122,32 +133,15 @@ void Environment::handleConsole() {
 		cin >> hide;
 
 		// I'm sorry...
-		if (type == "lung") {
-			type_index = 0;
-		}
-		else if (type == "fat") {
-			type_index = 1;
-		}
-		else if (type == "fluids") {
-			type_index = 2;
-		}
-		else if (type == "muscle") {
-			type_index = 3;
-		}
-		else if (type == "clot") {
-			type_index = 4;
-		}
-		else if (type == "bone") {
-			type_index = 5;
-		}
-		else
-			continue;
-		if (VM->setIgnore(type_index, hide)) {
-			printf("Updating volume...");
-			RT.updateVol(VM->volume);
-			volume_updated = true;
-			printf(" Volume updated\n");
-		}
+		type_index = idFromString(type);
+		if (type_index != ILLEGAL_TYPE) {
+			if (VM->setIgnore(type_index, hide)) {
+				printf("Updating volume...");
+				RT.updateVol(VM->volume);
+				volume_updated = true;
+				printf(" Volume updated\n");
+			}
+		}		
 	}
 }
 

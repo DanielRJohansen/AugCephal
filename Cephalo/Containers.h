@@ -50,30 +50,29 @@ struct Cluster {
 
 struct Category {
 	Category() {};
-	Category(int id, float sta, float sto, Color c);
+	Category(int id, int sta, int sto, Color c);
 
 
 	int id;
-	float start;
+	int start;
 	float centroid;
-	float stop;
+	int stop;
 	float var_scalar = 0.1;
 	Color color;
 };
 
 struct Block {
-	float alpha = 1;	//Basically how many cat switches we allow for
 	float value = 0;
-	//Cluster *cluster;
 	int hu_val;
 	int cat;
+	int cat_;
 
 	Color color;
-	int cat_index;
-	int prev_cat_index;
-
-	int cluster_id = NO_CLUSTER;// No cluster
+	float alpha = 0.2;	//Basically how many cat switches we allow for
 	bool ignore = false;
+	bool was_ignore = false;
+	
+	int cluster_id = NO_CLUSTER;// No cluster
 };
 
 

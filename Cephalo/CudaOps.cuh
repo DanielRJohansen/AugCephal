@@ -9,6 +9,7 @@
 #include <SFML\graphics.hpp>
 #include "CudaContainers.h"
 
+#include <chrono>
 #include <ctime>
 
 using namespace std;
@@ -44,11 +45,10 @@ private:
 	int image_stream_bytes;
 };
 
+
+#define WINDOW_SIZE 27
 class circularWindow {
 public:
-	const int size = 27;
-	float best = 0;
-
 	__device__ void add(float val);
 	__device__ float step();
 
@@ -61,4 +61,6 @@ private:
 
 	__device__ void sortWindow();
 	__device__ void copyWindow();
+	__device__ int numTooLows();
+	__device__ int numTooHighs();
 };

@@ -2,6 +2,79 @@
 * 
 * 
 *
+* 
+* 
+*
+
+
+void VolumeMaker::setIgnores(vector<int> ignores) {
+    for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
+        for (int j = 0; j < 6; j++) {
+            if (ignores[volume[i].cat_index]) {
+                volume[i].ignore = true;
+                break;
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void VolumeMaker::categorizeBlocks() {
+    for (int z = 0; z < VOL_Z; z++) {
+        //printf(" \r Categorizing z level %d ", z);
+        for (int y = 0; y < VOL_Y; y++) {
+            for (int x = 0; x < VOL_X; x++) {
+                int block_index = xyzToIndex(x, y, z);
+                if (volume[block_index].ignore) {
+                    volume[block_index].cat_index = colorscheme.cat_indexes[0];
+                    volume[block_index].prev_cat_index = volume[block_index].cat_index;
+                }
+                else {
+                    int hu_index = (int)((volume[block_index].value * (HU_MAX - HU_MIN - 1)));
+                    //if (hu_index > 200)
+                     //   printf("%f      %d \n",  volume[block_index].value, hu_index);
+                    volume[block_index].cat_index = colorscheme.cat_indexes[hu_index];
+                    volume[block_index].prev_cat_index = volume[block_index].cat_index;
+                }
+
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 void CudaOperator::rayStepMS(Ray* rp, CompactCam cc) {

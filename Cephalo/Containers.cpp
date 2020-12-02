@@ -19,7 +19,7 @@ Color Color::mul(float s) {
 
 
 
-Category::Category(int idd, float sta, float sto, Color c) {
+Category::Category(int idd, int sta, int sto, Color c) {
 	id = idd;
 	start = sta; 
 	stop = sto;
