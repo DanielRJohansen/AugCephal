@@ -49,18 +49,17 @@ private:
 #define WINDOW_SIZE 27
 class circularWindow {
 public:
-	__device__ void add(float val);
-	__device__ float step();
+	__device__ void add(int val);
+	__device__ int step();
 
 private:
 	int head = 0;
 	
-	float window[27];
-	float window_copy[27];
-	float window_sorted[27];
+	int window[27];
+	int window_copy[27];
+	int window_sorted[27];
 
 	__device__ void sortWindow();
 	__device__ void copyWindow();
-	__device__ int numTooLows();
-	__device__ int numTooHighs();
+	__device__ int numOutsideSpectrum();
 };

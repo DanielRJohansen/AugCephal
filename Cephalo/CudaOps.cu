@@ -3,8 +3,11 @@
 #define vol_x_range VOL_X
 #define vol_y_range VOL_Y
 #define vol_z_range VOL_Z
-#define RAY_SS 0.7
+#define RAY_SS 0.6
 #define e 2.71828
+
+#define outside_spectrum OUTSIDE_SPECTRUM
+
 __device__ const float TOO_FEW = -2000;
 __device__ const float ERASE = -2001;
 //cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size);
@@ -19,17 +22,17 @@ __device__ int xyzToIndex(int vol_x, int vol_y, int vol_z) {
 }
 
 __device__ float activationFunction(float counts) {
-    return 2 / (1 + powf(e, (-counts / 9))) - 1;
+    return 2 / (1 + powf(e, (-counts / 15))) - 1;
 }
 
 __device__ float lightSeeker(Block* volume, CudaFloat3 pos) {
     float spread = 1;
-    float brightness = 3;
+    float brightness = 1;
     for (int y = 0; y < 3; y++) {
         for (int x = 0; x < 3; x++) {
 
             // Upward seeking
-            for (int z = 2; z < 9; z *= 2) {
+            for (int z = 1; z < 17; z *= 2) {
                 int vol_x = pos.x - spread + spread * x;
                 int vol_y = pos.y - spread + spread * y;
                 int vol_z = pos.z + z;
@@ -80,7 +83,7 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
     
     // 140 ms
 
-    for (int step = 20; step < RAY_STEPS; step++) {
+    for (int step = 200; step < RAY_STEPS; step++) {
 
         int x = cc.origin.x + cray.step_vector.x * step;
         int y = cc.origin.y + cray.step_vector.y * step;
@@ -143,7 +146,7 @@ __global__ void medianFilterKernel(Block* original, Block* volume, int* finished
         for (int yoff = -1; yoff < 2; yoff++) {
             for (int xoff = -1; xoff < 2; xoff++) {
                 int vol_index = z * VOL_Y * VOL_X + (y+yoff) * VOL_X + x+xoff;
-                window.add(original[vol_index].value);
+                window.add(original[vol_index].hu_val);
             }
         }
     }
@@ -154,13 +157,15 @@ __global__ void medianFilterKernel(Block* original, Block* volume, int* finished
         for (int yoff = -1; yoff < 2; yoff++) {
             for (int xoff = -1; xoff < 2; xoff++) {
                 int vol_index_window = (z + 1) * VOL_Y * VOL_X + (y + yoff) * VOL_X + x + xoff;
-                window.add(original[vol_index_window].value);
+                window.add(original[vol_index_window].hu_val);
             }
-        }            
-        float median_val = window.step();
+        }
+        // It is important we add the upper plane, even when the block is to be ignored!
+        if (volume[vol_index].ignore) { continue; } 
+        int median_val = window.step();
         if (median_val == ERASE) { volume[vol_index].ignore = true; }
         else if (median_val != TOO_FEW) // Otherwise dont change the value
-            volume[vol_index].value = 0; (volume[vol_index].value + median_val) / 2.;
+            volume[vol_index].hu_val = (volume[vol_index].hu_val + median_val) / 2.;
     }
     
     *finished = 1;
@@ -249,21 +254,12 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
     cout << "Starting median filter of kernel size 3" << endl;
     cout << "Requires space " << (VOL_X*VOL_Y * sizeof(circularWindow) + 2*num_blocks*sizeof(Block))/ 1000000 << " Mb" << endl;
     Block* original; Block* volume;
-    circularWindow* windows;
     int* finished = new int;
     *finished = 0;
     cudaMallocManaged(&finished, sizeof(int));
     cudaMallocManaged(&original, num_blocks * sizeof(Block));
     cudaMallocManaged(&volume, num_blocks * sizeof(Block));
-    cudaMallocManaged(&windows, VOL_X*VOL_Y * sizeof(circularWindow));
 
-    // Hacky workaround to move the objects onto the device.
-    circularWindow* cc;
-    cc = new circularWindow[num_blocks];
-    cudaMemcpy(windows, cc, num_blocks * sizeof(circularWindow), cudaMemcpyHostToDevice);
-
-
-   
 
 
     cudaMemcpy(original, ori, num_blocks * sizeof(Block), cudaMemcpyHostToDevice);
@@ -286,7 +282,6 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
 
     cudaFree(original);
     cudaFree(volume);
-    cudaFree(windows);
 }
 
 
@@ -294,7 +289,7 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
 
 
 
-__device__ void circularWindow::add(float val) {  
+__device__ void circularWindow::add(int val) {  
     window[head] = val;
     head++;
     if (head == WINDOW_SIZE)
@@ -303,8 +298,9 @@ __device__ void circularWindow::add(float val) {
 __device__ void circularWindow::sortWindow() {
     copyWindow();
     int lowest_index = 0;
+    int max = 99999;
     for (int i = 0; i < WINDOW_SIZE; i++) {
-        float lowest = 99999;
+        float lowest = max;
         for (int j = 0; j < WINDOW_SIZE; j++) {
             if (window_copy[j] < lowest) {
                 lowest = window_copy[j];
@@ -312,7 +308,7 @@ __device__ void circularWindow::sortWindow() {
             }
         }
         window_sorted[i] = window_copy[lowest_index];
-        window_copy[lowest_index] = 99999;
+        window_copy[lowest_index] = max;
     }
 }
 __device__ void circularWindow::copyWindow() {
@@ -320,25 +316,20 @@ __device__ void circularWindow::copyWindow() {
         window_copy[i] = window[i];
     }
 }
-__device__ int circularWindow::numTooLows() {
+__device__ int circularWindow::numOutsideSpectrum() {
     int num = 0;
     for (int i = 0; i < WINDOW_SIZE; i++) {
-        if (window_sorted[i] < HU_MIN) { num++; }   // As it is sorted, we do not need to check all
+        if (window_sorted[i] == outside_spectrum) { num++; }
         else { return num; }
     }
+    return num;
 }
-__device__ int circularWindow::numTooHighs() {
-    int num = 0;
-    for (int i = WINDOW_SIZE -1; i >= 0; i--) {
-        if (window_sorted[i] > HU_MAX) { num++; }   // As it is sorted, we do not need to check all
-        else { return num; }
-    }
-}
-__device__ float circularWindow::step() {
+__device__ int circularWindow::step() {
     sortWindow(); 
-    int tl = numTooLows();
-    int th = numTooHighs();
-    if ((tl + th) > 25) { return ERASE; }
-    if ((tl + th) > 20) { return TOO_FEW; }
-    return window_sorted[14 + (tl - th)/2];
+
+    int num_os = numOutsideSpectrum();
+    //return ERASE;
+    if (num_os > 25) { return ERASE; }
+    if (num_os > 20) { return TOO_FEW; }
+    return window_sorted[13 + num_os/2];
 }

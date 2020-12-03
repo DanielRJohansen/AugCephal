@@ -62,13 +62,12 @@ struct Category {
 };
 
 struct Block {
-	float value = 0;
 	int hu_val;
 	int cat;
 	int cat_;
 
 	Color color;
-	float alpha = 0.2;	//Basically how many cat switches we allow for
+	float alpha = 1;	//Basically how many cat switches we allow for
 	bool ignore = false;
 	bool was_ignore = false;
 	

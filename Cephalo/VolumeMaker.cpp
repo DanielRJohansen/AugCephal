@@ -4,54 +4,57 @@
 #include <iostream>
 #include <fstream>  
 
+const string cat_names[11] = { "lung", "fat", "fluids", "water", "hematoma", "bloodclot",
+        "blood", "muscle", "cancellous", "cortical", "foreign" };
 
 VolumeMaker::VolumeMaker() {}
 
 
 VolumeMaker::VolumeMaker(bool default_config) {
-    //CudaOperator CudaOps;
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
     
     CudaOperator CudaOps;
     CudaOps.medianFilter(copyVolume(volume), volume);
-    //categorizeBlocks();   
    
-
-    // For ref: Category cats[6] = {lung, fat, fluids, muscle, clot, bone };
     // air = -1, unknown = -2
+    assignColor();      // And category
+
+    close(9);
+    //close(8);
+    //close(7);
+
     if (default_config) {
-        //open(5);
-        //cluster(5, 20000);
-        //cluster(0, 5000);
-        //cluster(3, 500);
-        //cluster(1, 10);
-        //cluster(2, 10);
-        //vector<int> ignores_tmp = { 0,2,4 };
-        //setIgnores(ignores_tmp);
+        cluster(10, 1000);
+        cluster(0, 500);
+        cluster(1, 200);
+        cluster(2, 100);
+        cluster(3, 10);
+        cluster(4, 20);
+        cluster(5, 20); //clot
+        cluster(6, 20);
+        cluster(7, 100);
+        cluster(8, 100);
+        cluster(9, 2000);
     }
     
+    setIgnore(0, true);  
+    setIgnore(2, true);
 
+    /*setIgnore(1, true);   
+    setIgnore(3, true);   
+    setIgnore(4, true);    
 
-    assignColor();
-    close(9);
-
-    
-    setIgnore(0, true);    // Lung
-    setIgnore(1, true);    // Lung
-    setIgnore(2, true);    // Lung
-    setIgnore(3, true);    // Lung
-    setIgnore(4, true);    // Lung
-
-    setIgnore(5, true);    // Lung
-    setIgnore(6, true);    // Lung
-    setIgnore(7, true);    // Lung
-    setIgnore(8, true);    // Lung
+    setIgnore(5, true);    
+    setIgnore(6, true);   
+    setIgnore(7, true);    
+    setIgnore(8, true);    
+    */
 
     locateEmptyYSlices();
     locateEmptyXSlices();
     //assignUnknowns(10);
-   
+    printf("\n");
 }
 std::ofstream outfile("E:\\NormImages\\gl3.txt");
 
@@ -78,9 +81,12 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
     for (int y = 0; y < VOL_Y; y++) {
         for (int x = 0; x < VOL_X; x++) {
             int hu = img.at<uint16_t>(y, x) - 32768;
-            if (hu < HU_MIN) { volume[xyzToIndex(x, y, z)].ignore = true; }
-            if (hu > HU_MAX) { volume[xyzToIndex(x, y, z)].ignore = true; }
-            volume[xyzToIndex(x, y, z)].hu_val = hu;
+            if (hu < HU_MIN || hu > HU_MAX) { 
+                volume[xyzToIndex(x, y, z)].ignore = true; 
+                volume[xyzToIndex(x, y, z)].hu_val = OUTSIDE_SPECTRUM;
+            }
+            //else if (hu > HU_MAX) { volume[xyzToIndex(x, y, z)].ignore = true; }
+            else volume[xyzToIndex(x, y, z)].hu_val = hu;
         }
     }
 }
@@ -96,9 +102,9 @@ Block* VolumeMaker::copyVolume(Block* from) {
 int VolumeMaker::xyzToIndex(int x, int y, int z) { return z * 512 * 512 + y * 512 + x; }
 bool VolumeMaker::isLegal(int x, int y, int z) { return x >= 0 && y >= 0 && z >= 0 && x < VOL_X&& y < VOL_Y&& z < VOL_Z; }
 bool VolumeMaker::isNotClustered(int block_index) { return volume[block_index].cluster_id == NO_CLUSTER; }
-//bool VolumeMaker::isCategory(int block_index, int cat_id) { return volume[block_index].cat_index == cat_id; }
+bool VolumeMaker::isCategory(int block_index, int cat_id) { return volume[block_index].cat == cat_id; }
 
-/*void VolumeMaker::cluster(int category_index, int min_cluster_size) {               //Currently not in use
+void VolumeMaker::cluster(int category_index, int min_cluster_size) {               //Currently not in use
     int cluster_id = 0;
     int clustersize;
     vector<Cluster> clusters;
@@ -109,29 +115,25 @@ bool VolumeMaker::isNotClustered(int block_index) { return volume[block_index].c
                 int block_index = xyzToIndex(x, y, z);
                 if (isCategory(block_index, category_index) && isNotClustered(block_index)) {
                     clustersize = propagateCluster(x, y, z, cluster_id, category_index, 1);    // DEEP recursive function
-                    clusters.push_back(Cluster(cluster_id, clustersize));
+                    Cluster cluster(cluster_id, clustersize);
+                    clusters.push_back(cluster);
                     cluster_id++;
-                    printf(" \r Clusters of %s : %d ", colorscheme.category_ids[category_index].c_str(), cluster_id);
+                    if (cluster.size >= min_cluster_size) {
+                        printf(" \r Clusters of %s : %d ", cat_names[category_index].c_str(), --cluster_id);
+                    }                    
                 }
             }
         }
     }
-    for (int z = 0; z < VOL_Z; z++) {
-        for (int y = 0; y < VOL_Y; y++) {
-            for (int x = 0; x < VOL_X; x++) {
-                int block_index = xyzToIndex(x, y, z);
-                if (volume[block_index].cluster_id != 0 && volume[block_index].cat_index == category_index) {
-                    if (clusters[volume[block_index].cluster_id].size < min_cluster_size) {
-                        volume[block_index].ignore = true;
-                        //volume[block_index].cat_index = UNKNOWN_CLUSTER; //Is unknown now;
-                    }
-                        
-                }              
+    for (int i = 0; i < VOL_X * VOL_Y * VOL_Z; i++) {
+        if (volume[i].cluster_id != 0 && volume[i].cat == category_index) {
+            if (clusters[volume[i].cluster_id].size < min_cluster_size) {
+                volume[i].ignore = true;
+                //volume[i].cat = UNKNOWN_CLUSTER; //Is unknown now;
             }
-        }
+        }              
     }
 }
-
 int VolumeMaker::propagateCluster(int x, int y, int z, int cluster_id, int category_index, int depth) {
     int clustersize = 1;
     volume[xyzToIndex(x, y, z)].cluster_id = cluster_id;
@@ -152,7 +154,11 @@ int VolumeMaker::propagateCluster(int x, int y, int z, int cluster_id, int categ
         }
     }
     return clustersize;
-}*/
+}
+
+
+
+
 
 
 void VolumeMaker::open(int cat_i) {
@@ -167,7 +173,6 @@ void VolumeMaker::close(int cat_i) {
     updatePreviousCat();
 }
 void VolumeMaker::dilate(int cat_i) {
-    printf("\n");
     for (int z = 1; z < VOL_Z-1; z++) {
         //printf(" \r Dilating %s %d", colorscheme.category_ids[cat_i].c_str(), z);
         for (int y = 1; y < VOL_Y-1; y++) {
@@ -190,7 +195,6 @@ void VolumeMaker::dilate(int cat_i) {
 }
 
 void VolumeMaker::erode(int cat_i) {
-    printf("\n");
     for (int z = 1; z < VOL_Z-1; z++) {
         //printf(" \r Eroding %s %d", colorscheme.category_ids[cat_i].c_str(), z);
         for (int y = 1; y < VOL_Y-1; y++) {
@@ -219,7 +223,7 @@ void VolumeMaker::erode(int cat_i) {
 void VolumeMaker::updatePreviousCat() {
     for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
         if (volume[i].cat != volume[i].cat_) {
-            volume[i].color = colormaker.forceColorFromCat(volume[i].cat_, volume[i].value);
+            volume[i].color = colormaker.forceColorFromCat(volume[i].cat_, volume[i].hu_val);
             volume[i].ignore = false;
         }
         //volume[i].prev_cat_index = volume[i].cat_index;

@@ -7,11 +7,11 @@ const int RAY_BLOCKS_PER_DIM = 2;
 const int NUM_RAYS = RAYS_PER_DIM * RAYS_PER_DIM;
 //const float RAY_RANGE = 3.1415 * 0.1;
 const float RAY_STEPSIZE = 5;
-const int RAY_STEPS = 1000;
+const int RAY_STEPS = 1300;
 const int N_STREAMS = 16;
 const int THREADS_PER_BLOCK = 256;
 
-const float FOCAL_LEN = 1;	
+const float FOCAL_LEN = 1.2;	
 const int CAM_RADIUS = 512;
 const int CAM_RADIUS_INC = 100;
 
@@ -31,6 +31,7 @@ const float CAM_ROTATION_STEP = 2 * 3.1415 / 20; // 20 clicks per rotation
 const float CLUSTER_MAX_SEP = 10;
 const int HU_MIN = -650;
 const int HU_MAX = 10000;
+const int OUTSIDE_SPECTRUM = -2000;
 
 const int NO_CLUSTER = -1;
 const int UNKNOWN_CLUSTER = -2;

@@ -3,7 +3,7 @@
 const int ILLEGAL_TYPE = -33;
 
 Environment::Environment() {
-	VM = new VolumeMaker(false);	//Do clustering
+	VM = new VolumeMaker(true);	//Do clustering
 	volume = VM->volume;
 	camera = new Camera();
 
@@ -107,9 +107,9 @@ bool Environment::handleEvents(sf::Event event) {
 }
 
 int idFromString(string input) {
-	string cats[10] = { "lung", "fat", "fluids", "water", "hematoma", "bloodclot",
-		"blood", "muscle", "cancellous", "cortical" };
-	for (int i = 0; i < 10; i++) {
+	string cats[11] = { "lung", "fat", "fluids", "water", "hematoma", "bloodclot",
+		"blood", "muscle", "cancellous", "cortical" , "foreign"};
+	for (int i = 0; i < 11; i++) {
 		if (cats[i] == input)
 			return i;
 	}

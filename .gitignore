@@ -171,3 +171,7 @@ dmypy.json
 *.iml
 *.opendb
 *.vs
+*.idb
+*.pdb
+*.ilk
+*.tlog

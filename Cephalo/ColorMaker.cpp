@@ -15,7 +15,7 @@ void ColorMaker::initCategories() {
 	Category water(3, -2, 2, Color(35, 137, 218));
 	Category blood(4, 13, 50, Color(0x5c, 0x10, 0x04));
 	Category muscle(5, 35, 55, Color(0x8a, 0x03, 0x03)); //Should be 35
-	Category hematoma(6, 35, 100, Color(0xff, 0x90, 0x00));
+	Category hematoma(6, 50, 100, Color(41, 9, 55));
 	Category bloodclot(7, 50, 75, Color(0x47, 0x11, 0x04));
 	Category cancellous(8, 300, 400, Color(222, 202, 176));
 	Category cortical(9, 1000, 1900, Color(255, 255, 255));
