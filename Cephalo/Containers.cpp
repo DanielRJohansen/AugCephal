@@ -18,18 +18,7 @@ Color Color::mul(float s) {
 }
 
 
-
-Category::Category(int idd, int sta, int sto, Color c) {
-	id = idd;
-	start = sta; 
-	stop = sto;
-	color = c;
-	centroid = (start + stop) / 2;
-	//variance = (stop - start) / 2 * var_scalar;
-}
-
-
-ColorScheme::ColorScheme() {
+/*ColorScheme::ColorScheme() {
 	Category lung(0, -700, -120, Color(212, 163, 163)); //Shoudl be 45
 	Category fat(1, -120, -90, Color(241, 194, 125));
 	Category fluids(2, -90, 20, Color(128, 128, 200));
@@ -61,7 +50,7 @@ ColorScheme::ColorScheme() {
 			}
 		}
 	}
-}
+}*/
 
 CompactCam::CompactCam(Float3 o, float p, float y, float r) {
 	origin = o;

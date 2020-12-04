@@ -28,7 +28,7 @@ public:
 	bool* empty_y_slices;
 	bool* empty_x_slices;
 
-	ColorScheme colorscheme;
+	//ColorScheme colorscheme;
 
 private:
 	//string folder_path = "E:\\NIH_images\\003412_03_01\\";

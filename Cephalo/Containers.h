@@ -50,14 +50,17 @@ struct Cluster {
 
 struct Category {
 	Category() {};
-	Category(int id, int sta, int sto, Color c);
-
+	Category(int id, int cc, int start, int stop, Color c) : id(id), cat_cluster(cc), start(start), stop(stop), color(c) {
+		center = (start + stop) / 2;
+		spread = stop - start;
+	};
 
 	int id;
+	int cat_cluster;
 	int start;
-	float centroid;
 	int stop;
-	float var_scalar = 0.1;
+	int center;
+	int spread;
 	Color color;
 };
 

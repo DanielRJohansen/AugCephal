@@ -3,7 +3,7 @@
 const int ILLEGAL_TYPE = -33;
 
 Environment::Environment() {
-	VM = new VolumeMaker(true);	//Do clustering
+	VM = new VolumeMaker(false);	//Do clustering
 	volume = VM->volume;
 	camera = new Camera();
 
@@ -107,10 +107,9 @@ bool Environment::handleEvents(sf::Event event) {
 }
 
 int idFromString(string input) {
-	string cats[11] = { "lung", "fat", "fluids", "water", "hematoma", "bloodclot",
-		"blood", "muscle", "cancellous", "cortical" , "foreign"};
-	for (int i = 0; i < 11; i++) {
-		if (cats[i] == input)
+	for (int i = 0; i < NUM_CATS; i++) {
+		//printf("%s          %s\n", category_names[i].c_str(), input.c_str());
+		if (category_names[i] == input)
 			return i;
 	}
 	return ILLEGAL_TYPE;
@@ -120,20 +119,24 @@ void Environment::handleConsole() {
 	string type;
 	int type_index;
 	bool hide;
-	string types[6] = { "lung", "fat", "fluids", "muscle", "clot", "bone" };
 
 	while (true) {
 		if (volume_updated) {
 			continue;
 		}
-		printf("Change type visibility? (%s,%s,%s,%s,%s,%s)\n", types[0].c_str(), types[1].c_str(), 
-			types[2].c_str(), types[3].c_str(), types[4].c_str(), types[5].c_str());
+		printf("Change type visibility? (");
+		for (int i = 0; i < NUM_CATS; i++) {
+			printf("%s  ", category_names[i].c_str());
+		}
+		printf(")\n");
+	
 		cin >> type;
 		printf("Hide/Show (1/0) \n");
 		cin >> hide;
 
 		// I'm sorry...
 		type_index = idFromString(type);
+		//cout << type_index << endl << endl;
 		if (type_index != ILLEGAL_TYPE) {
 			if (VM->setIgnore(type_index, hide)) {
 				printf("Updating volume...");
@@ -141,7 +144,8 @@ void Environment::handleConsole() {
 				volume_updated = true;
 				printf(" Volume updated\n");
 			}
-		}		
+		}
+					
 	}
 }
 

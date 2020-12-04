@@ -8,7 +8,6 @@
 #define e 2.71828
 #define pi 3.1415
 
-const int NUM_CATS = 11;
 const int hu_indexes = HU_MAX - HU_MIN;
 
 

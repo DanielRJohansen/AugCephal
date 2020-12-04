@@ -22,7 +22,7 @@ __device__ int xyzToIndex(int vol_x, int vol_y, int vol_z) {
 }
 
 __device__ float activationFunction(float counts) {
-    return 2 / (1 + powf(e, (-counts / 15))) - 1;
+    return 2 / (1 + powf(e, (-counts / 15.))) - 1.;
 }
 
 __device__ float lightSeeker(Block* volume, CudaFloat3 pos) {

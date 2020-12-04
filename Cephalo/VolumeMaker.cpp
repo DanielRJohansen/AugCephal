@@ -3,10 +3,17 @@
 
 #include <iostream>
 #include <fstream>  
-
-const string cat_names[11] = { "lung", "fat", "fluids", "water", "hematoma", "bloodclot",
-        "blood", "muscle", "cancellous", "cortical", "foreign" };
-
+#define LUNG 0
+#define FAT 1
+#define FLUIDS 2
+#define WATER 3
+#define MUSCLE 4
+#define BLOODCLOT 5
+#define HEMATOMA 6
+#define BLOOD 7
+#define CANCELLOUS 8 
+#define CORTICAL 9
+#define FOREIGN 10
 VolumeMaker::VolumeMaker() {}
 
 
@@ -20,40 +27,39 @@ VolumeMaker::VolumeMaker(bool default_config) {
     // air = -1, unknown = -2
     assignColor();      // And category
 
-    close(9);
-    //close(8);
-    //close(7);
+    close(CORTICAL);
+    close(CANCELLOUS);
+    close(MUSCLE);
+    close(FAT);
 
     if (default_config) {
-        cluster(10, 1000);
-        cluster(0, 500);
-        cluster(1, 200);
-        cluster(2, 100);
-        cluster(3, 10);
-        cluster(4, 20);
-        cluster(5, 20); //clot
-        cluster(6, 20);
-        cluster(7, 100);
-        cluster(8, 100);
-        cluster(9, 2000);
+        cluster(FOREIGN, 1000);
+        cluster(LUNG, 500);
+        cluster(FAT, 200);
+        cluster(FLUIDS, 100);
+        cluster(WATER, 10);
+        
+        cluster(MUSCLE, 20);
+        //cluster(5, 20); //clot
+        //cluster(6, 20);
+        //cluster(7, 100);
+        //cluster(8, 100);
+        //cluster(9, 2000);
     }
     
-    setIgnore(0, true);  
-    setIgnore(2, true);
-
-    /*setIgnore(1, true);   
-    setIgnore(3, true);   
-    setIgnore(4, true);    
-
-    setIgnore(5, true);    
-    setIgnore(6, true);   
-    setIgnore(7, true);    
-    setIgnore(8, true);    
-    */
+    setIgnore(LUNG, true);  
+    setIgnore(FAT, true);
+    setIgnore(FLUIDS, true);
+    setIgnore(WATER, true);   
+    //setIgnore(MUSCLE, true);    
+    setIgnore(BLOODCLOT, true);    
+    setIgnore(HEMATOMA, true);  
+    setIgnore(BLOOD, true);    
+    setIgnore(CANCELLOUS, true);    
+    
 
     locateEmptyYSlices();
     locateEmptyXSlices();
-    //assignUnknowns(10);
     printf("\n");
 }
 std::ofstream outfile("E:\\NormImages\\gl3.txt");
@@ -119,7 +125,7 @@ void VolumeMaker::cluster(int category_index, int min_cluster_size) {           
                     clusters.push_back(cluster);
                     cluster_id++;
                     if (cluster.size >= min_cluster_size) {
-                        printf(" \r Clusters of %s : %d ", cat_names[category_index].c_str(), --cluster_id);
+                        printf(" \r Clusters of %s : %d ", category_names[category_index].c_str(), --cluster_id);
                     }                    
                 }
             }
@@ -129,7 +135,7 @@ void VolumeMaker::cluster(int category_index, int min_cluster_size) {           
         if (volume[i].cluster_id != 0 && volume[i].cat == category_index) {
             if (clusters[volume[i].cluster_id].size < min_cluster_size) {
                 volume[i].ignore = true;
-                //volume[i].cat = UNKNOWN_CLUSTER; //Is unknown now;
+                volume[i].cat = UNKNOWN_CLUSTER; //Is unknown now;
             }
         }              
     }
@@ -173,18 +179,20 @@ void VolumeMaker::close(int cat_i) {
     updatePreviousCat();
 }
 void VolumeMaker::dilate(int cat_i) {
-    for (int z = 1; z < VOL_Z-1; z++) {
+    for (int z = 0; z < VOL_Z; z++) {
         //printf(" \r Dilating %s %d", colorscheme.category_ids[cat_i].c_str(), z);
-        for (int y = 1; y < VOL_Y-1; y++) {
-            for (int x = 0; x < VOL_X-1; x++) {
+        for (int y = 0; y < VOL_Y; y++) {
+            for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
                 //printf("%d     %d", volume[block_index].cat, cat_i);
                 if (volume[block_index].cat == cat_i) {
                     for (int z_ = z-1; z_ < z+2; z_++) {
                         for (int y_ = y-1; y_ < y+2; y_++) {
                             for (int x_ = x-1; x_ < x+2; x_++) {
-                                int block_index_ = xyzToIndex(x_, y_, z_);
-                                volume[block_index_].cat_ = cat_i;   
+                                if (isLegal(x_, y_, z_)) {
+                                    int block_index_ = xyzToIndex(x_, y_, z_);
+                                    volume[block_index_].cat_ = cat_i;
+                                }                             
                             }
                         }
                     }
@@ -195,21 +203,24 @@ void VolumeMaker::dilate(int cat_i) {
 }
 
 void VolumeMaker::erode(int cat_i) {
-    for (int z = 1; z < VOL_Z-1; z++) {
+    for (int z = 0; z < VOL_Z; z++) {
         //printf(" \r Eroding %s %d", colorscheme.category_ids[cat_i].c_str(), z);
-        for (int y = 1; y < VOL_Y-1; y++) {
-            for (int x = 1; x < VOL_X-1; x++) {
+        for (int y = 0; y < VOL_Y; y++) {
+            for (int x = 0; x < VOL_X; x++) {
                 int block_index = xyzToIndex(x, y, z);
 
                 if (volume[block_index].cat_ == cat_i) {
                     for (int z_ = z-1; z_ < z+2; z_++) {
                         for (int y_ = y-1; y_ < y+2; y_++) {
                             for (int x_ = x-1; x_ < x+2; x_++) {
-                                int block_index_ = xyzToIndex(x_, y_, z_);
-                                if (volume[block_index_].cat_ != cat_i) {
-                                    volume[block_index].cat_ = volume[block_index].cat;
-                                    goto EROSION_DONE;
-                                }
+
+                                if (isLegal(x_, y_, z_)) {
+                                    int block_index_ = xyzToIndex(x_, y_, z_);
+                                    if (volume[block_index_].cat_ != cat_i) {
+                                        volume[block_index].cat_ = volume[block_index].cat;
+                                        goto EROSION_DONE;
+                                    }
+                                }                               
                             }
                         }
                     }
@@ -223,10 +234,10 @@ void VolumeMaker::erode(int cat_i) {
 void VolumeMaker::updatePreviousCat() {
     for (int i = 0; i < VOL_Z * VOL_Y * VOL_X; i++) {
         if (volume[i].cat != volume[i].cat_) {
+            volume[i].cat = volume[i].cat_;
             volume[i].color = colormaker.forceColorFromCat(volume[i].cat_, volume[i].hu_val);
             volume[i].ignore = false;
         }
-        //volume[i].prev_cat_index = volume[i].cat_index;
     }
 }
 
