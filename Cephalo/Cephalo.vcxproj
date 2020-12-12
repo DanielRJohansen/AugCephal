@@ -94,6 +94,7 @@
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="ProxyMain.cpp" />
     <ClCompile Include="Raytracing.cpp" />
+    <ClCompile Include="SliceMagic.cpp" />
     <ClCompile Include="VolumeMaker.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -106,6 +107,7 @@
     <ClInclude Include="Environment.h" />
     <ClInclude Include="Raytracing.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="SliceMagic.h" />
     <ClInclude Include="Tools.h" />
     <ClInclude Include="VolumeMaker.h" />
   </ItemGroup>

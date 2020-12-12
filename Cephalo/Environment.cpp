@@ -3,7 +3,7 @@
 const int ILLEGAL_TYPE = -33;
 
 Environment::Environment() {
-	VM = new VolumeMaker(false);	//Do clustering
+	VM = new VolumeMaker(true);	//Do clustering
 	volume = VM->volume;
 	camera = new Camera();
 

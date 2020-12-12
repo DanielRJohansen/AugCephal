@@ -21,8 +21,8 @@ VolumeMaker::VolumeMaker(bool default_config) {
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
     
-    CudaOperator CudaOps;
-    CudaOps.medianFilter(copyVolume(volume), volume);
+    //CudaOperator CudaOps;
+    //CudaOps.medianFilter(copyVolume(volume), volume);
    
     // air = -1, unknown = -2
     assignColor();      // And category
@@ -30,16 +30,18 @@ VolumeMaker::VolumeMaker(bool default_config) {
     close(CORTICAL);
     close(CANCELLOUS);
     close(MUSCLE);
-    close(FAT);
+    //close(FAT);
 
     if (default_config) {
+        cluster(CORTICAL, 500);
+        cluster(CANCELLOUS, 100);
         cluster(FOREIGN, 1000);
-        cluster(LUNG, 500);
-        cluster(FAT, 200);
-        cluster(FLUIDS, 100);
+        cluster(LUNG, 200);
+        cluster(FAT, 100);
+        cluster(FLUIDS, 20);
         cluster(WATER, 10);
         
-        cluster(MUSCLE, 20);
+        //cluster(MUSCLE, 20);
         //cluster(5, 20); //clot
         //cluster(6, 20);
         //cluster(7, 100);
@@ -55,7 +57,7 @@ VolumeMaker::VolumeMaker(bool default_config) {
     setIgnore(BLOODCLOT, true);    
     setIgnore(HEMATOMA, true);  
     setIgnore(BLOOD, true);    
-    setIgnore(CANCELLOUS, true);    
+    //setIgnore(CANCELLOUS, true);    
     
 
     locateEmptyYSlices();

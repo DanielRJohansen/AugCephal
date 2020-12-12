@@ -16,6 +16,7 @@ foreign = [2500 3000];
 noise = [-700 1500];
 cols = ['r' 'y' 'c' 'b' 'r' 'r' 'r' 'k' 'k' 'g'];
 cats = [lung; fat;fluids; water; muscle; blood; hematoma; clot; cancellous; cortical; foreign; ];
+catnames = ["lung", "fat", "fluids", "water" "muscle" "blood" "hematoma" "clot" "cancellous" "cortical" "foreign"];
 min_belonging = 0.0001;
 
 x = -1000:0.2:2000;
@@ -25,10 +26,14 @@ for i = 1:length(cats)
    sd = spread/4;
    f = 1/(sd*sqrt(2*3.1415)) *exp(-((x-center).^2)/(2*sd^2));
    f = plot(x, f);
+   %legend(catnames(i))
    hold on
 end
 %set(gca, 'YScale', 'log')
-axis([-200 200 min_belonging 0.1])
+ylabel("Inclusion")
+xlabel("Hounsfield unit")
+legend(catnames)
+axis([-100 100 min_belonging 0.08])
 hold off
 
 %%  ACTIVATION FUNCTION

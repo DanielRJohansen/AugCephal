@@ -4,7 +4,7 @@
 #include "CudaOps.cuh"
 #include <thread>
 #include "Containers.h"
-
+#include "SliceMagic.h"
 using namespace std;
 
 class A {
@@ -17,9 +17,10 @@ public:
 
 int main() {
 
-	Environment Env;
+	SliceMagic SliceM;
 
-	Env.Run();
+	//Environment Env;
+	//Env.Run();
 
 	return 0;
 }
