@@ -21,7 +21,9 @@ VolumeMaker::VolumeMaker(bool default_config) {
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
     
-    //CudaOperator CudaOps;
+    CudaOperator CudaOps;
+    CudaOps.rotatingMaskFilter(copyVolume(volume), volume);
+    CudaOps.kMeansClustering(volume);
     //CudaOps.medianFilter(copyVolume(volume), volume);
    
     // air = -1, unknown = -2

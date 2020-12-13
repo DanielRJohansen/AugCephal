@@ -19,8 +19,8 @@ int main() {
 
 	SliceMagic SliceM;
 
-	//Environment Env;
-	//Env.Run();
+	Environment Env;
+	Env.Run();
 
 	return 0;
 }

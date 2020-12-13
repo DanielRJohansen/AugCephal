@@ -38,6 +38,8 @@ public:
 
 	// For VolumeMaker
 	void medianFilter(Block *original, Block* volume);
+	void rotatingMaskFilter(Block* original, Block* volume);
+	void kMeansClustering(Block* volume);
 private:
 	int blocks_per_sm;
 	int stream_size;

@@ -132,13 +132,108 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
 }
 
 
+__global__ void rotatingMaskFilterKernel(Block* original, Block* volume, int ignorelow, int ignorehigh ) {
+    int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
+    int x = threadIdx.x;
+    if (x < 2 || y < 2 || x > VOL_X - 3 || y > VOL_Y - 3)
+        return;
+    
+    const int num_masks = 27;
+    const int kernel_size = 5 * 5 * 5;
+    
+    CudaMask masks[27];
+
+    // Initialize masks
+    int i = 0;
+    for (int zs = 0; zs < 3; zs++) {
+        for (int ys = 0; ys < 3; ys++) {
+            for (int xs = 0; xs < 3; xs++) {
+                masks[i] = CudaMask(xs, ys, zs);
+                i++;
+            }
+        }
+    }
+
+    for (int z = 2; z < VOL_Z - 3; z++) {
+        if (original[xyzToIndex(x, y, z)].hu_val < ignorelow || original[xyzToIndex(x, y, z)].hu_val > ignorehigh)       // as to not erase bone or brigthen air
+            continue;
+
+        // Generate kernel
+        float kernel[5*5*5];
+        int i = 0;
+        for (int z_ = z - 2; z_ <= z + 2; z_++) {
+            for (int y_ = y - 2; y_ <= y + 2; y_++) {
+                for (int x_ = x - 2; x_ <= x + 2; x_++) {
+                    kernel[i] = original[xyzToIndex(x_, y_, z_)].hu_val;
+                    i++;
+                }
+            }
+        }
+        float best_mean = 0;
+        float lowest_var = 999999;
+        float kernel_copy[5*5*5];
+        for (int i = 0; i < num_masks; i++) {
+            for (int j = 0; j < kernel_size; j++)
+                kernel_copy[j] = kernel[j];
+            float mean = masks[i].applyMask(kernel_copy);
+            float var = masks[i].calcVar(kernel_copy, mean);
+            if (var < lowest_var) {
+                lowest_var = var;
+                best_mean = mean;
+            }
+        }
+        volume[xyzToIndex(x, y, z)].hu_val = best_mean;
+    } 
+}
+__global__ void kMeansKernel(Block* volume, CudaCluster* clusters, int num_clusters, int operation) {   //operation init, iterate, assign (0,1,2)
+    int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
+    int x = threadIdx.x;
+
+
+    if (operation == 0) {           // Initialize clusters to pseudo random values
+        for (int z = 0; z < VOL_Z; z++) {
+            int pseudorandom_cluster_index = (z * VOL_Y * VOL_X + y * VOL_X + x) % num_clusters;
+            clusters[pseudorandom_cluster_index].addMember(volume[xyzToIndex(x, y, z)].hu_val);
+        }
+    }
+    else if (operation == 1) {        // Iterate all values
+        for (int z = 0; z < VOL_Z; z++) {
+            float hu_val = volume[xyzToIndex(x, y, z)].hu_val;
+            int best_index = 0;
+            float shortest_dist = 99999;
+            for (int i = 0; i < num_clusters; i++) {
+                float dist = clusters[i].belongingScore(hu_val);
+                if (dist < shortest_dist) {
+                    shortest_dist = dist;
+                    best_index = i;
+                }
+            }
+            clusters[best_index].addMember(hu_val);
+        }       //Update cluster MUST be called from HOST (else 250k commands will be sent...)
+    }
+    else if (operation == 2) {
+        for (int z = 0; z < VOL_Z; z++) {
+            float hu_val = volume[xyzToIndex(x, y, z)].hu_val;
+            int best_index = 0;
+            float shortest_dist = 99999;
+            for (int i = 0; i < num_clusters; i++) {
+                float dist = clusters[i].belongingScore(hu_val);
+                if (dist < shortest_dist) {
+                    shortest_dist = dist;
+                    best_index = i;
+                }
+            }
+            volume[xyzToIndex(x, y, z)].hu_val = clusters[best_index].getClusterMean();
+        }
+    }
+}
+
 __global__ void medianFilterKernel(Block* original, Block* volume, int* finished) {
     
     int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
     int x = threadIdx.x;
     if (x == 0 || y == 0 || x == VOL_X - 1 || y == VOL_Y - 1)
         return;
-    int id = y * VOL_X + x;
     
     circularWindow window;
 
@@ -284,7 +379,76 @@ void CudaOperator::medianFilter(Block* ori, Block* vol) {
     cudaFree(volume);
 }
 
+void CudaOperator::rotatingMaskFilter(Block* ori, Block* vol) {
+    int num_blocks = VOL_X * VOL_Y * VOL_Z;
+    auto start = chrono::high_resolution_clock::now();
 
+
+    cout << "Starting rotating mask filter of kernel size 3" << endl;
+    cout << "Requires space " << (VOL_X * VOL_Y * 125 * sizeof(CudaMask) + 2 * num_blocks * sizeof(Block)) / 1000000 << " Mb" << endl;
+    Block* original; Block* volume;
+
+    cudaMallocManaged(&original, num_blocks * sizeof(Block));
+    cudaMallocManaged(&volume, num_blocks * sizeof(Block));
+
+
+
+    cudaMemcpy(original, ori, num_blocks * sizeof(Block), cudaMemcpyHostToDevice);
+    cudaMemcpy(volume, vol, num_blocks * sizeof(Block), cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+
+    rotatingMaskFilterKernel << <VOL_Y, VOL_X >> > (original, volume, -700, 800);    // RPD blocks (y), RPD threads(x)
+    cudaDeviceSynchronize();
+
+
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+    printf("  Rotating Mask Filter applied in %d ms.\n", duration);
+
+
+    //Finally the CUDA altered rayptr must be copied back to the Raytracer rayptr
+    cudaMemcpy(vol, volume, num_blocks * sizeof(Block), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+
+    cudaFree(original);
+    cudaFree(volume);
+}
+
+void CudaOperator::kMeansClustering(Block* vol) {
+    int num_blocks = VOL_X * VOL_Y * VOL_Z;
+    auto start = chrono::high_resolution_clock::now();
+
+    printf("Starting k-means with %d clusters", num_K);
+    printf("Requires space: %d + %d MB (Clusters, Volume)", num_K * sizeof(CudaCluster) / 1000000, num_blocks * sizeof(Block) / 1000000);
+
+    Block* volume;
+    CudaCluster* clusters;
+    cudaMallocManaged(&volume, num_blocks * sizeof(Block));
+    cudaMallocManaged(&clusters, num_K * sizeof(CudaCluster));
+
+    cudaMemcpy(volume, vol, num_blocks * sizeof(Block), cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+
+
+    kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 0);    // Init
+    cudaDeviceSynchronize();
+    kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 1);    // Iter
+    cudaDeviceSynchronize();
+    //for (int i = 0; i < num_K; i++) { clusters[i].updateCluster(); }
+    kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 2);    // Assign
+    cudaDeviceSynchronize();
+
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+    printf(" K-means with %d iterations applied in %d ms.\n", km_iterations, duration);
+
+
+    //Finally the CUDA altered rayptr must be copied back to the Raytracer rayptr
+    cudaMemcpy(vol, volume, num_blocks * sizeof(Block), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+
+    cudaFree(volume);
+}
 
 
 

@@ -34,6 +34,61 @@ struct CudaRay {
 	float alpha = 0;
 };
 
+const int masksize = 5;
+const int masksize3 = masksize * masksize * masksize;
+struct CudaMask {
+	__device__ CudaMask() {};
+	__device__ CudaMask(int x, int y, int z) {
+		for (int z_ = z; z_ < z + 3; z_++) {
+			for (int y_ = y; y_ < y + 3; y_++) {
+				for (int x_ = x; x_ < x + 3; x_++) {
+					mask[xyzC(x_, y_, z_)] = 1;
+				}
+			}
+		}
+	};
+	__device__ float applyMask(float kernel[masksize3]) {
+		float mean = 0;
+		for (int i = 0; i < masksize3; i++) {
+			kernel[i] *= mask[i];
+			mean += kernel[i];
+		}
+		mean /= 27;
+		return mean;
+	};				// Returns mean
+	__device__ float calcVar(float kernel[masksize3], float mean) {
+		float var = 0;
+		for (int i = 0; i < masksize3; i++) {
+			float dist = kernel[i] - mean;
+			var += dist * dist;
+		}
+		return var;
+	};		// Returns var
+
+	float mask[masksize3] = { 0 };
+	__device__ inline int xyzC(int x, int y, int z) { return z* masksize * masksize + y * masksize + x; }
+};
+
+class Test {
+	__global__ Test() {};
+	__device__ void dunno() {};
+};
+
+class CudaCluster {
+public:
+	__global__ CudaCluster() {};
+
+	__device__ float belongingScore(float hu_val) { float dist = hu_val - mean; return dist * dist; };
+	__device__ void addMember(float hu_val) { acc_hu += (long double)hu_val; };
+	__device__ float getClusterMean() { return (float)acc_hu; }
+	//__global__ void updateCluster() { mean = acc_hu / num_members; acc_hu = 0; num_members = 0; }
+private:
+	long double acc_hu = 0;
+	float mean = 0;
+	int num_members = 0;
+};
+
+
 /*struct CudaEmptyTracker {
 	__global__ CudaEmptyTracker(){}
 	__global__ CudaEmptyTracker(bool*x, bool* y) {}

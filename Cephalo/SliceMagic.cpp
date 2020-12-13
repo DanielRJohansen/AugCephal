@@ -120,7 +120,7 @@ void SliceMagic::kMeans(float* slice, int k) {
                     best_index = i;
                 }
             }
-            if (iter == 0) { clusters[p%k].addMember(slice[p]); } // Adds basically random value to cluster
+            if (iter == 0) { clusters[p%k].addMember(slice[p]); } // Adds basically random value to cluster -- LOL I DO THIS 20 TIMES, BASICALLY THIS IS 1 ITERATION SAD!!!!
             else { clusters[best_index].addMember(slice[p]); }
             
         }

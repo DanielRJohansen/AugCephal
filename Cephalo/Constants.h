@@ -47,3 +47,6 @@ const float UNKNOWN_CAT = -2;
 const float BELONGING_COEFFICIENT = 1 / 0.01;
 const float min_belonging = 0.0001;
 
+const int num_K = 10;
+const int km_iterations = 1;
+

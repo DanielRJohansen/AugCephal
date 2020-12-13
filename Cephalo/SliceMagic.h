@@ -65,7 +65,6 @@ struct Mask {
 
 	float mask[25] = {0};
 	inline int xyC(int x, int y) { return y * 5 + x; }
-
 };
 
 
