@@ -15,6 +15,61 @@ struct Color3 {
 	float r, g, b;
 };
 
+struct cluster {
+	cluster() {};
+	cluster(float fraction) {
+		centroid = 0.3;
+		assigned_val = fraction;
+	}
+	float assigned_val;
+	float centroid;
+	float acc_val = 0;
+	int num_members = 0;
+
+	void updateCluster() { centroid = acc_val / num_members; num_members = 0; acc_val = 0; };
+	void addMember(float member_val) { acc_val += member_val; num_members++; };
+	float belonging(float val) {
+		float dist = centroid - val;
+		return 1 / (dist * dist);
+	}
+};
+
+struct Mask {
+	Mask() {};
+	Mask(int x, int y) {
+		for (int y_ = y; y_ < y + 3; y_++) {
+			for (int x_ = x; x_ < x + 3; x_++) {
+				mask[xyC(x_, y_)] = 1;
+			}
+		}
+	};
+
+	float applyMask(float kernel[25]) {
+		float mean = 0;
+		for (int i = 0; i < 25; i++) {
+			kernel[i] *= mask[i];
+			mean += kernel[i];
+		}
+		mean /= 9;
+		return mean;
+	}
+
+	float calcVar(float kernel[25], float mean) {
+		float var = 0;
+		for (int i = 0; i < 25; i++) {
+			float dist = kernel[i] - mean;
+			var += dist * dist;
+		}
+		return var;
+	}
+
+	float mask[25] = {0};
+	inline int xyC(int x, int y) { return y * 5 + x; }
+
+};
+
+
+
 class SliceMagic
 {
 public:
@@ -34,7 +89,7 @@ private:
 	void kMeans(float* slice, int k);
 	void assignToMostCommonNeighbor(float* slice, int x, int y);
 	void requireMinNeighbors(float* slice, int min);
-	//void onMouse(int event, int x, int y, int, void*);
+	void rotatingMaskFilter(float* slice);
 	inline int xyToIndex(int x, int y) { return y * size + x; }
 };
 

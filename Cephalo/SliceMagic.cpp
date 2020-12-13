@@ -8,7 +8,7 @@ SliceMagic::SliceMagic() {
 	original = new float[size*size];
     loadOriginal();
 
-    int k = 16;
+    int k = 10;
     int min_n = 2;
 
     global_hu_vals = copySlice(original);
@@ -18,11 +18,24 @@ SliceMagic::SliceMagic() {
     windowSlice(slice, -500, 1000);
     showSlice(colorConvert(slice), "windowed");
 
-
+    delete(slice);
+    slice = copySlice(original);
+    windowSlice(slice, -500, 1000);
+    rotatingMaskFilter(slice);
+    showSlice(colorConvert(slice),  "RMFilter");
 
     delete(slice);
     slice = copySlice(original);
     windowSlice(slice, -500, 1000);
+    rotatingMaskFilter(slice);
+    kMeans(slice, k);
+    showSlice(colorConvert(slice), "RMFilter + " + to_string(k) + "-kmeans  ");
+    waitKey();
+
+    delete(slice);
+    slice = copySlice(original);
+    windowSlice(slice, -500, 1000);
+    medianFilter(slice);
     kMeans(slice, k);
     showSlice(colorConvert(slice), to_string(k)+"-kmeans");
 
@@ -42,43 +55,53 @@ SliceMagic::SliceMagic() {
     showSlice(colorConvert(slice), to_string(min_n*2) + "neighbors");
 
     waitKey();
-
-
-    delete(slice);
-    slice = copySlice(original);
-    medianFilter(slice);
-    windowSlice(slice, -500, 1000);
-    showSlice(colorConvert(slice), "filter->windowed");
-
-    delete(slice);
-    slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
-    medianFilter(slice);
-    showSlice(colorConvert(slice), "windowed->filtered");
-
-
-    waitKey();
 }
 
-struct cluster {
-    cluster() {};
-    cluster(float fraction) {
-        centroid = 0.3;
-        assigned_val = fraction;
+void SliceMagic::rotatingMaskFilter(float* slice) {
+    Mask masks[9];
+    float* copy = copySlice(slice);
+    printf("this far");
+    int i = 0;
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 3; x++) {
+            masks[i] = Mask(x, y);
+            i++;
+        }
     }
-    float assigned_val;
-    float centroid;
-    float acc_val = 0;
-    int num_members = 0;
 
-    void updateCluster() { centroid = acc_val / num_members; num_members = 0; acc_val = 0; };
-    void addMember(float member_val) { acc_val += member_val; num_members++; };
-    float belonging(float val) {
-        float dist = centroid - val; 
-        return 1 / (dist * dist);
+    for (int y = 2; y < size - 2; y++) {
+        for (int x = 2; x < size - 2; x++) {
+            if (slice[xyToIndex(x, y)] == 1 || slice[xyToIndex(x, y)] == 0)       // as to not erase bone or brigthen air
+                continue;
+            // Generate kernel
+            float kernel[25];
+            int i = 0;
+            for (int y_ = y-2; y_ <= y+2; y_++) {
+                for (int x_ = x-2; x_ <= x+2; x_++) {
+                    kernel[i] = copy[xyToIndex(x_, y_)];
+                    i++;
+                }
+            }
+
+            float best_mean = 0;
+            float lowest_var = 999999;
+            float kernel_copy[25];
+            for (int i = 0; i < 9; i++) {
+                for (int j = 0; j < 25; j++)
+                    kernel_copy[j] = kernel[j];
+                float mean = masks[i].applyMask(kernel_copy);
+                float var = masks[i].calcVar(kernel_copy, mean);
+                if (var < lowest_var) {
+                    lowest_var = var;
+                    best_mean = mean;
+                }
+            }
+            slice[xyToIndex(x, y)] = best_mean;
+        }
     }
-        
-};
+
+}
+
 void SliceMagic::kMeans(float* slice, int k) {
     cluster* clusters = new cluster[k];
     for (int i = 0; i < k; i++) {
