@@ -15,7 +15,7 @@ class ColorMaker
 {
 public:
 	ColorMaker();
-	inline Color colorFromHu(int hu) {		return col_lut[hu - HU_MIN]; }
+	inline Color colorFromHu(int hu) { return col_lut[hu - HU_MIN]; }
 	inline int catFromHu(int hu) { return cat_lut[hu - HU_MIN]; }
 	inline float belongingFromHu(int hu) { return belonging_lut[hu]; }
 	Color forceColorFromCat(int cat, int prev_val);

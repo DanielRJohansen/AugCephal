@@ -192,12 +192,16 @@ __global__ void kMeansKernel(Block* volume, CudaCluster* clusters, int num_clust
 
     if (operation == 0) {           // Initialize clusters to pseudo random values
         for (int z = 0; z < VOL_Z; z++) {
+            if (volume[xyzToIndex(x, y, z)].ignore)
+                continue;
             int pseudorandom_cluster_index = (z * VOL_Y * VOL_X + y * VOL_X + x) % num_clusters;
             clusters[pseudorandom_cluster_index].addMember(volume[xyzToIndex(x, y, z)].hu_val);
         }
     }
     else if (operation == 1) {        // Iterate all values
         for (int z = 0; z < VOL_Z; z++) {
+            if (volume[xyzToIndex(x, y, z)].ignore)
+                continue;
             float hu_val = volume[xyzToIndex(x, y, z)].hu_val;
             int best_index = 0;
             float shortest_dist = 99999;
@@ -213,6 +217,8 @@ __global__ void kMeansKernel(Block* volume, CudaCluster* clusters, int num_clust
     }
     else if (operation == 2) {
         for (int z = 0; z < VOL_Z; z++) {
+            if (volume[xyzToIndex(x, y, z)].ignore)
+                continue;
             float hu_val = volume[xyzToIndex(x, y, z)].hu_val;
             int best_index = 0;
             float shortest_dist = 99999;
@@ -418,8 +424,8 @@ void CudaOperator::kMeansClustering(Block* vol) {
     int num_blocks = VOL_X * VOL_Y * VOL_Z;
     auto start = chrono::high_resolution_clock::now();
 
-    printf("Starting k-means with %d clusters", num_K);
-    printf("Requires space: %d + %d MB (Clusters, Volume)", num_K * sizeof(CudaCluster) / 1000000, num_blocks * sizeof(Block) / 1000000);
+    printf("Starting k-means with %d clusters\n", num_K);
+    printf("Requires space: %d + %d MB (Clusters, Volume)\n", num_K * sizeof(CudaCluster) / 1000000, num_blocks * sizeof(Block) / 1000000);
 
     Block* volume;
     CudaCluster* clusters;
@@ -432,9 +438,11 @@ void CudaOperator::kMeansClustering(Block* vol) {
 
     kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 0);    // Init
     cudaDeviceSynchronize();
+    for (int i = 0; i < num_K; i++) { clusters[i].updateCluster(); printf("%f  \n", clusters[i].mean); }
     kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 1);    // Iter
     cudaDeviceSynchronize();
-    //for (int i = 0; i < num_K; i++) { clusters[i].updateCluster(); }
+
+    for (int i = 0; i < num_K; i++) {clusters[i].updateCluster(); printf("\n%f  \n", clusters[i].mean);}
     kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 2);    // Assign
     cudaDeviceSynchronize();
 

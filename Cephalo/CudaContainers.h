@@ -69,23 +69,20 @@ struct CudaMask {
 	__device__ inline int xyzC(int x, int y, int z) { return z* masksize * masksize + y * masksize + x; }
 };
 
-class Test {
-	__global__ Test() {};
-	__device__ void dunno() {};
-};
 
 class CudaCluster {
 public:
-	__global__ CudaCluster() {};
+	__host__ CudaCluster() {};
 
-	__device__ float belongingScore(float hu_val) { float dist = hu_val - mean; return dist * dist; };
-	__device__ void addMember(float hu_val) { acc_hu += (long double)hu_val; };
-	__device__ float getClusterMean() { return (float)acc_hu; }
-	//__global__ void updateCluster() { mean = acc_hu / num_members; acc_hu = 0; num_members = 0; }
+	__device__ float belongingScore(int hu_val) { float dist = (float)hu_val - (float)mean; return dist * dist; };
+	__device__ void addMember(int hu_val) { acc_hu += (double)hu_val; num_members++; };
+	__device__ int getClusterMean() { return mean;}
+	__host__ void updateCluster() { mean = acc_hu / num_members; acc_hu = 0; num_members = 0;}
+
+	double acc_hu = 0;
+	double mean = 0;
+	double num_members = 1;	
 private:
-	long double acc_hu = 0;
-	float mean = 0;
-	int num_members = 0;
 };
 
 

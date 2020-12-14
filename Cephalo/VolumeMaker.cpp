@@ -56,9 +56,9 @@ VolumeMaker::VolumeMaker(bool default_config) {
     setIgnore(FLUIDS, true);
     setIgnore(WATER, true);   
     //setIgnore(MUSCLE, true);    
-    setIgnore(BLOODCLOT, true);    
-    setIgnore(HEMATOMA, true);  
-    setIgnore(BLOOD, true);    
+    //setIgnore(BLOODCLOT, true);    
+    //setIgnore(HEMATOMA, true);  
+    //setIgnore(BLOOD, true);    
     //setIgnore(CANCELLOUS, true);    
     
 
@@ -93,10 +93,11 @@ void VolumeMaker::insertImInVolume(Mat img, int z) {
             int hu = img.at<uint16_t>(y, x) - 32768;
             if (hu < HU_MIN || hu > HU_MAX) { 
                 volume[xyzToIndex(x, y, z)].ignore = true; 
-                volume[xyzToIndex(x, y, z)].hu_val = OUTSIDE_SPECTRUM;
+                //volume[xyzToIndex(x, y, z)].hu_val = OUTSIDE_SPECTRUM;
             }
             //else if (hu > HU_MAX) { volume[xyzToIndex(x, y, z)].ignore = true; }
-            else volume[xyzToIndex(x, y, z)].hu_val = hu;
+            //else volume[xyzToIndex(x, y, z)].hu_val = hu;
+            volume[xyzToIndex(x, y, z)].hu_val = hu;
         }
     }
 }
