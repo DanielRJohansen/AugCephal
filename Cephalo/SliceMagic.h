@@ -42,27 +42,34 @@ struct Mask {
 				mask[xyC(x_, y_)] = 1;
 			}
 		}
+		num_active = 9;
 	};
+	Mask(int custom_mask[25], int nu) {
+		for (int i = 0; i < 25; i++) {
+			mask[i] = custom_mask[i];
+		}
+		num_active = nu;
+	}
 
-	float applyMask(float kernel[25]) {
+	float applyMask(float* kernel) {
 		float mean = 0;
 		for (int i = 0; i < 25; i++) {
 			kernel[i] *= mask[i];
 			mean += kernel[i];
 		}
-		mean /= 9;
+		mean /= num_active;
 		return mean;
 	}
 
-	float calcVar(float kernel[25], float mean) {
+	float calcVar(float* kernel, float mean) {
 		float var = 0;
 		for (int i = 0; i < 25; i++) {
 			float dist = kernel[i] - mean;
 			var += dist * dist;
 		}
-		return var;
+		return var / num_active;
 	}
-
+	float num_active = 9;
 	float mask[25] = {0};
 	inline int xyC(int x, int y) { return y * 5 + x; }
 };

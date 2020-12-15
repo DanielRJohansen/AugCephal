@@ -8,7 +8,7 @@ SliceMagic::SliceMagic() {
 	original = new float[size*size];
     loadOriginal();
 
-    int k = 10;
+    int k = 16;
     int min_n = 2;
 
     global_hu_vals = copySlice(original);
@@ -57,10 +57,15 @@ SliceMagic::SliceMagic() {
     waitKey();
 }
 
+int cm1[25] = { 1, 0, 0, 0, 0,  0, 1, 0, 0, 0,  0, 0, 1, 0, 0,  0, 0, 0, 1, 0,  0, 0, 0, 0, 1 };
+int cm2[25] = { 0, 0, 0, 0, 1,  0, 0, 0, 1, 0,  0, 0, 1, 0, 0,  0, 1, 0, 0, 0,  1, 0, 0, 0, 0 };
+int cm3[25] = { 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  1, 1, 1, 1, 1,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0 };
+int cm4[25] = { 0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0 };
+//int cm4[25] = { 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 1, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0 };
 void SliceMagic::rotatingMaskFilter(float* slice) {
-    Mask masks[9];
+    int use_masks = 9;
+    Mask masks[13];
     float* copy = copySlice(slice);
-    printf("this far");
     int i = 0;
     for (int y = 0; y < 3; y++) {
         for (int x = 0; x < 3; x++) {
@@ -68,11 +73,14 @@ void SliceMagic::rotatingMaskFilter(float* slice) {
             i++;
         }
     }
-
+    masks[9] = Mask(cm1, 5);
+    masks[10] = Mask(cm2, 5);
+    masks[11] = Mask(cm3, 5);
+    masks[12] = Mask(cm4, 5);
     for (int y = 2; y < size - 2; y++) {
         for (int x = 2; x < size - 2; x++) {
-            if (slice[xyToIndex(x, y)] == 1 || slice[xyToIndex(x, y)] == 0)       // as to not erase bone or brigthen air
-                continue;
+            //if (slice[xyToIndex(x, y)] < -700 || slice[xyToIndex(x, y)] > 700)       // as to not erase bone or brigthen air
+            //    continue;
             // Generate kernel
             float kernel[25];
             int i = 0;
@@ -84,9 +92,9 @@ void SliceMagic::rotatingMaskFilter(float* slice) {
             }
 
             float best_mean = 0;
-            float lowest_var = 999999;
-            float kernel_copy[25];
-            for (int i = 0; i < 9; i++) {
+            float lowest_var = 9999999;
+            float* kernel_copy = new float[25];
+            for (int i = 0; i < use_masks; i++) {
                 for (int j = 0; j < 25; j++)
                     kernel_copy[j] = kernel[j];
                 float mean = masks[i].applyMask(kernel_copy);
@@ -94,8 +102,10 @@ void SliceMagic::rotatingMaskFilter(float* slice) {
                 if (var < lowest_var) {
                     lowest_var = var;
                     best_mean = mean;
+                    //cout << " " << i;
                 }
             }
+            //cout << endl;
             slice[xyToIndex(x, y)] = best_mean;
         }
     }
@@ -109,7 +119,7 @@ void SliceMagic::kMeans(float* slice, int k) {
     }
 
     //Iterate clustering
-    for (int iter = 0; iter < 20; iter++) {
+    for (int iter = 0; iter < 10; iter++) {
         for (int p = 0; p < sizesq; p++) {
             float best = 0; 
             int best_index = 0;

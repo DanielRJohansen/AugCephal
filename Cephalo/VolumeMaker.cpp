@@ -43,7 +43,7 @@ VolumeMaker::VolumeMaker(bool default_config) {
         cluster(FLUIDS, 20);
         cluster(WATER, 10);
         
-        //cluster(MUSCLE, 20);
+        cluster(MUSCLE, 100);
         //cluster(5, 20); //clot
         //cluster(6, 20);
         //cluster(7, 100);

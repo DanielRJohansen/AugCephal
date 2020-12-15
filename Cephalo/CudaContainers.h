@@ -36,6 +36,7 @@ struct CudaRay {
 
 const int masksize = 5;
 const int masksize3 = masksize * masksize * masksize;
+#define EMPTYBLOCK -99999
 struct CudaMask {
 	__device__ CudaMask() {};
 	__device__ CudaMask(int x, int y, int z) {
@@ -59,6 +60,8 @@ struct CudaMask {
 	__device__ float calcVar(float kernel[masksize3], float mean) {
 		float var = 0;
 		for (int i = 0; i < masksize3; i++) {
+			if (kernel[i] == EMPTYBLOCK)
+				return 9999999;	// This mask contains values outside volume, thus return enormous variance to ensure it is not chosen
 			float dist = kernel[i] - mean;
 			var += dist * dist;
 		}
@@ -69,7 +72,6 @@ struct CudaMask {
 	__device__ inline int xyzC(int x, int y, int z) { return z* masksize * masksize + y * masksize + x; }
 };
 
-
 class CudaCluster {
 public:
 	__host__ CudaCluster() {};
@@ -77,7 +79,7 @@ public:
 	__device__ float belongingScore(int hu_val) { float dist = (float)hu_val - (float)mean; return dist * dist; };
 	__device__ void addMember(int hu_val) { acc_hu += (double)hu_val; num_members++; };
 	__device__ int getClusterMean() { return mean;}
-	__host__ void updateCluster() { mean = acc_hu / num_members; acc_hu = 0; num_members = 0;}
+	__host__ void updateCluster() { mean = acc_hu / num_members; acc_hu = 0; num_members = 1;}
 
 	double acc_hu = 0;
 	double mean = 0;

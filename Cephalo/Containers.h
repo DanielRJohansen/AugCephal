@@ -70,7 +70,7 @@ struct Block {
 	int cat_;
 
 	Color color;
-	float alpha = 1;	//Basically how many cat switches we allow for
+	float alpha = 0.2;	//Basically how many cat switches we allow for
 	bool ignore = false;
 	bool was_ignore = false;
 	

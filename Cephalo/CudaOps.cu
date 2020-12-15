@@ -22,7 +22,7 @@ __device__ int xyzToIndex(int vol_x, int vol_y, int vol_z) {
 }
 
 __device__ float activationFunction(float counts) {
-    return 2 / (1 + powf(e, (-counts / 15.))) - 1.;
+    return 2 / (1 + powf(e, (-counts / 4.))) - 1.;
 }
 
 __device__ float lightSeeker(Block* volume, CudaFloat3 pos) {
@@ -32,16 +32,17 @@ __device__ float lightSeeker(Block* volume, CudaFloat3 pos) {
         for (int x = 0; x < 3; x++) {
 
             // Upward seeking
-            for (int z = 1; z < 17; z *= 2) {
+            brightness += 1;
+            for (int z = 1; z <= 64; z *= 2) {
                 int vol_x = pos.x - spread + spread * x;
                 int vol_y = pos.y - spread + spread * y;
                 int vol_z = pos.z + z;
                 if (isInVolume(vol_x, vol_y, vol_z)) {
                     int index = xyzToIndex(vol_x, vol_y, vol_z);
-                    if (volume[index].ignore) { brightness += 1; }
-                    else { break; }
+                    if (!volume[index].ignore) { brightness -= 1; break; }
+                    //else { break; }
                 }
-                else { brightness += 1; }
+                //else { brightness += 1; }
             }
         }
     }
@@ -83,7 +84,7 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
     
     // 140 ms
 
-    for (int step = 200; step < RAY_STEPS; step++) {
+    for (int step = 500; step < RAY_STEPS; step++) {
 
         int x = cc.origin.x + cray.step_vector.x * step;
         int y = cc.origin.y + cray.step_vector.y * step;
@@ -97,13 +98,13 @@ __global__ void stepKernelMS(Ray* rayptr, Block* blocks, CompactCam cc, int offs
             vol_x < vol_x_range && vol_y < vol_y_range && vol_z < vol_z_range) {
             int volume_index = xyzToIndex(vol_x, vol_y, vol_z);
 
-            if (vol_z == 0) {
+            /*if (vol_z == 0) {
                 cray.color.r = 0;
                 cray.color.g = 114;
                 cray.color.b = 158;
                 break;
-            }
-            else if (empty_y_slices[vol_y] || empty_x_slices[vol_x]) { continue; }
+            }*/
+            if (empty_y_slices[vol_y] || empty_x_slices[vol_x]) { continue; }
 
             if (volume_index == prev_vol_index) {
                 if (cached_block->ignore) { continue; }
@@ -154,8 +155,9 @@ __global__ void rotatingMaskFilterKernel(Block* original, Block* volume, int ign
         }
     }
 
-    for (int z = 2; z < VOL_Z - 3; z++) {
-        if (original[xyzToIndex(x, y, z)].hu_val < ignorelow || original[xyzToIndex(x, y, z)].hu_val > ignorehigh)       // as to not erase bone or brigthen air
+    for (int z = 0; z < VOL_Z; z++) {
+        Block block = original[xyzToIndex(x, y, z)];
+        if (block.hu_val < ignorelow || block.hu_val > ignorehigh || block.ignore)       // as to not erase bone or brigthen air
             continue;
 
         // Generate kernel
@@ -164,7 +166,11 @@ __global__ void rotatingMaskFilterKernel(Block* original, Block* volume, int ign
         for (int z_ = z - 2; z_ <= z + 2; z_++) {
             for (int y_ = y - 2; y_ <= y + 2; y_++) {
                 for (int x_ = x - 2; x_ <= x + 2; x_++) {
-                    kernel[i] = original[xyzToIndex(x_, y_, z_)].hu_val;
+                    //kernel[i] = original[xyzToIndex(x_, y_, z_)].hu_val;
+                    if (isInVolume(x_, y_, z_))
+                        kernel[i] = original[xyzToIndex(x_, y_, z_)].hu_val;
+                    else
+                        kernel[i] =  EMPTYBLOCK;
                     i++;
                 }
             }
@@ -438,11 +444,13 @@ void CudaOperator::kMeansClustering(Block* vol) {
 
     kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 0);    // Init
     cudaDeviceSynchronize();
-    for (int i = 0; i < num_K; i++) { clusters[i].updateCluster(); printf("%f  \n", clusters[i].mean); }
-    kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 1);    // Iter
-    cudaDeviceSynchronize();
-
-    for (int i = 0; i < num_K; i++) {clusters[i].updateCluster(); printf("\n%f  \n", clusters[i].mean);}
+    for (int i = 0; i < num_K; i++) { clusters[i].updateCluster();}
+    for (int iter = 0; iter < 10; iter++) {
+        kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 1);    // Iter
+        cudaDeviceSynchronize();
+        for (int i = 0; i < num_K; i++) { clusters[i].updateCluster(); printf("%f  \n", clusters[i].mean); }
+        printf("\n");
+    }  
     kMeansKernel << <VOL_Y, VOL_X >> > (volume, clusters, num_K, 2);    // Assign
     cudaDeviceSynchronize();
 
