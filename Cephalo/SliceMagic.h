@@ -96,6 +96,8 @@ private:
 	void assignToMostCommonNeighbor(float* slice, int x, int y);
 	void requireMinNeighbors(float* slice, int min);
 	void rotatingMaskFilter(float* slice);
+
+	void applyCanny(float* slice);
 	inline int xyToIndex(int x, int y) { return y * size + x; }
 };
 

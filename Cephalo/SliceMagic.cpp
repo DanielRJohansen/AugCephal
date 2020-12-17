@@ -18,11 +18,19 @@ SliceMagic::SliceMagic() {
     windowSlice(slice, -500, 1000);
     showSlice(colorConvert(slice), "windowed");
 
-    delete(slice);
     slice = copySlice(original);
     windowSlice(slice, -500, 1000);
     rotatingMaskFilter(slice);
     showSlice(colorConvert(slice),  "RMFilter");
+
+    slice = copySlice(original);
+    windowSlice(slice, -500, 1000);
+    rotatingMaskFilter(slice);
+    applyCanny(slice);
+    //Mat colorim = ;
+
+    showSlice(colorConvert(slice), "RMFilter + " + to_string(k) + "-kmeans  ");
+    waitKey();
 
     delete(slice);
     slice = copySlice(original);
@@ -32,27 +40,7 @@ SliceMagic::SliceMagic() {
     showSlice(colorConvert(slice), "RMFilter + " + to_string(k) + "-kmeans  ");
     waitKey();
 
-    delete(slice);
-    slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
-    medianFilter(slice);
-    kMeans(slice, k);
-    showSlice(colorConvert(slice), to_string(k)+"-kmeans");
 
-    delete(slice);
-    slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
-    kMeans(slice, k);
-    requireMinNeighbors(slice, min_n);
-    showSlice(colorConvert(slice), to_string(min_n)+"neighbors");
-
-
-    delete(slice);
-    slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
-    kMeans(slice, k);
-    requireMinNeighbors(slice, min_n*2);
-    showSlice(colorConvert(slice), to_string(min_n*2) + "neighbors");
 
     waitKey();
 }
@@ -110,6 +98,66 @@ void SliceMagic::rotatingMaskFilter(float* slice) {
         }
     }
 
+}
+
+void SliceMagic::applyCanny(float* slice) {
+    
+    float Maskver[9] = { -3, -10, -3, 0, 0, 0, 3, 10, 3 };
+    float Maskhor[9] = { -3, 0, 3, -10, 0, 10, -3, 0, 3 };
+
+    float* gradx = new float[sizesq];
+    float* grady = new float[sizesq];
+    float* G = new float[sizesq];
+    float* theta = new float[sizesq];
+
+
+   
+    float* kernel = new float[9];
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            if (y * x == 0 || y == size - 1 || x == size - 1) {
+                G[xyToIndex(x, y)] = 0;
+                theta[xyToIndex(x, y)] = 0;
+                continue;
+            }
+                
+
+            float Gx = 0;
+            float Gy = 0;
+            int i = 0; 
+            for (int y_ = y - 1; y_ <= y + 1; y_++) {
+                for (int x_ = x - 1; x_ <= x + 1; x_++) {
+                    kernel[i] = slice[xyToIndex(x_, y_)];
+                    Gx += (kernel[i] * Maskhor[i]);
+                    Gy += (kernel[i] * Maskver[i]);
+                    i++;
+                }
+            }
+
+            G[xyToIndex(x,y)] = sqrt(Gx*Gx + Gy*Gy);
+            float a = Gy / Gx;
+            theta[xyToIndex(x, y)] = atan2(Gy, Gx);
+            //theta[xyToIndex(x, y)] = atan(Gy / Gx);
+            
+        
+        }
+    }
+    float largest_val = 0;
+    for (int i = 0; i < sizesq; i++) {
+        if (G[i] != 0 )
+            cout << theta[i] << endl;
+        if (G[i] > largest_val)
+            largest_val = G[i];
+    }
+    for (int i = 0; i < sizesq; i++) {
+            G[i] /= largest_val;
+    }
+    for (int i = 0; i < sizesq; i++) {
+        if (G[i] > 0.05)
+            slice[i] = 1;
+        else
+            slice[i] = 0;
+    }
 }
 
 void SliceMagic::kMeans(float* slice, int k) {

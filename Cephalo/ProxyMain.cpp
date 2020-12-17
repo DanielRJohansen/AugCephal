@@ -17,7 +17,7 @@ public:
 
 int main() {
 
-	//SliceMagic SliceM;
+	SliceMagic SliceM;
 
 	Environment Env;
 	Env.Run();
