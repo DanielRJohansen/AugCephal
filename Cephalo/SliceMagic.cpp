@@ -2,57 +2,63 @@
 void onMouse(int event, int x, int y, int, void*);
 
 
+
 float* global_hu_vals;
 
 SliceMagic::SliceMagic() {
 	original = new float[size*size];
     loadOriginal();
 
-    int k = 16;
+    int k = 12;
     int min_n = 2;
 
     global_hu_vals = copySlice(original);
 
-
     float* slice = copySlice(original);
     windowSlice(slice, -500, 1000);
+    rotatingMaskFilter(slice, 14);
+    applyCanny(slice);
     showSlice(colorConvert(slice), "windowed");
 
     slice = copySlice(original);
     windowSlice(slice, -500, 1000);
-    rotatingMaskFilter(slice);
-    showSlice(colorConvert(slice),  "RMFilter");
-
-    slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
-    rotatingMaskFilter(slice);
+    deNoiser(slice);
+    rotatingMaskFilter(slice, 14);
     applyCanny(slice);
-    //Mat colorim = ;
-
-    showSlice(colorConvert(slice), "RMFilter + " + to_string(k) + "-kmeans  ");
+    showSlice(colorConvert(slice), "denoised");
     waitKey();
 
-    delete(slice);
     slice = copySlice(original);
     windowSlice(slice, -500, 1000);
-    rotatingMaskFilter(slice);
-    kMeans(slice, k);
-    showSlice(colorConvert(slice), "RMFilter + " + to_string(k) + "-kmeans  ");
-    waitKey();
+    rotatingMaskFilter(slice, 14);
+    showSlice(colorConvert(slice), "RMFiltermany");
+
+    slice = copySlice(original);
+    windowSlice(slice, -500, 1000);
+    rotatingMaskFilter(slice,14);
+    applyCanny(slice);
+    showSlice(colorConvert(slice),  "Canny");
 
 
 
     waitKey();
+
+
 }
 
-int cm1[25] = { 1, 0, 0, 0, 0,  0, 1, 0, 0, 0,  0, 0, 1, 0, 0,  0, 0, 0, 1, 0,  0, 0, 0, 0, 1 };
-int cm2[25] = { 0, 0, 0, 0, 1,  0, 0, 0, 1, 0,  0, 0, 1, 0, 0,  0, 1, 0, 0, 0,  1, 0, 0, 0, 0 };
-int cm3[25] = { 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  1, 1, 1, 1, 1,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0 };
-int cm4[25] = { 0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0 };
-//int cm4[25] = { 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 1, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0 };
-void SliceMagic::rotatingMaskFilter(float* slice) {
-    int use_masks = 9;
-    Mask masks[13];
+float cm1[25] = { 1, 0.2, 0, 0, 0,  0.2, 1, 0.2, 0, 0,  0, 0.2, 1, 0.2, 0,  0, 0, 0.2, 1, 0.2,  0, 0, 0, 0.2, 1 };
+float cm2[25] = { 0, 0, 0, 0.2, 1,  0, 0, 0.2, 1, 0.2,  0, 0.2, 1, 0.2, 0,  0.2, 1, 0.2, 0, 0,  1, 0.2, 0, 0, 0 };
+float cm3[25] = { 0, 0, 0, 0, 0,  0.2, 0.2, 0.2, 0.2, 0.2,  1, 1, 1, 1, 1,  0.2, 0.2, 0.2, 0.2, 0.2,  0, 0, 0, 0, 0 };
+float cm4[25] = { 0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0 };
+float cm5[25] = { 0, 0, 0, 0, 0,  0, 1, 2, 1, 0,  0, 2, 4, 2, 0,  0, 1, 2, 1, 0,  0, 0, 0, 0, 0 };
+
+void copyKernel(float* ori, float* copy, int length) {
+    for (int i = 0; i < length; i++) {
+        copy[i] = ori[i];
+    }
+}
+void SliceMagic::rotatingMaskFilter(float* slice, int num_masks) {
+    Mask masks[14];
     float* copy = copySlice(slice);
     int i = 0;
     for (int y = 0; y < 3; y++) {
@@ -61,14 +67,17 @@ void SliceMagic::rotatingMaskFilter(float* slice) {
             i++;
         }
     }
-    masks[9] = Mask(cm1, 5);
-    masks[10] = Mask(cm2, 5);
-    masks[11] = Mask(cm3, 5);
-    masks[12] = Mask(cm4, 5);
+    masks[9]  = Mask(cm1);   // 4 instead of 5, as a small 20% penalty
+    masks[10] = Mask(cm2);
+    masks[11] = Mask(cm3);
+    masks[12] = Mask(cm4);
+    masks[13] = Mask(cm5);
     for (int y = 2; y < size - 2; y++) {
         for (int x = 2; x < size - 2; x++) {
             //if (slice[xyToIndex(x, y)] < -700 || slice[xyToIndex(x, y)] > 700)       // as to not erase bone or brigthen air
             //    continue;
+            if (slice[xyToIndex(x, y)] == 0)
+                continue;
             // Generate kernel
             float kernel[25];
             int i = 0;
@@ -82,9 +91,9 @@ void SliceMagic::rotatingMaskFilter(float* slice) {
             float best_mean = 0;
             float lowest_var = 9999999;
             float* kernel_copy = new float[25];
-            for (int i = 0; i < use_masks; i++) {
-                for (int j = 0; j < 25; j++)
-                    kernel_copy[j] = kernel[j];
+            for (int i = 0; i < num_masks; i++) {
+                copyKernel(kernel, kernel_copy, 25);
+                
                 float mean = masks[i].applyMask(kernel_copy);
                 float var = masks[i].calcVar(kernel_copy, mean);
                 if (var < lowest_var) {
@@ -98,6 +107,135 @@ void SliceMagic::rotatingMaskFilter(float* slice) {
         }
     }
 
+}
+
+inline int radToIndex(float rad) {
+    return round((rad + 3.1415) / (2 * 3.1415) * 8);
+}
+inline bool isLegal(int x, int y) { return x * y > 0 && x < 512 && y < 512; }
+
+void SliceMagic::nonMSStep(vector<int>* edge_indexes, float* steepest_edge, int* steepest_index, float* G, float* theta, bool* fb, int inc, int x, int y, int x_step, int y_step, int step_index){
+    for (int i = inc; i < size; i += inc) {
+        int x_ = x + x_step * i;
+        int y_ = y + y_step * i;
+        int pp_index = xyToIndex(x_, y_);
+        if (!isLegal(x_, y_)) { return; }
+
+        float grad = abs(G[pp_index]);
+        int step_index_ = radToIndex(theta[xyToIndex(x_, y_)]);
+        if (grad > grad_threshold) {
+        //if (grad > min_val && step_index == step_index_) {
+            edge_indexes->push_back(pp_index);
+            if (grad > * steepest_edge) {
+                *steepest_edge = grad;
+                *steepest_index = pp_index;
+            }
+        }
+        //else if (abs(i > 1)){ return; }
+        else return;
+    }
+}
+
+
+void SliceMagic::deNoiser(float* slice) {
+    for (int y = 1; y < size-1; y++) {
+        for (int x = 1; x < size-1; x++) {
+            int p_index = xyToIndex(x, y);
+            if (slice[p_index] < normVal(-200, -500, 1000)) {
+                slice[p_index] = 1;
+                float sum = 0;
+                for (int y_ = y - 1; y_ <= y + 1; y_++) {
+                    for (int x_ = x - 1; x_ <= x + 1; x_++) {
+                        if (!(x_ == x && y_ == y))
+                            sum += slice[xyToIndex(x_, y_)];
+                    }
+                }
+                slice[p_index] = sum / 8.;       // Median filter might be better, but im too tired RN.
+            }
+        }
+    }
+    
+}
+
+void SliceMagic::nonMS(float* slice, float* G, float* theta, bool* forced_black) {
+    int x_steps[9] = { 1, 1, 0, -1, -1, -1, 0, 1, 1 };
+    int y_steps[9] = { 0, 1, 1, 1, 0, -1, -1, -1, 0 };
+
+    vector<int>* edge_indexes = new vector<int>;
+    float* steepest_edge = new float;
+    int* steepest_index = new int;
+
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            int p_index = xyToIndex(x, y);
+            if (G[p_index] < grad_threshold) { continue; }
+
+            int step_index = radToIndex(theta[xyToIndex(x, y)]);
+            int x_step = x_steps[step_index];
+            int y_step = y_steps[step_index];
+
+
+            edge_indexes->push_back(p_index); 
+            *steepest_edge = G[p_index];
+            *steepest_index = p_index;  
+
+            nonMSStep(edge_indexes, steepest_edge, steepest_index, G, theta, forced_black, 1, x, y, x_step, y_step, step_index);
+            nonMSStep(edge_indexes, steepest_edge, steepest_index, G, theta, forced_black, -1, x, y, x_step, y_step, step_index);
+
+            while (!edge_indexes->empty()) {
+                int pp_index = edge_indexes->back();
+                edge_indexes->pop_back();
+                if (!(pp_index == *steepest_index)) {
+                    slice[pp_index] = 0;
+                    forced_black[pp_index] = true;
+                }
+            }
+        }
+    }
+    delete(edge_indexes);
+    delete(steepest_edge);
+    delete(steepest_index);
+}
+
+struct int2 {
+    int2() {}
+    int2(int x, int y) : x(x), y(y) {}
+    int x, y;
+};
+void SliceMagic::propagateHysteresis(float* slice, bool* forced_black, float* G, int x, int y) {
+    slice[xyToIndex(x, y)] = 1;
+    float highest = 0;
+    int2 best;
+    for (int y_ = y - 1; y_ <= y + 1; y_++) {
+        for (int x_ = x - 1; x_ <= x + 1; x_++) {
+            
+            if (!isLegal(x_, y_))
+                continue;
+            int index = xyToIndex(x_, y_);
+            
+            if (G[index] < grad_threshold && G[index] > min_val && G[index] > 0 && slice[index] == 0){//&& forced_black[xyToIndex(x, y)]) { //Dont think the last one matters, due to the first one
+                highest = G[index];
+                best = int2(x_, y_);
+                propagateHysteresis(slice, forced_black, G, best.x, best.y);
+            }
+            
+        }
+    }
+    //if (highest > 0)
+     //   propagateHysteresis(slice, forced_black, G, best.x, best.y);
+}
+
+void SliceMagic::hysteresis(float* slice, float* G, bool* forced_black) {
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            int index = xyToIndex(x, y);
+
+            if (G[index] > grad_threshold && !forced_black[index]) {
+                propagateHysteresis(slice, forced_black, G, x, y);
+            }
+            
+        }
+    }
 }
 
 void SliceMagic::applyCanny(float* slice) {
@@ -133,19 +271,13 @@ void SliceMagic::applyCanny(float* slice) {
                     i++;
                 }
             }
-
             G[xyToIndex(x,y)] = sqrt(Gx*Gx + Gy*Gy);
             float a = Gy / Gx;
             theta[xyToIndex(x, y)] = atan2(Gy, Gx);
-            //theta[xyToIndex(x, y)] = atan(Gy / Gx);
-            
-        
         }
     }
     float largest_val = 0;
     for (int i = 0; i < sizesq; i++) {
-        if (G[i] != 0 )
-            cout << theta[i] << endl;
         if (G[i] > largest_val)
             largest_val = G[i];
     }
@@ -153,21 +285,63 @@ void SliceMagic::applyCanny(float* slice) {
             G[i] /= largest_val;
     }
     for (int i = 0; i < sizesq; i++) {
-        if (G[i] > 0.05)
+        if (G[i] > grad_threshold)
             slice[i] = 1;
         else
             slice[i] = 0;
     }
+    bool* forced_black = new bool[sizesq];
+    for (int i = 0; i < sizesq; i++) {forced_black[i] = 0; }
+    //nonMS(slice, G, theta, forced_black);
+    hysteresis(slice, G, forced_black);
+    nonMS(slice, G, theta, forced_black);
+
 }
 
-void SliceMagic::kMeans(float* slice, int k) {
+
+//              USE FOR COLERING
+/*
+void SliceMagic::propagate(float* slice, bool* forced_black, int* cat, int x, int y, int id) {
+    cat[xyToIndex(x, y)] = id;
+
+    for (int y_ = y - 1; y_ <= y + 1; y_++) {
+        for (int x_ = x - 1; x_ <= x + 1; x_++) {
+            if (!isLegal(x_, y_))
+                continue;
+            if (cat[xyToIndex(x_, y_)] == -1 && !forced_black[xyToIndex(x, y)]) { //unassigned
+                propagate(slice, forced_black, cat, x_, y_, id)
+            }
+        }
+    }
+}
+
+void SliceMagic::hysteresis(float* slice, bool* forced_black) {
+    int* cat = new int[sizesq];
+    for (int i = 0; i < sizesq; i++) { cat[i] = -1; }
+
+    int id = 0;
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            int index = xyToIndex(x, y);
+
+            if (cat[index == -1] && slice[index] == 0.) {
+                propagate(slice, forced_black, cat, x, y, id);
+            }
+            id++;
+        }
+    }
+    propagate(slice, forced_black, cat, x, y);
+}*/
+
+
+void SliceMagic::kMeans(float* slice, int k, int iterations) {
     cluster* clusters = new cluster[k];
     for (int i = 0; i < k; i++) {
         clusters[i] = cluster((float)i/k);
     }
 
     //Iterate clustering
-    for (int iter = 0; iter < 10; iter++) {
+    for (int iter = 0; iter < iterations; iter++) {
         for (int p = 0; p < sizesq; p++) {
             float best = 0; 
             int best_index = 0;
@@ -223,12 +397,13 @@ void SliceMagic::loadOriginal() {
     }
 }
 
+
 void SliceMagic::windowSlice(float* slice, float min, float max) {
     for (int i = 0; i < size * size; i++) {
         float hu = slice[i];
         if (hu > max) { slice[i] = 1; }
         else if (hu < min) { slice[i] =0; }
-        else { slice[i] = (hu - min) / (max - min); }
+        else { slice[i] = normVal(hu, min, max); }
     }
 }
 

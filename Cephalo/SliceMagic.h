@@ -40,15 +40,16 @@ struct Mask {
 		for (int y_ = y; y_ < y + 3; y_++) {
 			for (int x_ = x; x_ < x + 3; x_++) {
 				mask[xyC(x_, y_)] = 1;
+				total += mask[xyC(x_, y_)];
 			}
 		}
-		num_active = 9;
 	};
-	Mask(int custom_mask[25], int nu) {
+	Mask(float custom_mask[25]) {
 		for (int i = 0; i < 25; i++) {
 			mask[i] = custom_mask[i];
+			total += mask[i];
 		}
-		num_active = nu;
+		
 	}
 
 	float applyMask(float* kernel) {
@@ -57,7 +58,7 @@ struct Mask {
 			kernel[i] *= mask[i];
 			mean += kernel[i];
 		}
-		mean /= num_active;
+		mean /= total;
 		return mean;
 	}
 
@@ -65,11 +66,12 @@ struct Mask {
 		float var = 0;
 		for (int i = 0; i < 25; i++) {
 			float dist = kernel[i] - mean;
-			var += dist * dist;
+			var += sqrt(dist * dist) * mask[i];	// Some dist shall weigh more to var
+								
 		}
-		return var / num_active;
+		return var / total;
 	}
-	float num_active = 9;
+	float total = 0;
 	float mask[25] = {0};
 	inline int xyC(int x, int y) { return y * 5 + x; }
 };
@@ -89,15 +91,31 @@ private:
 	float* copySlice(float* slice);
 	Color3* colorConvert(float* slice);
 	void showSlice(Color3* slice, string title);
+	inline float normVal(float hu, float min, float max) { return (hu - min) / (max - min); }
 	void windowSlice(float* slice, float min, float max);
 	float median(float* window);
 	void medianFilter(float* slice);
-	void kMeans(float* slice, int k);
+	void kMeans(float* slice, int k, int itereations);
 	void assignToMostCommonNeighbor(float* slice, int x, int y);
 	void requireMinNeighbors(float* slice, int min);
-	void rotatingMaskFilter(float* slice);
+	void rotatingMaskFilter(float* slice, int num_masks);
 
+	void hist(float* slice);
+	void deNoiser(float* slice);
+
+	void propagateHysteresis(float* slice, bool* forced_black, float* G, int x, int y);
+	void hysteresis(float* slice, float* G, bool* forced_black);
+
+	void nonMSStep(vector<int>* edge_i, float* s_edge, int* s_index, float* G, float* t, bool* fb, int inc, int x, int y, int y_step, int x_step, int step_index);
+	void nonMS(float* slice, float* G, float* theta, bool* forced_black);
 	void applyCanny(float* slice);
-	inline int xyToIndex(int x, int y) { return y * size + x; }
+	inline int xyToIndex(int x, int y) { 
+		//printf("%d    %d\n",x, y);  
+	return y * size + x; }
+
+
+
+	float grad_threshold = 0.12;
+	float min_val = 0.03;
 };
 
