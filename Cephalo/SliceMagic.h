@@ -2,6 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <string>
+#include <cstdlib>
 
 using namespace std;
 using namespace cv;
@@ -15,9 +16,9 @@ struct Color3 {
 	float r, g, b;
 };
 
-struct cluster {
-	cluster() {};
-	cluster(float fraction) {
+struct Kcluster {
+	Kcluster() {};
+	Kcluster(float fraction) {
 		centroid = 0.3;
 		assigned_val = fraction;
 	}
@@ -75,8 +76,43 @@ struct Mask {
 	float mask[25] = {0};
 	inline int xyC(int x, int y) { return y * 5 + x; }
 };
+struct int2 {
+	int2() {}
+	int2(int x, int y) : x(x), y(y) {}
+	int x, y;
+};
+struct Pixel {
+	Pixel() {};
+	Pixel(float val) : val(val) {};
+	
+	Color3 color;
+	float val = -1;
+	int cluster = -1;
+	float cluster_mean = -1;
+	int cat = -1;
+	bool is_edge = false;
+
+	int neighbor_indexes[9];
+	int n_neighbors = 0;
+
+	void addNeighbor(int i) { neighbor_indexes[n_neighbors] = i; n_neighbors++; }
+	void checkAssignBelonging(Pixel* image) {
+		if (!is_edge) return;
+		int c = -1;
+		for (int i = 0; i < n_neighbors; i++) {
+			Pixel neighbor = image[neighbor_indexes[i]];
+			if (neighbor.cluster == c || c == -1 || neighbor.is_edge)
+				c = neighbor.cluster;
+			else
+				return;
+		}
+		cluster = c;	// If we got this far, there is no neighbors belonging different clusters
+	}
+	void addToCluster(int cl, Color3 co) { cluster = cl; color = co; }
+	void makeEdge() { is_edge = true; color = Color3(255, 255, 255); }
 
 
+};
 
 class SliceMagic
 {
@@ -106,16 +142,19 @@ private:
 	void propagateHysteresis(float* slice, bool* forced_black, float* G, int x, int y);
 	void hysteresis(float* slice, float* G, bool* forced_black);
 
-	void nonMSStep(vector<int>* edge_i, float* s_edge, int* s_index, float* G, float* t, bool* fb, int inc, int x, int y, int y_step, int x_step, int step_index);
-	void nonMS(float* slice, float* G, float* theta, bool* forced_black);
+	void propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos);
+	void cluster(Pixel* image);
+
+	void nonMSStep(vector<int>* edge_i, float* s_edge, int* s_index, float* G, float* t, bool* fb, int inc, 
+		int x, int y, int y_step, int x_step, int step_index, float threshold);
+	void nonMS(float* slice, float* G, float* theta, bool* forced_black, float threshold);
 	void applyCanny(float* slice);
-	inline int xyToIndex(int x, int y) { 
-		//printf("%d    %d\n",x, y);  
-	return y * size + x; }
+	inline int xyToIndex(int x, int y) { return y * size + x; }
+	inline int xyToIndex(int2 pos) { return pos.y * size + pos.x; }
 
 
 
-	float grad_threshold = 0.12;
+	float grad_threshold = 0.08;// 0.12;
 	float min_val = 0.03;
 };
 
