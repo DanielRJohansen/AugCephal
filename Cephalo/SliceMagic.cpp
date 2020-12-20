@@ -15,32 +15,23 @@ SliceMagic::SliceMagic() {
     global_hu_vals = copySlice(original);
 
     float* slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
-    showSlice(colorConvert(slice), "windowed");
-
-    slice = copySlice(original);
+    Pixel* image = new Pixel[sizesq];
     windowSlice(slice, -500, 1000);
     rotatingMaskFilter(slice, 14);
     showSlice(colorConvert(slice), "RMF");
 
     slice = copySlice(original);
     windowSlice(slice, -500, 1000);
-    //deNoiser(slice);
     rotatingMaskFilter(slice, 14);
+    sliceToImage(slice, image);
+    findNeighbors(image);
     applyCanny(slice);
-    showSlice(colorConvert(slice), "denoised");
+    applyEdges(slice, image);
+    cluster(image);
+    showImage(image, "Clustered");
     waitKey();
+    //deNoiser(slice);
 
-    slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
-    rotatingMaskFilter(slice, 14);
-    showSlice(colorConvert(slice), "RMFiltermany");
-
-    slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
-    rotatingMaskFilter(slice,14);
-    applyCanny(slice);
-    showSlice(colorConvert(slice),  "Canny");
 
 
 
@@ -115,7 +106,7 @@ void SliceMagic::rotatingMaskFilter(float* slice, int num_masks) {
 inline int radToIndex(float rad) {
     return round((rad + 3.1415) / (2 * 3.1415) * 8);
 }
-inline bool isLegal(int x, int y) { return x * y > 0 && x < 512 && y < 512; }
+inline bool isLegal(int x, int y) { return x >= 0 && y >= 0 && x < 512 && y < 512; }
 
 void SliceMagic::nonMSStep(vector<int>* edge_indexes, float* steepest_edge, int* steepest_index, float* G, float* theta, bool* fb, int inc, int x, int y, int x_step, int y_step, int step_index, float threshold){
     for (int i = inc; i < size; i += inc) {
@@ -200,11 +191,7 @@ void SliceMagic::nonMS(float* slice, float* G, float* theta, bool* forced_black,
     delete(steepest_index);
 }
 
-struct int2 {
-    int2() {}
-    int2(int x, int y) : x(x), y(y) {}
-    int x, y;
-};
+
 void SliceMagic::propagateHysteresis(float* slice, bool* forced_black, float* G, int x, int y) {
     slice[xyToIndex(x, y)] = 1;
     float highest = 0;
@@ -297,48 +284,89 @@ void SliceMagic::applyCanny(float* slice) {
     for (int i = 0; i < sizesq; i++) {forced_black[i] = 0; }
     nonMS(slice, G, theta, forced_black, grad_threshold);
     hysteresis(slice, G, forced_black);
-    nonMS(slice, G, theta, forced_black, min_val);
+    //nonMS(slice, G, theta, forced_black, min_val);
 
 }
 
 
+int x_off[4] = { 0, 0, -1, 1 };
+int y_off[4] = { -1, 1, 0, 0 };
 void SliceMagic::propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos) {
-    image[xyToIndex(pos)].cluster = cluster_id;
-    for (int y_ = y - 1; y_ <= y + 1; y_++) {
-        for (int x_ = x - 1; x_ <= x + 1; x_++) {
-            if (!isLegal(x_, y_))
-                continue;
-            if (cat[xyToIndex(x_, y_)] == -1 && !forced_black[xyToIndex(x, y)]) { //unassigned
-                propagate(slice, forced_black, cat, x_, y_, id)
-            }
-        }
+    int index = xyToIndex(pos);
+    image[index].addToCluster(cluster_id, color);
+
+
+    member_indexes[*n_members] = index;
+    *n_members += 1;
+    *acc_mean += image[index].val;
+    
+    for (int i = 0; i < 4; i++) {
+        int x_ = pos.x + x_off[i];
+        int y_ = pos.y + y_off[i];
+        
+        if (!isLegal(x_, y_))
+            continue;
+
+        int index_ = xyToIndex(x_, y_);
+        if (image[index_].cluster == -1 && !image[index_].is_edge)
+            propagateCluster(image, cluster_id, color, acc_mean, n_members, member_indexes, int2(x_, y_));
     }
+
 }
 
 void SliceMagic::cluster(Pixel* image) {
     int id = 0;
     Color3 color(rand() % 255, rand() % 255, rand() % 255);
-    float* acc_mean = 0;
-    int* n_members = 0;
+    float* acc_mean = new float(0);
+    int* n_members = new int(0);
     int* member_indexes = new int[sizesq];
     for (int y = 0; y < size; y++) {
         for (int x = 0; x < size; x++) {
             int index = xyToIndex(x, y);
 
             if (image[index].cluster == -1 && !image[index].is_edge) {
+                printf("Starting cluster from %d   %d\n", y, x);
                 propagateCluster(image, id, color, acc_mean, n_members, member_indexes, int2(x,y));
+
+                // Do for all members in cluster
+                float cluster_mean = *acc_mean / *n_members;
+                for (int i = 0; i < *n_members; i++) 
+                    image[member_indexes[i]].cluster_mean = cluster_mean;
+
+                // Prepare for next cluster;
+                id++;
+                color = Color3(rand() % 255, rand() % 255, rand() % 255);
+                *n_members = 0; // We dont need to overwrite the member list, as we only read untill n_mem, rest is overwritten
+                *acc_mean = 0;
             }
-            id++;
         }
     }
-    propagate(slice, forced_black, cat, x, y);
+    delete(acc_mean, n_members, member_indexes);
+
+
+
+    for (int i = 0; i < sizesq; i++) { image[i].checkAssignBelonging(image); }  // IDEA: do multiple times, to get rid of edge surrounded by edges.
+
+
 }
 
+void SliceMagic::findNeighbors(Pixel* image) {
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            for (int y_ = y - 1; y_ <= y + 1; y_++) {
+                for (int x_ = x - 1; x_ <= x + 1; x_++) {
+                    if (isLegal(x_, y_))
+                        image[xyToIndex(x, y)].addNeighbor(xyToIndex(x_, y_));
+                }
+            }
+        }
+    }
+}
 
 void SliceMagic::kMeans(float* slice, int k, int iterations) {
-    cluster* clusters = new cluster[k];
+    Kcluster* clusters = new Kcluster[k];
     for (int i = 0; i < k; i++) {
-        clusters[i] = cluster((float)i/k);
+        clusters[i] = Kcluster((float)i/k);
     }
 
     //Iterate clustering
@@ -468,12 +496,28 @@ void SliceMagic::showSlice(Color3* slice, string title) {
     //namedWindow(title, WINDOW_NORMAL);
     imshow(title, img);
     setMouseCallback(title, onMouse, 0);
-
 }
+
+void SliceMagic::showImage(Pixel* image, string title) {
+    Mat img(size, size, CV_8UC3);
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            Color3 c = image[xyToIndex(x, y)].color;
+            img.at<Vec3b>(y, x)[0] = c.r;
+            img.at<Vec3b>(y, x)[1] = c.g;
+            img.at<Vec3b>(y, x)[2] = c.b;
+        }
+    }
+    //namedWindow(title, WINDOW_NORMAL);
+    imshow(title, img);
+    setMouseCallback(title, onMouse, 0);
+}
+
 struct ClusterThingy {
     float val = -1;
     int count = 0;
 };
+
 void SliceMagic::assignToMostCommonNeighbor(float* slice, int x, int y) {
     ClusterThingy* CT;
     
@@ -502,9 +546,6 @@ void SliceMagic::assignToMostCommonNeighbor(float* slice, int x, int y) {
                 }
             }
             slice[xyToIndex(x, y)] = CT[best_index].val;
-
-
-
             delete(CT);
         }
     }
@@ -540,8 +581,7 @@ void SliceMagic::requireMinNeighbors(float* slice, int min) {
 
 void onMouse(int event, int x, int y, int, void*)
 {
-    //if (event != CV_EVENT_LBUTTONDOWN)
-      //  return;
+
 
     Point pt = Point(x, y);
     std::cout << "(" << pt.x << ", " << pt.y << ")      huval: "<< global_hu_vals[y*512+x] << '\n';
