@@ -12,10 +12,19 @@ public:
 	float h[10] = { 0 };
 };
 
-
+void test(int* hllo) {
+	hllo = new int[300000];
+	hllo[30] = 99;
+}
 
 
 int main() {
+	int* a = new int;
+	int* b = a;
+
+	*b = 9;
+	printf("%d", *a);
+	return 0;
 
 	SliceMagic SliceM;
 

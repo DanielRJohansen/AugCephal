@@ -15,7 +15,10 @@ SliceMagic::SliceMagic() {
     global_hu_vals = copySlice(original);
 
     float* slice = copySlice(original);
-    Pixel* image = new Pixel[sizesq];
+    windowSlice(slice, -500, 1000);
+    showSlice(colorConvert(slice), "Windowed image");
+
+    slice = copySlice(original);
     windowSlice(slice, -500, 1000);
     rotatingMaskFilter(slice, 14);
     showSlice(colorConvert(slice), "RMF");
@@ -23,11 +26,12 @@ SliceMagic::SliceMagic() {
     slice = copySlice(original);
     windowSlice(slice, -500, 1000);
     rotatingMaskFilter(slice, 14);
+    Pixel* image = new Pixel[sizesq];
     sliceToImage(slice, image);
-    findNeighbors(image);
+    //findNeighbors(image);
     applyCanny(slice);
     applyEdges(slice, image);
-    cluster(image);
+    int num_clusters = cluster(image);
     showImage(image, "Clustered");
     waitKey();
     //deNoiser(slice);
@@ -40,10 +44,14 @@ SliceMagic::SliceMagic() {
 
 }
 
-float cm1[25] = { 1, 0.2, 0, 0, 0,  0.2, 1, 0.2, 0, 0,  0, 0.2, 1, 0.2, 0,  0, 0, 0.2, 1, 0.2,  0, 0, 0, 0.2, 1 };
+/*float cm1[25] = { 1, 0.2, 0, 0, 0,  0.2, 1, 0.2, 0, 0,  0, 0.2, 1, 0.2, 0,  0, 0, 0.2, 1, 0.2,  0, 0, 0, 0.2, 1 };
 float cm2[25] = { 0, 0, 0, 0.2, 1,  0, 0, 0.2, 1, 0.2,  0, 0.2, 1, 0.2, 0,  0.2, 1, 0.2, 0, 0,  1, 0.2, 0, 0, 0 };
 float cm3[25] = { 0, 0, 0, 0, 0,  0.2, 0.2, 0.2, 0.2, 0.2,  1, 1, 1, 1, 1,  0.2, 0.2, 0.2, 0.2, 0.2,  0, 0, 0, 0, 0 };
-float cm4[25] = { 0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0 };
+float cm4[25] = { 0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0 };*/
+float cm1[25] = { 1, 0, 0, 0, 0,  0, 1, 0, 0, 0,  0, 0, 1, 0, 0,  0, 0, 0, 1, 0,  0, 0, 0, 0, 1 };
+float cm2[25] = { 0, 0, 0, 0, 1,  0, 0, 0, 1, 0,  0, 0, 1, 0, 0,  0, 1, 0, 0, 0,  1, 0, 0, 0, 0 };
+float cm3[25] = { 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  1, 1, 1, 1, 1,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0 };
+float cm4[25] = { 0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0 };
 float cm5[25] = { 0, 0, 0, 0, 0,  0, 1, 2, 1, 0,  0, 2, 4, 2, 0,  0, 1, 2, 1, 0,  0, 0, 0, 0, 0 };
 
 void copyKernel(float* ori, float* copy, int length) {
@@ -282,9 +290,9 @@ void SliceMagic::applyCanny(float* slice) {
     }
     bool* forced_black = new bool[sizesq];
     for (int i = 0; i < sizesq; i++) {forced_black[i] = 0; }
-    nonMS(slice, G, theta, forced_black, grad_threshold);
+    //nonMS(slice, G, theta, forced_black, grad_threshold);
     hysteresis(slice, G, forced_black);
-    //nonMS(slice, G, theta, forced_black, min_val);
+    nonMS(slice, G, theta, forced_black, min_val);
 
 }
 
@@ -293,7 +301,7 @@ int x_off[4] = { 0, 0, -1, 1 };
 int y_off[4] = { -1, 1, 0, 0 };
 void SliceMagic::propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos) {
     int index = xyToIndex(pos);
-    image[index].addToCluster(cluster_id, color);
+    image[index].assignToCluster(cluster_id, color);
 
 
     member_indexes[*n_members] = index;
@@ -308,13 +316,13 @@ void SliceMagic::propagateCluster(Pixel* image, int cluster_id, Color3 color, fl
             continue;
 
         int index_ = xyToIndex(x_, y_);
-        if (image[index_].cluster == -1 && !image[index_].is_edge)
+        if (image[index_].cluster_id == -1 && !image[index_].is_edge)
             propagateCluster(image, cluster_id, color, acc_mean, n_members, member_indexes, int2(x_, y_));
     }
 
 }
 
-void SliceMagic::cluster(Pixel* image) {
+int SliceMagic::cluster(Pixel* image) {
     int id = 0;
     Color3 color(rand() % 255, rand() % 255, rand() % 255);
     float* acc_mean = new float(0);
@@ -324,14 +332,15 @@ void SliceMagic::cluster(Pixel* image) {
         for (int x = 0; x < size; x++) {
             int index = xyToIndex(x, y);
 
-            if (image[index].cluster == -1 && !image[index].is_edge) {
-                printf("Starting cluster from %d   %d\n", y, x);
+            if (image[index].cluster_id == -1 && !image[index].is_edge) {
                 propagateCluster(image, id, color, acc_mean, n_members, member_indexes, int2(x,y));
 
                 // Do for all members in cluster
                 float cluster_mean = *acc_mean / *n_members;
-                for (int i = 0; i < *n_members; i++) 
+                for (int i = 0; i < *n_members; i++) {
                     image[member_indexes[i]].cluster_mean = cluster_mean;
+                    image[member_indexes[i]].cluster_size = *n_members;
+                }
 
                 // Prepare for next cluster;
                 id++;
@@ -343,12 +352,51 @@ void SliceMagic::cluster(Pixel* image) {
     }
     delete(acc_mean, n_members, member_indexes);
 
-
-
-    for (int i = 0; i < sizesq; i++) { image[i].checkAssignBelonging(image); }  // IDEA: do multiple times, to get rid of edge surrounded by edges.
-
-
+    for (int i = 0; i < sizesq; i++) { 
+        image[i].checkAssignBelonging(image); 
+    }  // IDEA: do multiple times, to get rid of edge surrounded by edges.
+    return id;  // Num clusters
 }
+
+void makeClusterSublist(TissueCluster* original, TissueCluster* sub, int* indexes, int size){
+    for (int i = 0; i < size; i++) {
+        sub[i] = original[indexes[i]];
+    }
+}
+void SliceMagic::mergeClusters(Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist) {
+    printf("Merging clusters. RAM req: %d Mb", num_clusters * sizeof(TissueCluster) / 1000000);
+    TissueCluster* TC = new TissueCluster[num_clusters];
+    for (int i = 0; i < num_clusters; i++) {
+        int c_index = image[i].cluster_id;
+        if (c_index != -1) {
+            TC[c_index].addToCluster(image[i]);
+        }
+    }
+
+    for (int i = 0; i < sizesq; i++) {
+        int* connected_indexes = new int[9];
+        int num_connected = image[i].connectedClusters(image, connected_indexes);
+        if (num_connected == 1)
+            image[i].checkAssignBelonging(image);
+        if (num_connected > 1) {
+            // The first cluster (at index 0) will be only surviving cluster, others deathmarked. 
+            // All pixels will belong to first cluster;
+            int survivor_index = connected_indexes[0];
+            TissueCluster* sublist = new TissueCluster[num_connected];
+            makeClusterSublist(TC, sublist, connected_indexes, num_connected);
+            bool mergeable = TC[survivor_index].isMergeable(sublist, num_clusters);
+            if (mergeable) {
+                TC[survivor_index].mergeClusters(sublist, num_connected);
+                TC[survivor_index].addToCluster(image[i]);
+                image[i].assignToCluster(TC[survivor_index]);
+            }
+            delete(sublist);
+        }
+            delete(connected_indexes);
+    }
+    delete(TC);
+}
+
 
 void SliceMagic::findNeighbors(Pixel* image) {
     for (int y = 0; y < size; y++) {
@@ -585,5 +633,100 @@ void onMouse(int event, int x, int y, int, void*)
 
     Point pt = Point(x, y);
     std::cout << "(" << pt.x << ", " << pt.y << ")      huval: "<< global_hu_vals[y*512+x] << '\n';
+
+}
+
+
+void Pixel::checkAssignBelonging(Pixel* image) {
+    if (!is_edge) return;
+    int cluster_ = -1;
+    Color3 color_;
+    for (int i = 0; i < n_neighbors; i++) {
+        Pixel neighbor = image[neighbor_indexes[i]];
+
+        if (cluster_ == -1) {
+            cluster_ = neighbor.cluster_id;
+            color_ = neighbor.color;
+        }
+        else if (neighbor.cluster_id == cluster_ || neighbor.is_edge) {}
+        else return;
+    }
+    if (cluster_ != -1) {// Else do nothing to this pixel
+        color = color_;
+        cluster_id = cluster_;
+    }
+}
+bool isInList(int* list, int size, int target) {
+    for (int i = 0; i < size; i++) {
+        if (list[i] == target)
+            return true;
+    }
+    return false;
+}
+int Pixel::connectedClusters(Pixel* image, int* connected_indexes) {
+    int num_clusters = 0;
+    for (int i = 0; i < n_neighbors; i++) {
+        int id_ = image[neighbor_indexes[i]].cluster_id;
+
+        for (int j = 0; j < num_clusters; j++) {
+            if (!isInList(connected_indexes, num_clusters, id_)) {
+                connected_indexes[num_clusters] = id_;
+                num_clusters++;
+            }
+        }
+    }
+    return num_clusters;
+}
+
+
+
+
+
+
+
+
+
+
+void getMinMax(TissueCluster* clusters, int num_clusters, float* min, float* max) {
+    float min = 99999999;
+    float max = -9999999;
+    for (int i = 0; i < num_clusters; i++) {
+        float cmin = clusters[i].getMin();
+        float cmax = clusters[i].getMax();
+        if (cmin < min)
+            min = cmin;
+        if (cmax > max)
+            max = cmax;
+    }
+    if (min > max)
+        printf("WTF WENT WRONG HERE, MIN LARGER THAN MAX");
+}
+bool TissueCluster::isMergeable(TissueCluster* clusters, int num_clusters, float absolute_dif, float relative_dif) {
+    float* min = new float;
+    float* max = new float;
+    getMinMax(clusters, num_clusters, min, max);
+
+    float abs_dif = *max - *min;
+    float rel_dif = *max / *min;
+    if (abs_dif < absolute_dif && rel_dif < relative_dif)
+        return true;
+    return false;
+}
+
+void TissueCluster::mergeClusters(TissueCluster* clusters, int num_clusters) {
+    float* min = new float;
+    float* max = new float;
+    getMinMax(clusters, num_clusters, min, max);
+
+
+    for (int i = 1; i < num_clusters; i++) {
+        for (int j = 0; j < clusters[i].cluster_size; j++) {
+            clusters[0].addToCluster(clusters[i].getPixel(j));
+        }
+        clusters[i].deadmark();
+    }
+}
+
+void TissueCluster::addToCluster(Pixel pixel) {
 
 }

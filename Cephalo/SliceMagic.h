@@ -83,11 +83,13 @@ struct Mask {
 
 struct Pixel {
 	Pixel() {};
-	Pixel(float val) : val(val) {};
+	Pixel(float val, int index) : val(val), index(index) {};
 	
 	Color3 color;
+	int index;
 	float val = -1;
-	int cluster = -1;
+	int cluster_id = -1;
+	int cluster_size = 0;
 	float cluster_mean = -1;
 	//int cat = -1;
 	bool is_edge = false;
@@ -96,39 +98,45 @@ struct Pixel {
 	int n_neighbors = 0;
 
 	void addNeighbor(int i) { neighbor_indexes[n_neighbors] = i; n_neighbors++; }
-	void checkAssignBelonging(Pixel* image) {
-		if (!is_edge) return;
-		int cluster_ = -1;
-		Color3 color_;
-		for (int i = 0; i < n_neighbors; i++) {
-			Pixel neighbor = image[neighbor_indexes[i]];
-			
-			if (cluster_ == -1) {
-				cluster_ = neighbor.cluster;
-				color_ = neighbor.color;
-			}
-			else if (neighbor.cluster == cluster_ || neighbor.is_edge) {}
-			else return;
-		}
-		if (cluster_ == -1)
-			printf("All neighbors are edges. \n");
-		else {
-			printf("Success!\n");
-			color = color_;
-			cluster = cluster_;
-		}
-
-
-		//printf("\n\n\n")
-	}
-
-	void addToCluster(int cl, Color3 co) { cluster = cl; color = co; }
+	void checkAssignBelonging(Pixel* image);
+	int connectedClusters(Pixel* image, int* connected_indexes);	// The int point should be init to length 9!!
+	void assignToCluster(int cl, Color3 co) { cluster_id = cl; color = co; is_edge = false; }
+	void assignToCluster(TissueCluster TC) { cluster_id = TC.cluster_id; color = TC.color; is_edge = false; }
 	void makeEdge() { is_edge = true; color = Color3(255, 255, 255); }
-
-
 };
 
+class TissueCluster {
+public:
+	TissueCluster() {}
+	TissueCluster(Pixel p) {}
 
+	bool isMergeable(TissueCluster* clusters, int num_clusters, float absolute_dif, float relative_dif);
+	void mergeClusters(TissueCluster* clusters, int num_clusters);	// remember to set min and max here
+	void addToCluster(Pixel p);
+	void deadmark() { deadmarked = true; delete(pixels); }
+	inline float getMean() { return cluster_mean; }
+	inline float getMin() { return min_val; }
+	inline float getMax() { return max_val; }
+	inline Pixel getPixel(int index) { return pixels[index]; }
+
+	int cluster_id;
+	bool initialized = false;
+	Color3 color;
+	float cluster_size;
+
+	
+private:
+	bool deadmarked = false;
+	int new_cluster;
+	
+
+	float min_val;
+	float max_val;
+	float cluster_mean;		// I dont think this is used.
+
+	int allocated_size = 1;
+	Pixel* pixels;
+};
 
 class SliceMagic
 {
@@ -171,12 +179,19 @@ private:
 
 
 
-	void sliceToImage(float* slice, Pixel* image) { for (int i = 0; i < sizesq; i++) image[i].val = slice[i]; }
+	void sliceToImage(float* slice, Pixel* image) { 
+		for (int i = 0; i < sizesq; i++) {
+			image[i] = Pixel(slice[i], i);
+		}
+			
+
+		findNeighbors(image);
+	}
 	void applyEdges(float* slice, Pixel* image) { for (int i = 0; i < sizesq; i++) if (slice[i] == 1) image[i].makeEdge(); }
 	void propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos);
-	void cluster(Pixel* image);
+	int cluster(Pixel* image);	// Returns num clusters
 
-	void mergeCluster(Pixel* image, float max_absolute_dist, max_fractional_dist);
+	void mergeClusters(Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist);
 
 
 
