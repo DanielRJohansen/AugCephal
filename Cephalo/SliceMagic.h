@@ -81,16 +81,33 @@ struct Mask {
 };
 
 
-struct Pixel {
+class Pixel {
+public:
 	Pixel() {};
 	Pixel(float val, int index) : val(val), index(index) {};
-	
-	Color3 color;
+
 	int index;
-	float val = -1;
 	int cluster_id = -1;
+	Color3 color;
+
+	void addNeighbor(int i) { neighbor_indexes[n_neighbors] = i; n_neighbors++; }
+	void checkAssignBelonging(Pixel* image);
+	int connectedClusters(Pixel* image, int* connected_indexes);	// The int point should be init to length 9!!
+	void assignToCluster(int cl, Color3 co, float mean) { cluster_id = cl; color = co; is_edge = false; cluster_changes++; cluster_mean = mean; }
+	inline void reserve() { reserved = true; }
+	inline bool isReserved() { return reserved; }
+	inline bool isEdge() { return is_edge; }
+	inline void makeEdge() { is_edge = true; color = Color3(255, 255, 255); }
+	inline float getVal() { return val; }
+	inline int getID() { return cluster_id; }
+	inline float getClusterMean() { return cluster_mean; }
+
+private:
+	bool reserved = false;	// used for initial clustering ONLY
+
+	float val = -1;
 	int cluster_size = 0;
-	float cluster_mean;
+	float cluster_mean = 10;
 	//int cat = -1;
 	bool is_edge = false;
 	int cluster_changes = 0;
@@ -99,12 +116,7 @@ struct Pixel {
 	int neighbor_indexes[9];
 	int n_neighbors = 0;
 
-	void addNeighbor(int i) { neighbor_indexes[n_neighbors] = i; n_neighbors++; }
-	void checkAssignBelonging(Pixel* image);
-	int connectedClusters(Pixel* image, int* connected_indexes);	// The int point should be init to length 9!!
-	void assignToCluster(int cl, Color3 co) { cluster_id = cl; color = co; is_edge = false; cluster_changes++; }
 
-	void makeEdge() { is_edge = true; color = Color3(255, 255, 255); }
 };
 
 class TissueCluster {
@@ -129,7 +141,7 @@ public:
 	int cluster_id;
 	bool initialized = false;
 	Color3 color;
-	//float cluster_mean;		// I dont think this is used.
+	float cluster_mean = 100;		// I dont think this is used.
 
 	
 private:
@@ -137,8 +149,8 @@ private:
 	
 	int cluster_size = 0;
 
-	float min_val;
-	float max_val;
+	float min_val = -99;
+	float max_val = -99;
 
 	int allocated_size = 0;
 	int* pixel_indexes;
@@ -212,7 +224,7 @@ private:
 
 
 
-	float grad_threshold = 0.08;// 0.12;
-	float min_val = 0.03;
+	float grad_threshold = 0.09;// 0.12;
+	float min_val = 0.04;
 };
 
