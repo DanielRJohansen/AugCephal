@@ -90,9 +90,11 @@ struct Pixel {
 	float val = -1;
 	int cluster_id = -1;
 	int cluster_size = 0;
-	float cluster_mean = -1;
+	float cluster_mean;
 	//int cat = -1;
 	bool is_edge = false;
+	int cluster_changes = 0;
+
 
 	int neighbor_indexes[9];
 	int n_neighbors = 0;
@@ -100,7 +102,7 @@ struct Pixel {
 	void addNeighbor(int i) { neighbor_indexes[n_neighbors] = i; n_neighbors++; }
 	void checkAssignBelonging(Pixel* image);
 	int connectedClusters(Pixel* image, int* connected_indexes);	// The int point should be init to length 9!!
-	void assignToCluster(int cl, Color3 co) { cluster_id = cl; color = co; is_edge = false; }
+	void assignToCluster(int cl, Color3 co) { cluster_id = cl; color = co; is_edge = false; cluster_changes++; }
 
 	void makeEdge() { is_edge = true; color = Color3(255, 255, 255); }
 };
@@ -110,27 +112,28 @@ public:
 	TissueCluster() {}
 	TissueCluster(Pixel p);
 
-	bool isMergeable(TissueCluster* clusters, int num_clusters, float absolute_dif, float relative_dif);
-	void mergeClusters(TissueCluster* clusters, Pixel* image, int num_clusters);	// remember to set min and max here
+	bool isMergeable(TissueCluster** clusters, int num_clusters, float absolute_dif, float relative_dif);
+	void mergeClusters(TissueCluster** clusters, Pixel* image, int num_clusters);	// remember to set min and max here
 	void addToCluster(Pixel p);
 	void handleArraySize();
 	void deadmark() { deadmarked = true; delete(pixel_indexes); }
 
-	inline float getMean() { return cluster_mean; }
-	inline float getMin() { return min_val; }
+	//inline float getMean() { return cluster_mean; }
+	//printf("Here is may go wrong: %d\n", cluster_id);
+	inline float getMin() {  return min_val; }
 	inline float getMax() { return max_val; }
 	inline int getPixel(int index) { return pixel_indexes[index]; }
 	inline int getSize() { return cluster_size; }
+	bool isDeadmarked() { return deadmarked; }
 
 	int cluster_id;
 	bool initialized = false;
 	Color3 color;
-	float cluster_mean;		// I dont think this is used.
+	//float cluster_mean;		// I dont think this is used.
 
 	
 private:
 	bool deadmarked = false;
-	int new_cluster;
 	
 	int cluster_size = 0;
 

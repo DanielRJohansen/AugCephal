@@ -16,10 +16,6 @@ SliceMagic::SliceMagic() {
 
     float* slice = copySlice(original);
     windowSlice(slice, -500, 1000);
-    showSlice(colorConvert(slice), "Windowed image");
-
-    slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
     rotatingMaskFilter(slice, 14);
     showSlice(colorConvert(slice), "RMF");
 
@@ -31,8 +27,11 @@ SliceMagic::SliceMagic() {
     applyCanny(slice);
     applyEdges(slice, image);
     int num_clusters = cluster(image);
-    mergeClusters(image, num_clusters, 100, 100);
     showImage(image, "Clustered");
+
+
+    mergeClusters(image, num_clusters, 10000, 100);
+    showImage(image, "Merged");
     waitKey();
     //deNoiser(slice);
 
@@ -101,10 +100,8 @@ void SliceMagic::rotatingMaskFilter(float* slice, int num_masks) {
                 if (var < lowest_var) {
                     lowest_var = var;
                     best_mean = mean;
-                    //cout << " " << i;
                 }
             }
-            //cout << endl;
             slice[xyToIndex(x, y)] = best_mean;
         }
     }
@@ -359,44 +356,51 @@ int SliceMagic::cluster(Pixel* image) {
     return id;  // Num clusters
 }
 
-void makeClusterSublist(TissueCluster* original, TissueCluster* sub, int* indexes, int size){
+void makeClusterSublist(TissueCluster* original, TissueCluster** sub, int* indexes, int size){   // Verified it works
     for (int i = 0; i < size; i++) {
-        sub[i] = original[indexes[i]];
+        sub[i] = &original[indexes[i]];
     }
 }
 void SliceMagic::mergeClusters(Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist) {
     printf("Merging clusters. RAM req: %d Kb\n", num_clusters * sizeof(TissueCluster) / 1000);
     TissueCluster* TC = new TissueCluster[num_clusters];
-    for (int i = 0; i < num_clusters; i++) {
+    for (int i = 0; i < sizesq; i++) {
         int c_index = image[i].cluster_id;
         if (c_index != -1) {    // We dont want edges
-            TC[c_index].addToCluster(image[i]);
+            if (!TC[c_index].initialized)
+                TC[c_index] = TissueCluster(image[i]);
+            else
+                TC[c_index].addToCluster(image[i]);
         }
     }
 
     for (int i = 0; i < sizesq; i++) {
-        if (image[i].is_edge)
+        if (!image[i].is_edge)
             continue;
         int* connected_indexes = new int[9];
         int num_connected = image[i].connectedClusters(image, connected_indexes);
-        printf("%d\n\n", num_connected);
-        if (num_connected == 1)
-            image[i].checkAssignBelonging(image);
-        if (num_connected > 1) {
-            printf("Merging cluster\n");
+        //printf("%d\n\n", num_connected);
+        if (num_connected == 1) {
+            image[i].assignToCluster(TC[connected_indexes[0]].cluster_id, TC[connected_indexes[0]].color);
+            TC[connected_indexes[0]].addToCluster(image[i]);
+        }
+        else if (num_connected > 1) {
             // The first cluster (at index 0) will be only surviving cluster, others deathmarked. 
             // All pixels will belong to first cluster;
             int survivor_index = connected_indexes[0];
-            TissueCluster* sublist = new TissueCluster[num_connected];
+            TissueCluster** sublist = new TissueCluster*[num_connected];
             makeClusterSublist(TC, sublist, connected_indexes, num_connected);
-            bool mergeable = TC[survivor_index].isMergeable(sublist, num_clusters, max_absolute_dist, max_fractional_dist);
-            if (mergeable) {
+            
+            bool mergeable = TC[survivor_index].isMergeable(sublist, num_connected, max_absolute_dist, max_fractional_dist);
+            if (mergeable) {              
                 TC[survivor_index].mergeClusters(sublist, image, num_connected);
                 TC[survivor_index].addToCluster(image[i]);
                 image[i].assignToCluster(TC[survivor_index].cluster_id, TC[survivor_index].color);
             }
             delete(sublist);
         }
+        else
+            image[i].color = Color3(0, 0, 0);
         delete(connected_indexes);
     }
     delete(TC);
@@ -657,8 +661,7 @@ void Pixel::checkAssignBelonging(Pixel* image) {
         else return;
     }
     if (cluster_ != -1) {// Else do nothing to this pixel
-        color = color_;
-        cluster_id = cluster_;
+        assignToCluster(cluster_, color_);
     }
 }
 bool isInList(int* list, int size, int target) {
@@ -674,14 +677,15 @@ int Pixel::connectedClusters(Pixel* image, int* connected_indexes) {
         int id_ = image[neighbor_indexes[i]].cluster_id;
         if (id_ == -1)
             continue;
-        printf("%d\n", id_);
-        for (int j = 0; j < num_clusters; j++) {
-            if (!isInList(connected_indexes, num_clusters, id_)) {
-                connected_indexes[num_clusters] = id_;
-                num_clusters++;
-            }
+        //printf("%d  ", id_);
+
+        if (!isInList(connected_indexes, num_clusters, id_)) {
+            connected_indexes[num_clusters] = id_;
+            num_clusters++;
         }
+        
     }
+    //printf("\n");
     return num_clusters;
 }
 
@@ -695,25 +699,28 @@ TissueCluster::TissueCluster(Pixel p) {
     max_val = p.cluster_mean;
     color = p.color;
     initialized = true;
+    cluster_id = p.cluster_id;
+    //printf("Initializing cluster %d\n", cluster_id);
+    addToCluster(p);
 }
 
 
 
-void getMinMax(TissueCluster* clusters, int num_clusters, float* min, float* max) {
+void getMinMax(TissueCluster** clusters, int num_clusters, float* min, float* max) {
     *min = 99999999;
     *max = -9999999;
     for (int i = 0; i < num_clusters; i++) {
-        float cmin = clusters[i].getMin();
-        float cmax = clusters[i].getMax();
+        float cmin = clusters[i]->getMin();
+        float cmax = clusters[i]->getMax();
         if (cmin < *min)
             *min = cmin;
         if (cmax > *max)
             *max = cmax;
     }
-    if (min > max)
-        printf("WTF WENT WRONG HERE, MIN LARGER THAN MAX");
+    if (*min > *max)
+        printf("WTF WENT WRONG HERE, MIN LARGER THAN MAX\n");
 }
-bool TissueCluster::isMergeable(TissueCluster* clusters, int num_clusters, float absolute_dif, float relative_dif) {
+bool TissueCluster::isMergeable(TissueCluster** clusters, int num_clusters, float absolute_dif, float relative_dif) {
     float* min = new float;
     float* max = new float;
     getMinMax(clusters, num_clusters, min, max);
@@ -722,12 +729,13 @@ bool TissueCluster::isMergeable(TissueCluster* clusters, int num_clusters, float
     float rel_dif = *max / *min;
 
     delete(min, max);
+    printf("%f       %f\n", abs_dif, rel_dif);
     if (abs_dif < absolute_dif && rel_dif < relative_dif)
         return true;
     return false;
 }
 
-void TissueCluster::mergeClusters(TissueCluster* clusters, Pixel* image, int num_clusters) {
+void TissueCluster::mergeClusters(TissueCluster** clusters, Pixel* image, int num_clusters) {
 
     // This is done so cluster cant be moved gradually - the most extreme means will be kept.
     float* min = new float;
@@ -738,24 +746,27 @@ void TissueCluster::mergeClusters(TissueCluster* clusters, Pixel* image, int num
     delete(min, max);
 
     // First handle the metadata of the survivor cluster
-    int total_size = 0;
+    /*int total_size = 0;
     int acc_mean = 0;
     for (int i = 0; i < num_clusters; i++) {
         total_size += clusters[i].getSize();
         acc_mean += clusters[i].cluster_mean * clusters[i].getSize();
     }
     //clusters[0].cluster_size = total_size;    DO NOT CHANGE SIZE HERE! THE SIZE IS USED TO ADD NEW PIXELS BELOW!!
-    clusters[0].cluster_mean = acc_mean / total_size;
+    clusters[0].cluster_mean = acc_mean / total_size;*/
 
     // Second redistribute each pixel to the survivor cluster
     for (int i = 1; i < num_clusters; i++) {
-        for (int j = 0; j < clusters[i].cluster_size; j++) {
+        for (int j = 0; j < clusters[i]->cluster_size; j++) {
             // For each pixel j in non-survivor cluster i
-            int pixel_index = clusters[i].getPixel(j);
-            clusters[0].addToCluster(image[pixel_index]);
-            image[pixel_index].assignToCluster(clusters[0].cluster_id, clusters[0].color);
+            int pixel_index = clusters[i]->getPixel(j);
+            //
+            //printf("cluster %d  pixel %d    pixel_index %d \n", i, j, pixel_index);
+            //printf("Transferring pixel: %d\n", pixel_index);
+            clusters[0]->addToCluster(image[pixel_index]);
+            image[pixel_index].assignToCluster(clusters[0]->cluster_id, clusters[0]->color);
         }
-        clusters[i].deadmark();
+        clusters[i]->deadmark();
     }
 }
 
