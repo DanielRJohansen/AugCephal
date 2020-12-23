@@ -101,41 +101,44 @@ struct Pixel {
 	void checkAssignBelonging(Pixel* image);
 	int connectedClusters(Pixel* image, int* connected_indexes);	// The int point should be init to length 9!!
 	void assignToCluster(int cl, Color3 co) { cluster_id = cl; color = co; is_edge = false; }
-	void assignToCluster(TissueCluster TC) { cluster_id = TC.cluster_id; color = TC.color; is_edge = false; }
+
 	void makeEdge() { is_edge = true; color = Color3(255, 255, 255); }
 };
 
 class TissueCluster {
 public:
 	TissueCluster() {}
-	TissueCluster(Pixel p) {}
+	TissueCluster(Pixel p);
 
 	bool isMergeable(TissueCluster* clusters, int num_clusters, float absolute_dif, float relative_dif);
-	void mergeClusters(TissueCluster* clusters, int num_clusters);	// remember to set min and max here
+	void mergeClusters(TissueCluster* clusters, Pixel* image, int num_clusters);	// remember to set min and max here
 	void addToCluster(Pixel p);
-	void deadmark() { deadmarked = true; delete(pixels); }
+	void handleArraySize();
+	void deadmark() { deadmarked = true; delete(pixel_indexes); }
+
 	inline float getMean() { return cluster_mean; }
 	inline float getMin() { return min_val; }
 	inline float getMax() { return max_val; }
-	inline Pixel getPixel(int index) { return pixels[index]; }
+	inline int getPixel(int index) { return pixel_indexes[index]; }
+	inline int getSize() { return cluster_size; }
 
 	int cluster_id;
 	bool initialized = false;
 	Color3 color;
-	float cluster_size;
+	float cluster_mean;		// I dont think this is used.
 
 	
 private:
 	bool deadmarked = false;
 	int new_cluster;
 	
+	int cluster_size = 0;
 
 	float min_val;
 	float max_val;
-	float cluster_mean;		// I dont think this is used.
 
-	int allocated_size = 1;
-	Pixel* pixels;
+	int allocated_size = 0;
+	int* pixel_indexes;
 };
 
 class SliceMagic

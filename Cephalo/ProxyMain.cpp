@@ -19,12 +19,7 @@ void test(int* hllo) {
 
 
 int main() {
-	int* a = new int;
-	int* b = a;
 
-	*b = 9;
-	printf("%d", *a);
-	return 0;
 
 	SliceMagic SliceM;
 
