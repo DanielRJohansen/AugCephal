@@ -87,11 +87,11 @@ public:
 	Pixel(float val, int index) : val(val), index(index) {};
 
 	int index;
-	int cluster_id = -1;
+	int cluster_id = -1;	// NOT ASSIGNED
 	Color3 color;
 
 	void addNeighbor(int i) { neighbor_indexes[n_neighbors] = i; n_neighbors++; }
-	void checkAssignBelonging(Pixel* image);
+	void checkAssignBelonging(Pixel* image);	// ILLEGAL, DOES NOT UPDATE CLUSTER MEMBER COUNT
 	int connectedClusters(Pixel* image, int* connected_indexes);	// The int point should be init to length 9!!
 	void assignToCluster(int cl, Color3 co, float mean) { cluster_id = cl; color = co; is_edge = false; cluster_changes++; cluster_mean = mean; }
 	inline void reserve() { reserved = true; }
@@ -105,9 +105,9 @@ public:
 private:
 	bool reserved = false;	// used for initial clustering ONLY
 
-	float val = -1;
+	float val;
 	int cluster_size = 0;
-	float cluster_mean = 10;
+	float cluster_mean = 0;
 	//int cat = -1;
 	bool is_edge = false;
 	int cluster_changes = 0;
@@ -141,7 +141,7 @@ public:
 	int cluster_id;
 	bool initialized = false;
 	Color3 color;
-	float cluster_mean = 100;		// I dont think this is used.
+	float cluster_mean = 0;		// I dont think this is used.
 
 	
 private:
@@ -149,18 +149,22 @@ private:
 	
 	int cluster_size = 0;
 
-	float min_val = -99;
-	float max_val = -99;
+	float min_val;
+	float max_val;
 
 	int allocated_size = 0;
 	int* pixel_indexes;
 };
 
+//const int size = 512;
+//string im_path = "E:\\NIH_images\\002701_04_03\\160.png";
+const int ss = 1024;
+const string ip = "E:\\NIH_images\\000330_06_01\\183.png";
 class SliceMagic
 {
 public:
 	SliceMagic();
-
+	inline int getSize() { return size; }
 private:
 
 	struct int2 {
@@ -168,8 +172,9 @@ private:
 		int2(int x, int y) : x(x), y(y) {}
 		int x, y;
 	};
+	const int size = ss;
+	const string im_path = ip;
 
-	const int size = 512;
 	const int sizesq = size * size;
 	float* original;
 	void loadOriginal();
@@ -180,10 +185,14 @@ private:
 	inline float normVal(float hu, float min, float max) { return (hu - min) / (max - min); }
 	void windowSlice(float* slice, float min, float max);
 	
+	inline bool isLegal(int x, int y) { return x >= 0 && y >= 0 && x < size && y < size; }
+
 	// Image value only segmentation, obsolete for now
 	void kMeans(float* slice, int k, int itereations);
 	void assignToMostCommonNeighbor(float* slice, int x, int y);
 	void requireMinNeighbors(float* slice, int min);
+
+	void histogramFuckingAround(float* slice);
 
 	float median(float* window);
 	void medianFilter(float* slice);
@@ -200,9 +209,9 @@ private:
 	void sliceToImage(float* slice, Pixel* image) { 
 		for (int i = 0; i < sizesq; i++) {
 			image[i] = Pixel(slice[i], i);
+			//printf("%f\n", image[i].getVal());
+			//printf("%f\n", slice[i]);
 		}
-			
-
 		findNeighbors(image);
 	}
 	void applyEdges(float* slice, Pixel* image) { for (int i = 0; i < sizesq; i++) if (slice[i] == 1) image[i].makeEdge(); }
@@ -225,6 +234,6 @@ private:
 
 
 	float grad_threshold = 0.09;// 0.12;
-	float min_val = 0.04;
+	float min_val = 0.02;
 };
 

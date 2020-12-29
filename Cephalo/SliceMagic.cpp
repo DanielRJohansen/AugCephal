@@ -5,6 +5,38 @@ void onMouse(int event, int x, int y, int, void*);
 
 float* global_hu_vals;
 
+
+void onMouse(int event, int x, int y, int, void*)
+{
+
+    Point pt = Point(x, y);
+    std::cout << "(" << pt.x << ", " << pt.y << ")      huval: " << global_hu_vals[y * ss + x] << '\n';
+
+}
+void setGlobalLookup(Pixel* image, int size) {
+    for (int i = 0; i < size; i++) {
+        global_hu_vals[i] = image[i].getClusterMean();
+    }
+}
+void makeHistogram(float* slice, int num_bins, int size, int min = 0, int max = 1) {
+    float binsize = ((float)max - (float)min) / (float)num_bins;
+    int* histogram = new int[num_bins]();
+
+    for (int i = 0; i < size; i++) {
+        //printf("%f\n", slice[i]);
+        //printf("%f\n", ceil(slice[i] / binsize));
+        int index = ceil(slice[i] / binsize);
+        histogram[index]++;
+    }
+
+    printf("Histogram with %d bins, binsize: %f\n", num_bins, binsize);
+    printf("[%f", histogram[0]);
+    for (int i = 1; i < num_bins; i++) {
+        printf(", %d", histogram[i]);
+    }
+    printf("];\n");
+}
+
 SliceMagic::SliceMagic() {
 	original = new float[size*size];
     loadOriginal();
@@ -15,33 +47,37 @@ SliceMagic::SliceMagic() {
     global_hu_vals = copySlice(original);
 
     float* slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
+    windowSlice(slice, -500, 500);
+    showSlice(colorConvert(slice), "Windowed");
+    histogramFuckingAround(slice);
     rotatingMaskFilter(slice, 14);
-    showSlice(colorConvert(slice), "RMF");
+    makeHistogram(slice, 500, sizesq);
 
-    slice = copySlice(original);
-    windowSlice(slice, -500, 1000);
-    rotatingMaskFilter(slice, 14);
+
+    showSlice(colorConvert(slice), "Rotating Mask Filtered");
+
+    //slice = copySlice(original);
+    //windowSlice(slice, -500, 1000);
+    
     Pixel* image = new Pixel[sizesq];
     sliceToImage(slice, image);
-    applyCanny(slice);
-    applyEdges(slice, image);
-    showSlice(colorConvert(slice), "Canny");
+    float* cannyIm = copySlice(slice);
+    applyCanny(cannyIm);          
+    applyEdges(cannyIm, image);   // Copies all edges fr slice to image
+    //showSlice(colorConvert(slice), "Canny detected edges");
 
 
     int num_clusters = cluster(image);
+    setGlobalLookup(image, sizesq);
     showImage(image, "Clustered");
-
 
     mergeClusters(image, num_clusters, 0.2, 0.09);
     showImage(image, "Merged");
     waitKey();
-    //deNoiser(slice);
 
 
 
 
-    waitKey();
 
 
 }
@@ -61,6 +97,43 @@ void copyKernel(float* ori, float* copy, int length) {
         copy[i] = ori[i];
     }
 }
+
+// THIS SHIT DANGEROUS AS FUCK AS WE DONT JUSTTTTT HAVE 9 EQUALLY WEIGHED VALUES IN THE KERNEL
+void filterZeroes(float* from, float* to, int fromsize, int tosize) {
+    int j = 0;
+    for (int i = 0; i < fromsize; i++) {
+        printf("%f\n", from[i]);
+        to[j] = 0;
+        if (from[i] != 0) {
+            to[j] = from[i];
+            j++;
+            //if (j == tosize)
+              //  return;
+        }
+    }
+    printf("\n");
+}
+float medianOfList(float* list, int size) {
+    float* ordered_list = new float[size];
+    float ignore = 999999;
+
+    for (int i = 0; i < size; i++) {
+        float lowest = ignore;
+        int index;
+        printf("%f\n", list[i]);
+        for (int j = 0; j < size; j++) {
+            if (list[j] < lowest) {
+                lowest = list[j];
+                index = j;
+            }
+        }
+        ordered_list[i] = list[index];
+        list[index] == ignore;
+    }
+    printf("Median: %f\n\n\n", ordered_list[size / 2]);
+    return ordered_list[size / 2];
+}
+
 void SliceMagic::rotatingMaskFilter(float* slice, int num_masks) {
     Mask masks[14];
     float* copy = copySlice(slice);
@@ -105,16 +178,17 @@ void SliceMagic::rotatingMaskFilter(float* slice, int num_masks) {
                     best_mean = mean;
                 }
             }
+            //printf("best mean: %f\n", best_mean);
             slice[xyToIndex(x, y)] = best_mean;
+            delete(kernel_copy);
         }
     }
-
+    delete(copy);
 }
 
 inline int radToIndex(float rad) {
     return round((rad + 3.1415) / (2 * 3.1415) * 8);
 }
-inline bool isLegal(int x, int y) { return x >= 0 && y >= 0 && x < 512 && y < 512; }
 
 void SliceMagic::nonMSStep(vector<int>* edge_indexes, float* steepest_edge, int* steepest_index, float* G, float* theta, bool* fb, int inc, int x, int y, int x_step, int y_step, int step_index, float threshold){
     for (int i = inc; i < size; i += inc) {
@@ -290,9 +364,9 @@ void SliceMagic::applyCanny(float* slice) {
     }
     bool* forced_black = new bool[sizesq];
     for (int i = 0; i < sizesq; i++) {forced_black[i] = 0; }
-    nonMS(slice, G, theta, forced_black, grad_threshold);
+    //nonMS(slice, G, theta, forced_black, grad_threshold);
     hysteresis(slice, G, forced_black);
-    nonMS(slice, G, theta, forced_black, min_val);
+    //nonMS(slice, G, theta, forced_black, min_val);
 
 }
 
@@ -340,7 +414,7 @@ int SliceMagic::cluster(Pixel* image) {
                 for (int i = 0; i < *n_members; i++) {
                     image[member_indexes[i]].assignToCluster(id, color, cluster_mean);
                 }
-
+                //printf("Found cluster %d with mean: %f\n", id, cluster_mean);
                 // Prepare for next cluster;
                 id++;
                 color = Color3(rand() % 255, rand() % 255, rand() % 255);
@@ -351,9 +425,9 @@ int SliceMagic::cluster(Pixel* image) {
     }
     delete(acc_mean, n_members, member_indexes);
 
-    for (int i = 0; i < sizesq; i++) { 
-        image[i].checkAssignBelonging(image); 
-    }  // IDEA: do multiple times, to get rid of edge surrounded by edges.
+    //for (int i = 0; i < sizesq; i++) { 
+    //    image[i].checkAssignBelonging(image); 
+    //}  // IDEA: do multiple times, to get rid of edge surrounded by edges.
     printf("%d clusters found \n", id);
     return id;  // Num clusters
 }
@@ -478,7 +552,7 @@ float* SliceMagic::copySlice(float* slice) {
 }
 
 void SliceMagic::loadOriginal() {
-	string im_path = "E:\\NIH_images\\002701_04_03\\160.png";
+
 	Mat img = imread(im_path, cv::IMREAD_UNCHANGED);
 
     for (int y = 0; y < size; y++) {
@@ -556,7 +630,7 @@ void SliceMagic::showSlice(Color3* slice, string title) {
             img.at<Vec3b>(y, x)[2] = c.b;
         }
     }
-    //namedWindow(title, WINDOW_NORMAL);
+    namedWindow(title, WINDOW_NORMAL);
     imshow(title, img);
     setMouseCallback(title, onMouse, 0);
 }
@@ -642,14 +716,54 @@ void SliceMagic::requireMinNeighbors(float* slice, int min) {
 
 
 
-void onMouse(int event, int x, int y, int, void*)
-{
 
-
-    Point pt = Point(x, y);
-    std::cout << "(" << pt.x << ", " << pt.y << ")      huval: "<< global_hu_vals[y*512+x] << '\n';
-
+void SliceMagic::histogramFuckingAround(float* slice) {
+    Color3 viewColor = Color3(255, 105, 180)*(1./255.);
+    float from;
+    float to;
+    Color3* image = new Color3[sizesq];
+    while (true) {
+        printf("From:\n");
+        cin >> from;
+        printf("To:\n");
+        cin >> to;
+        float* copy = copySlice(slice);
+        for (int i = 0; i < sizesq; i++) {
+            if (slice[i] >= from && slice[i] <= to)
+                image[i] = viewColor;
+            else
+                image[i] = slice[i];
+        }
+        showSlice(image, "Fucking Around");
+        waitKey();
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 void Pixel::checkAssignBelonging(Pixel* image) {

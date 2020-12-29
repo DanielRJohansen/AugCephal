@@ -35,8 +35,10 @@ int pointerPLay() {
 }
 
 int main() {
-	
+
 	SliceMagic SliceM;
+
+	return 1;
 
 	Environment Env;
 	Env.Run();
