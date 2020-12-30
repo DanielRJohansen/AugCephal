@@ -59,7 +59,14 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <Include>$(SolutionDir)/../SFML/include;C:\opencv\build\include;%(AdditionalIncludeDirectories);$(CudaToolkitIncludeDir)</Include>
     </CudaCompile>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <CudaLink>
+      <AdditionalDependencies>opencv_world411d.lib</AdditionalDependencies>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -94,6 +101,7 @@
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="ProxyMain.cpp" />
     <ClCompile Include="Raytracing.cpp" />
+    <ClCompile Include="Resizer.cpp" />
     <ClCompile Include="SliceMagic.cpp" />
     <ClCompile Include="VolumeMaker.cpp" />
   </ItemGroup>
@@ -106,6 +114,7 @@
     <ClInclude Include="CudaOps.cuh" />
     <ClInclude Include="Environment.h" />
     <ClInclude Include="Raytracing.h" />
+    <ClInclude Include="Resizer.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SliceMagic.h" />
     <ClInclude Include="Tools.h" />

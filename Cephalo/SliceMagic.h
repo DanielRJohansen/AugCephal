@@ -9,6 +9,9 @@ using namespace std;
 using namespace cv;
 
 
+
+
+
 struct Color3 {
 	Color3() {};
 	Color3(float r, float g, float b) : r(r), g(g), b(b) {}
@@ -38,6 +41,9 @@ struct Kcluster {
 	}
 };
 
+
+float medianOfList(float* list, int size);
+
 struct Mask {
 	Mask() {};
 	Mask(int x, int y) {
@@ -48,7 +54,7 @@ struct Mask {
 			}
 		}
 	};
-	Mask(float custom_mask[25]) {
+	Mask(int custom_mask[25]) {
 		for (int i = 0; i < 25; i++) {
 			mask[i] = custom_mask[i];
 			total += mask[i];
@@ -62,7 +68,7 @@ struct Mask {
 			kernel[i] *= mask[i];
 			mean += kernel[i];
 		}
-		mean /= total;
+		mean /= (float) total;
 		return mean;
 	}
 
@@ -73,10 +79,23 @@ struct Mask {
 			var += sqrt(dist * dist) * mask[i];	// Some dist shall weigh more to var
 								
 		}
-		return var / total;
+		return var / (float) total;
 	}
-	float total = 0;
-	float mask[25] = {0};
+
+	float median(float* kernel) {
+		float* list = new float[total];
+		int head = 0;
+		for (int i = 0; i < 25; i++) {
+			for (int j = 0; j < mask[i]; j++) {
+				list[head] = kernel[i];
+				head++;
+			}
+		}
+		return medianOfList(list, total);
+	}
+
+	int total = 0;
+	int mask[25] = {0};
 	inline int xyC(int x, int y) { return y * 5 + x; }
 };
 
@@ -115,7 +134,6 @@ private:
 
 	int neighbor_indexes[9];
 	int n_neighbors = 0;
-
 
 };
 
@@ -157,9 +175,9 @@ private:
 };
 
 //const int size = 512;
-//string im_path = "E:\\NIH_images\\002701_04_03\\160.png";
+const string ip = "E:\\NIH_images\\002701_04_03\\160.png";
 const int ss = 1024;
-const string ip = "E:\\NIH_images\\000330_06_01\\183.png";
+//const string ip = "E:\\NIH_images\\000330_06_01\\183.png";
 class SliceMagic
 {
 public:
@@ -172,15 +190,20 @@ private:
 		int2(int x, int y) : x(x), y(y) {}
 		int x, y;
 	};
-	const int size = ss;
-	const string im_path = ip;
 
+
+	const int size = ss;
+	const int load_size = 512;
+	const string im_path = ip;
 	const int sizesq = size * size;
-	float* original;
-	void loadOriginal();
+	//float* original;
+
+
+
+	float* loadOriginal();
 	float* copySlice(float* slice);
 	Color3* colorConvert(float* slice);
-	void showSlice(Color3* slice, string title);
+	void showSlice(Color3* slice, string title, int s=-1);
 	void showImage(Pixel* image, string title);
 	inline float normVal(float hu, float min, float max) { return (hu - min) / (max - min); }
 	void windowSlice(float* slice, float min, float max);
@@ -234,6 +257,6 @@ private:
 
 
 	float grad_threshold = 0.09;// 0.12;
-	float min_val = 0.02;
+	float min_val = 0.03;
 };
 

@@ -1,4 +1,6 @@
 #include "SliceMagic.h"
+#include "Resizer.h"
+
 void onMouse(int event, int x, int y, int, void*);
 
 
@@ -6,9 +8,31 @@ void onMouse(int event, int x, int y, int, void*);
 float* global_hu_vals;
 
 
+float medianOfList(float* list, int size) {
+    float* ordered_list = new float[size];
+    float ignore = 999999;
+
+    for (int i = 0; i < size; i++) {
+        float lowest = ignore;
+        int index;
+        //printf("%f\n", list[i]);
+        for (int j = 0; j < size; j++) {
+            if (list[j] < lowest) {
+                lowest = list[j];
+                index = j;
+            }
+        }
+        ordered_list[i] = list[index];
+        list[index] == ignore;
+    }
+    //printf("Median: %f\n\n\n", ordered_list[size / 2]);
+    return ordered_list[size / 2];
+}
+
 void onMouse(int event, int x, int y, int, void*)
 {
-
+    if (x < 0 || y < 0)
+        return;
     Point pt = Point(x, y);
     std::cout << "(" << pt.x << ", " << pt.y << ")      huval: " << global_hu_vals[y * ss + x] << '\n';
 
@@ -38,26 +62,32 @@ void makeHistogram(float* slice, int num_bins, int size, int min = 0, int max = 
 }
 
 SliceMagic::SliceMagic() {
-	original = new float[size*size];
-    loadOriginal();
+    float* original = loadOriginal();
+
+    Resizer resizer(load_size, size);
+
+
+
+    float* slice = resizer.Interpolate2D(original);
 
     int k = 12;
     int min_n = 2;
 
-    global_hu_vals = copySlice(original);
+    global_hu_vals = copySlice(slice);
 
-    float* slice = copySlice(original);
     windowSlice(slice, -500, 500);
-    showSlice(colorConvert(slice), "Windowed");
-    histogramFuckingAround(slice);
+    //showSlice(colorConvert(slice), "Resized");
+    //histogramFuckingAround(slice);
+    //printf("Before RMF\n");
+    //makeHistogram(slice, 500, sizesq);
     rotatingMaskFilter(slice, 14);
-    makeHistogram(slice, 500, sizesq);
+    //printf("After RMF\n");
+    //makeHistogram(slice, 500, sizesq);
 
 
     showSlice(colorConvert(slice), "Rotating Mask Filtered");
 
-    //slice = copySlice(original);
-    //windowSlice(slice, -500, 1000);
+
     
     Pixel* image = new Pixel[sizesq];
     sliceToImage(slice, image);
@@ -71,7 +101,7 @@ SliceMagic::SliceMagic() {
     setGlobalLookup(image, sizesq);
     showImage(image, "Clustered");
 
-    mergeClusters(image, num_clusters, 0.2, 0.09);
+    mergeClusters(image, num_clusters, 0.15, 1.00009);
     showImage(image, "Merged");
     waitKey();
 
@@ -86,11 +116,11 @@ SliceMagic::SliceMagic() {
 float cm2[25] = { 0, 0, 0, 0.2, 1,  0, 0, 0.2, 1, 0.2,  0, 0.2, 1, 0.2, 0,  0.2, 1, 0.2, 0, 0,  1, 0.2, 0, 0, 0 };
 float cm3[25] = { 0, 0, 0, 0, 0,  0.2, 0.2, 0.2, 0.2, 0.2,  1, 1, 1, 1, 1,  0.2, 0.2, 0.2, 0.2, 0.2,  0, 0, 0, 0, 0 };
 float cm4[25] = { 0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0,  0, 0.2, 1, 0.2, 0 };*/
-float cm1[25] = { 1, 0, 0, 0, 0,  0, 1, 0, 0, 0,  0, 0, 1, 0, 0,  0, 0, 0, 1, 0,  0, 0, 0, 0, 1 };
-float cm2[25] = { 0, 0, 0, 0, 1,  0, 0, 0, 1, 0,  0, 0, 1, 0, 0,  0, 1, 0, 0, 0,  1, 0, 0, 0, 0 };
-float cm3[25] = { 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  1, 1, 1, 1, 1,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0 };
-float cm4[25] = { 0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0 };
-float cm5[25] = { 0, 0, 0, 0, 0,  0, 1, 2, 1, 0,  0, 2, 4, 2, 0,  0, 1, 2, 1, 0,  0, 0, 0, 0, 0 };
+int cm1[25] = { 1, 0, 0, 0, 0,  0, 1, 0, 0, 0,  0, 0, 2, 0, 0,  0, 0, 0, 1, 0,  0, 0, 0, 0, 1 };
+int cm2[25] = { 0, 0, 0, 0, 1,  0, 0, 0, 1, 0,  0, 0, 2, 0, 0,  0, 1, 0, 0, 0,  1, 0, 0, 0, 0 };
+int cm3[25] = { 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  1, 1, 2, 1, 1,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0 };
+int cm4[25] = { 0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 0, 2, 0, 0,  0, 0, 1, 0, 0,  0, 0, 1, 0, 0 };
+int cm5[25] = { 0, 0, 0, 0, 0,  0, 1, 2, 1, 0,  0, 2, 4, 2, 0,  0, 1, 2, 1, 0,  0, 0, 0, 0, 0 };
 
 void copyKernel(float* ori, float* copy, int length) {
     for (int i = 0; i < length; i++) {
@@ -113,26 +143,7 @@ void filterZeroes(float* from, float* to, int fromsize, int tosize) {
     }
     printf("\n");
 }
-float medianOfList(float* list, int size) {
-    float* ordered_list = new float[size];
-    float ignore = 999999;
 
-    for (int i = 0; i < size; i++) {
-        float lowest = ignore;
-        int index;
-        printf("%f\n", list[i]);
-        for (int j = 0; j < size; j++) {
-            if (list[j] < lowest) {
-                lowest = list[j];
-                index = j;
-            }
-        }
-        ordered_list[i] = list[index];
-        list[index] == ignore;
-    }
-    printf("Median: %f\n\n\n", ordered_list[size / 2]);
-    return ordered_list[size / 2];
-}
 
 void SliceMagic::rotatingMaskFilter(float* slice, int num_masks) {
     Mask masks[14];
@@ -176,6 +187,7 @@ void SliceMagic::rotatingMaskFilter(float* slice, int num_masks) {
                 if (var < lowest_var) {
                     lowest_var = var;
                     best_mean = mean;
+                    //best_mean = masks[i].median(kernel);
                 }
             }
             //printf("best mean: %f\n", best_mean);
@@ -551,16 +563,17 @@ float* SliceMagic::copySlice(float* slice) {
     return copy;
 }
 
-void SliceMagic::loadOriginal() {
-
+float* SliceMagic::loadOriginal() {
+    float* original = new float[load_size * load_size];
 	Mat img = imread(im_path, cv::IMREAD_UNCHANGED);
 
-    for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
+    for (int y = 0; y < load_size; y++) {
+        for (int x = 0; x < load_size; x++) {
             int hu = img.at<uint16_t>(y, x) - 32768;
-            original[xyToIndex(x, y)] = hu;
+            original[y*load_size+x] = hu;
         }
     }
+    return original;
 }
 
 
@@ -620,17 +633,19 @@ void SliceMagic::medianFilter(float* slice) {
     delete(copy);
 }
 
-void SliceMagic::showSlice(Color3* slice, string title) {
+void SliceMagic::showSlice(Color3* slice, string title, int s) {
+    if (s == -1) s = size;
     Mat img(size, size, CV_8UC3);
-    for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
+
+    for (int y = 0; y < s; y++) {
+        for (int x = 0; x < s; x++) {
             Color3 c = slice[xyToIndex(x, y)] * 255.;
             img.at<Vec3b>(y, x)[0] = c.r;
             img.at<Vec3b>(y, x)[1] = c.g;
             img.at<Vec3b>(y, x)[2] = c.b;
         }
     }
-    namedWindow(title, WINDOW_NORMAL);
+    //namedWindow(title, WINDOW_NORMAL);
     imshow(title, img);
     setMouseCallback(title, onMouse, 0);
 }
