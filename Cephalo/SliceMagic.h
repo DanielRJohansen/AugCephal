@@ -256,7 +256,7 @@ private:
 
 
 
-	float grad_threshold = 0.09;// 0.12;
-	float min_val = 0.03;
+	float grad_threshold = 0.08;// 0.12;
+	float min_val = 0.035;
 };
 
