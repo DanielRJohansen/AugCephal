@@ -89,9 +89,9 @@ SliceMagic::SliceMagic() {
     //makeHistogram(slice, 500, sizesq);
     showSlice(colorConvert(slice), "Rotating Mask Filtered");
 
-    float* kmslice = copySlice(slice);
-    kMeans(kmslice, 24, 10);
-    showSlice(colorConvert(kmslice), "16 K means, 20 iter");
+    //float* kmslice = copySlice(slice);
+    //kMeans(kmslice, 24, 10);
+    //showSlice(colorConvert(kmslice), "16 K means, 20 iter");
     
     Pixel* image = new Pixel[sizesq];
     sliceToImage(slice, image);
@@ -104,15 +104,15 @@ SliceMagic::SliceMagic() {
     int num_clusters = cluster(image);
     showImage(image, "Clustered");
 
-    mergeClusters(image, num_clusters, 0.25, 1.00009);
+    for (int i = 0; i < sizesq; i++) {
+        image[i].assignToBestNeighbor(image);
+    }
     setGlobalLookup(image, sizesq);
 
-    showImage(image, "Merged");
+    showImage(image, "No edges");
     waitKey();
 
-
-
-
+    mergeClusters(image, num_clusters, 0.25, 1.00009);
 
 
 }
@@ -413,7 +413,7 @@ void SliceMagic::propagateCluster(Pixel* image, int cluster_id, Color3 color, fl
 
 int SliceMagic::cluster(Pixel* image) {
     int id = 0;
-    Color3 color(rand() % 255, rand() % 255, rand() % 255);
+    Color3 color = Color3().getRandColor();
     float* acc_mean = new float(0);
     int* n_members = new int(0);
     int* member_indexes = new int[sizesq];
@@ -432,7 +432,7 @@ int SliceMagic::cluster(Pixel* image) {
                 //printf("Found cluster %d with mean: %f\n", id, cluster_mean);
                 // Prepare for next cluster;
                 id++;
-                color = Color3(rand() % 255, rand() % 255, rand() % 255);
+                color = Color3().getRandColor();
                 *n_members = 0; // We dont need to overwrite the member list, as we only read untill n_mem, rest is overwritten
                 *acc_mean = 0;
             }
@@ -464,6 +464,15 @@ TissueCluster* initTissueCluster(Pixel* image, int num_clusters, int sizesq) {
                 TC[c_index].addToCluster(image[i]);
         }
     }
+    /*for (int i = 0; i < sizesq; i++) {
+        int c_index = image[i].getID();
+        if (c_index != -1) {    // We dont want edges
+            if (!TC[c_index].initialized)
+                TC[c_index] = TissueCluster(image[i]);
+            else
+                TC[c_index].addToCluster(image[i]);
+        }
+    }*/
     return TC;
 }
 void SliceMagic::mergeClusters(Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist) {
@@ -840,7 +849,7 @@ int Pixel::connectedClusters(Pixel* image, int* connected_indexes) {
 
 
 
-TissueCluster::TissueCluster(Pixel p) {
+/*TissueCluster::TissueCluster(Pixel p) {
     min_val = p.getClusterMean();
     max_val = p.getClusterMean();
     //printf("Initting cluster from mean: %f\n", p.cluster_mean);
@@ -850,7 +859,7 @@ TissueCluster::TissueCluster(Pixel p) {
     cluster_id = p.cluster_id;
     //printf("Initializing cluster %d\n", cluster_id);
     addToCluster(p);
-}
+}*/
 
 
 

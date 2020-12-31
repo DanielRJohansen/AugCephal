@@ -16,6 +16,7 @@ struct Color3 {
 	Color3() {};
 	Color3(float r, float g, float b) : r(r), g(g), b(b) {}
 	Color3(float gray) : r(gray), g(gray), b(gray) {}
+	Color3 getRandColor() { return Color3(rand() % 255, rand() % 255, rand() % 255); }
 	inline Color3 operator*(float s) const { return Color3(r * s, g * s, b * s); }
 	float r, g, b;
 };
@@ -121,6 +122,29 @@ public:
 	inline int getID() { return cluster_id; }
 	inline float getClusterMean() { return cluster_mean; }
 
+	void assignToBestNeighbor(Pixel* image) {
+		if (!is_edge) return;
+		int best_index = -1;
+		float min_dist = 999999;
+		for (int i = 0; i < n_neighbors; i++) {
+			int index = neighbor_indexes[i];
+			Pixel p = image[index];
+			if (p.isEdge())
+				continue;
+			float dist = sqrt((p.cluster_mean - cluster_mean) * (p.cluster_mean - cluster_mean));
+			if (dist < min_dist) {
+				min_dist = dist;
+				best_index = index;
+			}
+		}
+		if (best_index == -1) {
+			printf("What the fuck, no neighbors?");
+			return;
+		}
+		Pixel p = image[best_index];
+		assignToCluster(p.cluster_id, p.color, p.getClusterMean());
+	}
+
 private:
 	bool reserved = false;	// used for initial clustering ONLY
 
@@ -140,7 +164,6 @@ private:
 class TissueCluster {
 public:
 	TissueCluster() {}
-	TissueCluster(Pixel p);
 
 	bool isMergeable(TissueCluster** clusters, int num_clusters, float absolute_dif, float relative_dif);
 	void mergeClusters(TissueCluster** clusters, Pixel* image, int num_clusters);	// remember to set min and max here
@@ -158,7 +181,7 @@ public:
 
 	int cluster_id;
 	bool initialized = false;
-	Color3 color;
+	Color3 color = Color3().getRandColor();
 	float cluster_mean = 0;		// I dont think this is used.
 
 	
@@ -170,12 +193,17 @@ private:
 	float min_val;
 	float max_val;
 
+	// Member pixels
 	int allocated_size = 0;
 	int* pixel_indexes;
+
+	// Neighbors
+	int num_neighbors = 0;
+	int* neighbor_ids;
 };
 
 //const int size = 512;
-const string ip = "E:\\NIH_images\\002701_04_03\\160.png";
+const string ip = "D:\\DumbLesion\\NIH_scans\\Images_png\\002701_04_03\\160.png";
 const int ss = 1024;
 //const string ip = "E:\\NIH_images\\000330_06_01\\183.png";
 class SliceMagic
