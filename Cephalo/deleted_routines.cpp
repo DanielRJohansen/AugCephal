@@ -32,6 +32,81 @@ void VolumeMaker::setIgnores(vector<int> ignores) {
 
 
 
+void SliceMagic::mergeClusters(Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist) {
+    printf("Merging clusters. RAM req: %d Kb\n", num_clusters * sizeof(TissueCluster) / 1000);
+    //TissueCluster* TC = initTissueCluster(image, num_clusters, sizesq);
+    TissueCluster* TC = new TissueCluster[num_clusters]();
+
+    for (int i = 0; i < sizesq; i++) {
+        if (!image[i].isEdge())
+            continue;
+
+        int* connected_indexes = new int[9];
+        int num_connected = image[i].connectedClusters(image, connected_indexes);
+
+        if (num_connected == 0)
+            continue;
+
+        int survivor_index = connected_indexes[0];
+        TissueCluster survivor_copy = TC[survivor_index];
+
+        if (num_connected == 1) {
+            image[i].assignToCluster(survivor_copy.cluster_id, survivor_copy.color, survivor_copy.cluster_mean);
+            TC[connected_indexes[0]].addToCluster(image[i]);
+        }
+        else {
+            // The first cluster (at index 0) will be only surviving cluster, others deathmarked. All pixels will belong to first cluster;
+            TissueCluster** sublist = new TissueCluster* [num_connected];
+            makeClusterSublist(TC, sublist, connected_indexes, num_connected);
+
+            bool mergeable = TC[survivor_index].isMergeable(sublist, num_connected, max_absolute_dist, max_fractional_dist);
+            if (mergeable) {
+                TC[survivor_index].mergeClusters(sublist, image, num_connected);
+                TC[survivor_index].addToCluster(image[i]);
+                image[i].assignToCluster(TC[survivor_index].cluster_id, TC[survivor_index].color, TC[survivor_index].cluster_mean);
+            }
+            delete(sublist);    // Not properly deleted!!!!
+        }
+        //else
+            //image[i].color = Color3(0, 0, 0);
+        delete(connected_indexes);
+    }
+    delete(TC);
+}
+
+
+
+TissueCluster::TissueCluster(Pixel p) {
+    min_val = p.getClusterMean();
+    max_val = p.getClusterMean();
+    //printf("Initting cluster from mean: %f\n", p.cluster_mean);
+    cluster_mean = p.getClusterMean();
+    color = p.color;
+    initialized = true;
+    cluster_id = p.cluster_id;
+    //printf("Initializing cluster %d\n", cluster_id);
+    addToCluster(p);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

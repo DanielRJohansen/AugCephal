@@ -121,7 +121,12 @@ public:
 	inline float getVal() { return val; }
 	inline int getID() { return cluster_id; }
 	inline float getClusterMean() { return cluster_mean; }
-
+	int getNeighbors(int* indexes) {
+		for (int i = 0; i < n_neighbors; i++) {
+			indexes[i] = neighbor_indexes[i];
+		}
+		return n_neighbors;
+	}
 	void assignToBestNeighbor(Pixel* image) {
 		if (!is_edge) return;
 		int best_index = -1;
@@ -161,46 +166,136 @@ private:
 
 };
 
+
+
+
+
+
+
+
+
 class TissueCluster {
 public:
 	TissueCluster() {}
+	TissueCluster(int cluster_id, int num_clusters) : cluster_id(cluster_id), total_num_clusters(num_clusters) {
+		cluster_at_index_is_neighbor = new bool[num_clusters]();
+	}
 
-	bool isMergeable(TissueCluster** clusters, int num_clusters, float absolute_dif, float relative_dif);
+	bool isMergeable(TissueCluster** clusters, int num_clusters, float absolute_dif, float relative_dif);	//CLUSTER SUBLIST
 	void mergeClusters(TissueCluster** clusters, Pixel* image, int num_clusters);	// remember to set min and max here
-	void addToCluster(Pixel p);
+	void addToCluster(Pixel p, Pixel* image);
 	void handleArraySize();
-	void deadmark() { deadmarked = true; delete(pixel_indexes); }
+	void deadmark(int survivor_id) {
+		deadmarked = true; merged_cluster_id = survivor_id;
+	}//delete(pixel_indexes, cluster_at_index_is_neighbor, member_values, mergeables);}
+	int getSurvivingClusterID(TissueCluster* TC) {
+		//printf("Dead: %d   self:   %d   ref: %d\n", deadmarked, cluster_id, merged_cluster_id);
+		if (deadmarked)
+			return TC[merged_cluster_id].getSurvivingClusterID(TC);
+		return cluster_id;
+	}
+
+	void addPotentialNeighbors(int* ids, int num) {
+		//printf("\n\nID: %d    num: %d\n", cluster_id, num);
+		for (int i = 0; i < num; i++) {
+			//if (cluster_id != 0)
+				//printf("me: %d     neighbor: %d\n", cluster_id, ids[i]);
+			if (ids[i] > cluster_id) {
+				//printf("HIT!\n");
+				cluster_at_index_is_neighbor[ids[i]] = true;
+			}
+		}
+	}
+	bool recalcCluster() {
+		if (deadmarked) { return false; }
+		calcMedian();
+		return true;
+	};
+	void calcMedian() {
+		if (cluster_size > 5000)
+			median = getMean();
+		else
+			median = medianOfList(member_values, cluster_size);
+	};
+
+	// Decide ALL mergeables before any clusters are linked. Some traversing will occur.
+	void findMergeableIndexes(TissueCluster* clusters);	// SETS MERGEABLE_INDEXES AND NUM_MERGEABLES! MUST BE RUN BEFORE THE ONES BELOW!!!!
+	TissueCluster** makeMergeableSublist(TissueCluster* clusters);	// The new ids from prev. merged clusters are swapped in here
+	void executeMerges(TissueCluster* clusters, Pixel* image) {
+		if (deadmarked)
+			return;
+		//printf("Merging from cluster %d: %d\n", cluster_id, num_mergeables);
+		TissueCluster** mergeables = makeMergeableSublist(clusters);
+		mergeClusters(mergeables, image, num_mergeables);
+	}
 
 	//inline float getMean() { return cluster_mean; }
 	//printf("Here is may go wrong: %d\n", cluster_id);
-	inline float getMin() {  return min_val; }
+	inline float getMin() { return min_val; }
 	inline float getMax() { return max_val; }
 	inline int getPixel(int index) { return pixel_indexes[index]; }
 	inline int getSize() { return cluster_size; }
 	bool isDeadmarked() { return deadmarked; }
+	float getMedian() { return median; }
+	float getMean() {
+		float acc = 0;
+		for (int i = 0; i < cluster_size; i++) {
+			acc += member_values[i];
+		}
+		return acc / (float)cluster_size;
+	}
 
-	int cluster_id;
-	bool initialized = false;
+
+	int cluster_id = -1;
+	int merged_cluster_id;
 	Color3 color = Color3().getRandColor();
 	float cluster_mean = 0;		// I dont think this is used.
 
 	
 private:
 	bool deadmarked = false;
-	
+	int total_num_clusters;
 	int cluster_size = 0;
 
 	float min_val;
 	float max_val;
 
-	// Member pixels
+
+
+
+
+	// Common dynamic list system. Should prolly just use vectors....
 	int allocated_size = 0;
+
+	// Member pixels
 	int* pixel_indexes;
+	// Member pixel hu values;		- COULD ALSO USE MEMBERS CLUSTER MEAN VALUE. WOULD OFC ONLY MAKE SENSE AFTER SOME CLUSTERS HAVE MERGED!
+	float* member_values;
 
 	// Neighbors
-	int num_neighbors = 0;
-	int* neighbor_ids;
+	//int num_neighbors = 0;
+	bool* cluster_at_index_is_neighbor;	
+
+	float median;
+	int* mergeable_indexes;		// is NOT properly deleted, i think=????
+	int num_mergeables = 0;
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //const int size = 512;
 const string ip = "D:\\DumbLesion\\NIH_scans\\Images_png\\002701_04_03\\160.png";
@@ -260,8 +355,6 @@ private:
 	void sliceToImage(float* slice, Pixel* image) { 
 		for (int i = 0; i < sizesq; i++) {
 			image[i] = Pixel(slice[i], i);
-			//printf("%f\n", image[i].getVal());
-			//printf("%f\n", slice[i]);
 		}
 		findNeighbors(image);
 	}

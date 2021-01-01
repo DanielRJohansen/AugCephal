@@ -103,6 +103,7 @@
     <ClCompile Include="Raytracing.cpp" />
     <ClCompile Include="Resizer.cpp" />
     <ClCompile Include="SliceMagic.cpp" />
+    <ClCompile Include="Toolbox.cpp" />
     <ClCompile Include="VolumeMaker.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -117,6 +118,7 @@
     <ClInclude Include="Resizer.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SliceMagic.h" />
+    <ClInclude Include="Toolbox.h" />
     <ClInclude Include="Tools.h" />
     <ClInclude Include="VolumeMaker.h" />
   </ItemGroup>
