@@ -26,15 +26,20 @@ struct Color3 {
 struct Kcluster {
 	Kcluster() {};
 	Kcluster(float fraction) {
-		centroid = 0.3;
 		assigned_val = fraction;
 	}
 	float assigned_val;
-	float centroid;
+	float centroid = 999;
 	float acc_val = 0;
 	int num_members = 0;
-
-	void updateCluster() { centroid = acc_val / num_members; num_members = 0; acc_val = 0; };
+	int prev_members;
+	float updateCluster() {
+		if (num_members == 0)
+			return 0;
+		float b = centroid;
+		centroid = acc_val / num_members; prev_members = num_members; num_members = 0; acc_val = 0;
+		return abs(centroid - b);
+	};
 	void addMember(float member_val) { acc_val += member_val; num_members++; };
 	float belonging(float val) {
 		float dist = centroid - val;
@@ -109,18 +114,18 @@ public:
 	int index;
 	int cluster_id = -1;	// NOT ASSIGNED
 	Color3 color;
-
+	float median = -999;
 	void addNeighbor(int i) { neighbor_indexes[n_neighbors] = i; n_neighbors++; }
 	void checkAssignBelonging(Pixel* image);	// ILLEGAL, DOES NOT UPDATE CLUSTER MEMBER COUNT
 	int connectedClusters(Pixel* image, int* connected_indexes);	// The int point should be init to length 9!!
-	void assignToCluster(int cl, Color3 co, float mean) { cluster_id = cl; color = co; is_edge = false; cluster_changes++; cluster_mean = mean; }
+	void assignToCluster(int cl, Color3 co) { cluster_id = cl; color = co; is_edge = false; cluster_changes++;}
 	inline void reserve() { reserved = true; }
 	inline bool isReserved() { return reserved; }
 	inline bool isEdge() { return is_edge; }
 	inline void makeEdge() { is_edge = true; color = Color3(255, 255, 255); }
 	inline float getVal() { return val; }
 	inline int getID() { return cluster_id; }
-	inline float getClusterMean() { return cluster_mean; }
+	//inline float getClusterMean() { return cluster_mean; }
 	int getNeighbors(int* indexes) {
 		for (int i = 0; i < n_neighbors; i++) {
 			indexes[i] = neighbor_indexes[i];
@@ -136,7 +141,7 @@ public:
 			Pixel p = image[index];
 			if (p.isEdge())
 				continue;
-			float dist = sqrt((p.cluster_mean - cluster_mean) * (p.cluster_mean - cluster_mean));
+			float dist = sqrt((p.getVal() - val) * (p.getVal() - val));
 			if (dist < min_dist) {
 				min_dist = dist;
 				best_index = index;
@@ -147,7 +152,7 @@ public:
 			return;
 		}
 		Pixel p = image[best_index];
-		assignToCluster(p.cluster_id, p.color, p.getClusterMean());
+		assignToCluster(p.cluster_id, p.color);
 	}
 
 private:
@@ -155,7 +160,7 @@ private:
 
 	float val;
 	int cluster_size = 0;
-	float cluster_mean = 0;
+	//float cluster_mean;
 	//int cat = -1;
 	bool is_edge = false;
 	int cluster_changes = 0;
@@ -189,19 +194,14 @@ public:
 		deadmarked = true; merged_cluster_id = survivor_id;
 	}//delete(pixel_indexes, cluster_at_index_is_neighbor, member_values, mergeables);}
 	int getSurvivingClusterID(TissueCluster* TC) {
-		//printf("Dead: %d   self:   %d   ref: %d\n", deadmarked, cluster_id, merged_cluster_id);
 		if (deadmarked)
 			return TC[merged_cluster_id].getSurvivingClusterID(TC);
 		return cluster_id;
 	}
 
 	void addPotentialNeighbors(int* ids, int num) {
-		//printf("\n\nID: %d    num: %d\n", cluster_id, num);
 		for (int i = 0; i < num; i++) {
-			//if (cluster_id != 0)
-				//printf("me: %d     neighbor: %d\n", cluster_id, ids[i]);
 			if (ids[i] > cluster_id) {
-				//printf("HIT!\n");
 				cluster_at_index_is_neighbor[ids[i]] = true;
 			}
 		}
@@ -212,21 +212,32 @@ public:
 		return true;
 	};
 	void calcMedian() {
-		if (cluster_size > 5000)
+		if (cluster_size > 10000)
 			median = getMean();
 		else
 			median = medianOfList(member_values, cluster_size);
 	};
 
 	// Decide ALL mergeables before any clusters are linked. Some traversing will occur.
-	void findMergeableIndexes(TissueCluster* clusters);	// SETS MERGEABLE_INDEXES AND NUM_MERGEABLES! MUST BE RUN BEFORE THE ONES BELOW!!!!
+	void findMergeableIndexes(TissueCluster* clusters, float max_abs_dist);	// SETS MERGEABLE_INDEXES AND NUM_MERGEABLES! MUST BE RUN BEFORE THE ONES BELOW!!!!
 	TissueCluster** makeMergeableSublist(TissueCluster* clusters);	// The new ids from prev. merged clusters are swapped in here
 	void executeMerges(TissueCluster* clusters, Pixel* image) {
-		if (deadmarked)
-			return;
+
 		//printf("Merging from cluster %d: %d\n", cluster_id, num_mergeables);
 		TissueCluster** mergeables = makeMergeableSublist(clusters);
-		mergeClusters(mergeables, image, num_mergeables);
+		printf("Mergeables: ");
+		for (int i = 0; i < num_mergeables; i++) {
+			printf("%d   ", mergeables[i]->cluster_id);
+		}
+		printf("\n");
+		if (!deadmarked) {
+			mergeClusters(mergeables, image, num_mergeables);
+		}
+		else {
+			int daddy = getSurvivingClusterID(clusters);
+			clusters[daddy].mergeClusters(mergeables, image, num_mergeables);
+		}
+			
 	}
 
 	//inline float getMean() { return cluster_mean; }
@@ -259,9 +270,6 @@ private:
 
 	float min_val;
 	float max_val;
-
-
-
 
 
 	// Common dynamic list system. Should prolly just use vectors....
@@ -361,7 +369,7 @@ private:
 	void applyEdges(float* slice, Pixel* image) { for (int i = 0; i < sizesq; i++) if (slice[i] == 1) image[i].makeEdge(); }
 	void propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos);
 	int cluster(Pixel* image);	// Returns num clusters
-
+	void assignClusterMedianToImage(Pixel* image, int num_clusters);
 	void mergeClusters(Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist);
 
 
