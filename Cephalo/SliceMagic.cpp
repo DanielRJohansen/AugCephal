@@ -6,6 +6,7 @@ void onMouse(int event, int x, int y, int, void*);
 
 
 float* global_hu_vals;
+float* global_km_vals;
 float* global_cat_vals;
 
 float medianOfList(float* list, int size) {
@@ -36,7 +37,9 @@ void onMouse(int event, int x, int y, int, void*)
 
     //printf("(%d, %d)     Hu: %f          Cat median value: %f\n", pt.x, pt.y, global_hu_vals[y * ss + x], global_cat_vals[y * ss + x]);
 
-    printf("(%d, %d)     Hu: %f       \n", pt.x, pt.y, global_hu_vals[y * ss + x]);
+    //printf("(%d, %d)     Hu: %f     Cluster: %f  \n", pt.x, pt.y, global_hu_vals[y * ss + x], global_km_vals[y * ss + x]);
+    
+    printf("(%d, %d)     Hu: %f     \n", pt.x, pt.y, global_hu_vals[y * ss + x]);
     
     
 }
@@ -44,6 +47,12 @@ void setGlobalLookup(Pixel* image, int size) {
     global_cat_vals = new float[size];
     for (int i = 0; i < size; i++) {
         global_cat_vals[i] = image[i].median;
+    }
+}
+void setGlobalKMLookup(float* slice, int size) {
+    global_km_vals = new float[size];
+    for (int i = 0; i < size; i++) {
+        global_km_vals[i] = slice[i];
     }
 }
 void makeHistogram(float* slice, int num_bins, int size, int min = 0, int max = 1) {
@@ -88,21 +97,34 @@ SliceMagic::SliceMagic() {
 
     showSlice(colorConvert(slice), "Rotating Mask Filtered");
 
-
+    
     float* kmslice = copySlice(slice);
     kMeans(kmslice, 8, 100);
+    setGlobalKMLookup(kmslice, sizesq);
     showSlice(colorConvert(kmslice), "16 K means, 20 iter");
-    waitKey();
+    
 
     Pixel* image = new Pixel[sizesq];
-    sliceToImage(slice, image);
+    sliceToImage(kmslice, image);
+    int num_clusters = cluster(image, "absolute_values");
+    showImage(image, "K-means clustered");
+    
+
+    Pixel* image2 = new Pixel[sizesq];
+    sliceToImage(slice, image2);
+    fuzzyMeans(image2, slice, 8);
+    cluster(image2, "absolute_values");
+    showImage(image2, "Fuzzy Means Clustered");
+    waitKey();
+
+    /*sliceToImage(slice, image);
     float* cannyIm = copySlice(slice);
     applyCanny(cannyIm);          
     applyEdges(cannyIm, image);   // Copies all edges fr slice to image
     showSlice(colorConvert(cannyIm), "Canny detected edges");
 
 
-    int num_clusters = cluster(image);
+    num_clusters = cluster(image);
    
 
     showImage(image, "Clustered");
@@ -120,7 +142,7 @@ SliceMagic::SliceMagic() {
     showImage(image, "Clusters Merged!");
 
     waitKey();
-
+    */
 }
 
 /*float cm1[25] = { 1, 0.2, 0, 0, 0,  0.2, 1, 0.2, 0, 0,  0, 0.2, 1, 0.2, 0,  0, 0, 0.2, 1, 0.2,  0, 0, 0, 0.2, 1 };
@@ -380,11 +402,10 @@ void SliceMagic::applyCanny(float* slice) {
 
 int x_off[4] = { 0, 0, -1, 1 };
 int y_off[4] = { -1, 1, 0, 0 };
-void SliceMagic::propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos) {
+
+void SliceMagic::propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos, string type) {
     int index = xyToIndex(pos);
     image[index].reserve();
-
-    //printf("%d\n", *n_members);
     member_indexes[*n_members] = index;
     *n_members += 1;
     *acc_mean += image[index].getVal();
@@ -397,13 +418,19 @@ void SliceMagic::propagateCluster(Pixel* image, int cluster_id, Color3 color, fl
             continue;
 
         int index_ = xyToIndex(x_, y_);
-        if (!image[index_].isReserved() && !image[index_].isEdge())
-            propagateCluster(image, cluster_id, color, acc_mean, n_members, member_indexes, int2(x_, y_));
+        if (type == "edge_separation") {
+            if (!image[index_].isReserved() && !image[index_].isEdge())
+                propagateCluster(image, cluster_id, color, acc_mean, n_members, member_indexes, int2(x_, y_), type);
+        }
+        else if (type == "absolute_values") {
+            if (!image[index_].isReserved() && image[index_].getVal() == image[index].getVal())
+                propagateCluster(image, cluster_id, color, acc_mean, n_members, member_indexes, int2(x_, y_), type);
+        }
     }
 
 }
 
-int SliceMagic::cluster(Pixel* image) {
+int SliceMagic::cluster(Pixel* image, string type) {
     int id = 0;
     Color3 color = Color3().getRandColor();
     float* acc_mean = new float(0);
@@ -412,20 +439,35 @@ int SliceMagic::cluster(Pixel* image) {
     for (int y = 0; y < size; y++) {
         for (int x = 0; x < size; x++) {
             int index = xyToIndex(x, y);
-            if (!image[index].isReserved() && !image[index].isEdge()) {
-                propagateCluster(image, id, color, acc_mean, n_members, member_indexes, int2(x,y));
 
-                // Do for all members in cluster
-                float cluster_mean = *acc_mean / (float) *n_members;
-                for (int i = 0; i < *n_members; i++) {
-                    image[member_indexes[i]].assignToCluster(id, color);
+            if (type == "edge_separation") {
+                if (image[index].isReserved() || image[index].isEdge()) {
+                    continue;
                 }
-                // Prepare for next cluster;
-                id++;
-                color = Color3().getRandColor();
-                *n_members = 0; // We dont need to overwrite the member list, as we only read untill n_mem, rest is overwritten
-                *acc_mean = 0;
+                propagateCluster(image, id, color, acc_mean, n_members, member_indexes, int2(x, y), type);
+
             }
+            else if (type == "absolute_values") {
+                if (image[index].isReserved()) {
+                    continue;
+                }
+                propagateCluster(image, id, color, acc_mean, n_members, member_indexes, int2(x, y), type);
+            }
+            else {
+                printf("WRONG CLUSTER TYPE, EXITING");
+                return 0;
+            }
+                
+            // Do for all members in cluster
+            float cluster_mean = *acc_mean / (float) *n_members;
+            for (int i = 0; i < *n_members; i++) {
+                image[member_indexes[i]].assignToCluster(id, color);
+            }
+            // Prepare for next cluster;
+            id++;
+            color = Color3().getRandColor();
+            *n_members = 0; // We dont need to overwrite the member list, as we only read untill n_mem, rest is overwritten
+            *acc_mean = 0;          
         }
     }
     delete(acc_mean, n_members, member_indexes);
@@ -505,7 +547,7 @@ void SliceMagic::findNeighbors(Pixel* image) {
     }
 }
 
-void SliceMagic::kMeans(float* slice, int k, int iterations) {
+Kcluster* SliceMagic::kMeans(float* slice, int k, int iterations) {
     Kcluster* clusters = new Kcluster[k];
     for (int i = 0; i < k; i++) {
         clusters[i] = Kcluster((float)i/k);
@@ -536,9 +578,9 @@ void SliceMagic::kMeans(float* slice, int k, int iterations) {
         if (total_change < 0.02)
             break;
     }
-    printf("\nClustermeans:\n");
+    printf("\nK-Clustermeans:\n");
     for (int i = 0; i < k; i++) {
-        printf("Cluster %d.   Members: %d   Mean: %f  \n", i, clusters[i].prev_members, clusters[i].centroid);
+        printf("    Cluster %d.   Members: %d   Mean: %f  \n", i, clusters[i].prev_members, clusters[i].centroid);
     }
     printf("\n");
     // Assign color from best cluster
@@ -555,6 +597,62 @@ void SliceMagic::kMeans(float* slice, int k, int iterations) {
         slice[p] = clusters[best_index].centroid;
     }
     printf("\n");
+    return clusters;
+}
+
+float gauss_kernel[25] = { 1, 4, 7, 4, 1,    4, 16, 26, 16, 4,    7, 26, 41, 26, 7,   4, 16, 26, 16, 4,     1, 4, 7, 4, 1 };
+
+void SliceMagic::fuzzyMeans(Pixel* image, float* slice, int k) {
+    Kcluster* clusters = kMeans(slice, k, 100);
+
+    // First find each pixels belonging score to each cluster
+    for (int i = 0; i < sizesq; i++) {
+        image[i].fuzzy_cluster_scores = new float[k];
+        for (int j = 0; j < k; j++) {
+            image[i].fuzzy_cluster_scores[j] = clusters[j].belonging(image[i].getVal());
+        }
+    }
+
+    float* new_vals = new float[sizesq];
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            int* kernel_indexes = getKernelIndexes(x, y, 5);
+            float* scores = new float[k]();
+            int index = xyToIndex(x, y);
+
+            if (x == 393 && y == 620)
+                printf("my-val: %f \n", image[index].getVal());
+
+            for (int i = 0; i < 25; i++) {
+                for (int j = 0; j < k; j++) {
+                    if (kernel_indexes[i] != -1) {
+                        float dist = 1 + abs(image[index].getVal() - image[kernel_indexes[i]].getVal());                            
+                        scores[j] += image[kernel_indexes[i]].fuzzy_cluster_scores[j] * gauss_kernel[i] * 1/(dist*dist*dist*dist);
+                        if (x == 393 && y == 620)
+                            printf("    dist4: %f  kernel-val: %f \n", dist * dist * dist * dist, image[kernel_indexes[i]].getVal());
+                    }                        
+                }
+            }
+
+            float best = 0;
+            int best_index = 0;
+            for (int i = 0; i < k; i++) {
+                if (scores[i] > best) {
+                    best = scores[i];
+                    best_index = i;
+                }
+            }
+            new_vals[index] = clusters[best_index].centroid;
+            //image[index].setVal(clusters[best_index].centroid);
+
+            delete(kernel_indexes, scores);
+        }
+    }
+
+    for (int i = 0; i < sizesq; i++) {
+        image[i].setVal(new_vals[i]);
+    }
+    delete(clusters, new_vals);
 }
 
 float* SliceMagic::copySlice(float* slice) {

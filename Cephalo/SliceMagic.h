@@ -115,6 +115,11 @@ public:
 	int cluster_id = -1;	// NOT ASSIGNED
 	Color3 color;
 	float median = -999;
+	float* fuzzy_cluster_scores;
+
+
+
+
 	void addNeighbor(int i) { neighbor_indexes[n_neighbors] = i; n_neighbors++; }
 	void checkAssignBelonging(Pixel* image);	// ILLEGAL, DOES NOT UPDATE CLUSTER MEMBER COUNT
 	int connectedClusters(Pixel* image, int* connected_indexes);	// The int point should be init to length 9!!
@@ -123,6 +128,8 @@ public:
 	inline bool isReserved() { return reserved; }
 	inline bool isEdge() { return is_edge; }
 	inline void makeEdge() { is_edge = true; color = Color3(255, 255, 255); }
+
+	inline void setVal(float v) { val = v; }
 	inline float getVal() { return val; }
 	inline int getID() { return cluster_id; }
 	//inline float getClusterMean() { return cluster_mean; }
@@ -305,10 +312,14 @@ private:
 
 
 
+
 //const int size = 512;
 const string ip = "D:\\DumbLesion\\NIH_scans\\Images_png\\002701_04_03\\160.png";
 const int ss = 1024;
 //const string ip = "E:\\NIH_images\\000330_06_01\\183.png";
+
+
+
 class SliceMagic
 {
 public:
@@ -330,7 +341,7 @@ private:
 	//float* original;
 
 
-
+	// I/O FUNCTIONS
 	float* loadOriginal();
 	float* copySlice(float* slice);
 	Color3* colorConvert(float* slice);
@@ -339,49 +350,72 @@ private:
 	inline float normVal(float hu, float min, float max) { return (hu - min) / (max - min); }
 	void windowSlice(float* slice, float min, float max);
 	
+	// HELPER FUNCTIONS
 	inline bool isLegal(int x, int y) { return x >= 0 && y >= 0 && x < size && y < size; }
+	inline int xyToIndex(int x, int y) { return y * size + x; }
+	inline int xyToIndex(int2 pos) { return pos.y * size + pos.x; }
+	int* getKernelIndexes(int x, int y, int size) {
+		int* indexes = new int[size * size];
+		int s = size / 2; int i = 0;
+		for (int y_ = y - s; y_ <= y + s; y_++) {
+			for (int x_ = x - s; x_ <= x + s; x_++) {
+				if (isLegal(x_, y_))
+					indexes[i] = xyToIndex(x_, y_);
+				else
+					indexes[i] = -1;
+				i++;
+			}
+		}
+		return indexes;
+	}
+	
+	
 
-	// Image value only segmentation, obsolete for now
-	void kMeans(float* slice, int k, int itereations);
+	// DUNNO BOUT THIS
 	void assignToMostCommonNeighbor(float* slice, int x, int y);
 	void requireMinNeighbors(float* slice, int min);
+	void deNoiser(float* slice);
 
+	// HISTOGRAM SHIT
 	void histogramFuckingAround(float* slice);
+	void hist(float* slice);
 
+	// FILTER SHIT
 	float median(float* window);
 	void medianFilter(float* slice);
 	void rotatingMaskFilter(float* slice, int num_masks);
-
-	void hist(float* slice);
-	void deNoiser(float* slice);
-
-	void propagateHysteresis(float* slice, bool* forced_black, float* G, int x, int y);
-	void hysteresis(float* slice, float* G, bool* forced_black);
-
-
-
-	void sliceToImage(float* slice, Pixel* image) { 
+	Kcluster* kMeans(float* slice, int k, int itereations);
+	void fuzzyMeans(Pixel* image, float* slice, int k);
+	
+	
+	// PIXEL SPECIFIC FUNCTIONS
+	void findNeighbors(Pixel* image);
+	void sliceToImage(float* slice, Pixel* image) {
 		for (int i = 0; i < sizesq; i++) {
 			image[i] = Pixel(slice[i], i);
 		}
 		findNeighbors(image);
 	}
+
+
+
+	// CLUSTERING
 	void applyEdges(float* slice, Pixel* image) { for (int i = 0; i < sizesq; i++) if (slice[i] == 1) image[i].makeEdge(); }
-	void propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos);
-	int cluster(Pixel* image);	// Returns num clusters
+	void propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos, string type);
+	int cluster(Pixel* image, string type="edge_separation");	// Returns num clusters
 	void assignClusterMedianToImage(Pixel* image, int num_clusters);
 	void mergeClusters(Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist);
 
 
 
-	void findNeighbors(Pixel* image);
-
+	// CANNY EDGE DETECTION
+	void propagateHysteresis(float* slice, bool* forced_black, float* G, int x, int y);
+	void hysteresis(float* slice, float* G, bool* forced_black);
 	void nonMSStep(vector<int>* edge_i, float* s_edge, int* s_index, float* G, float* t, bool* fb, int inc, 
 		int x, int y, int y_step, int x_step, int step_index, float threshold);
 	void nonMS(float* slice, float* G, float* theta, bool* forced_black, float threshold);
 	void applyCanny(float* slice);
-	inline int xyToIndex(int x, int y) { return y * size + x; }
-	inline int xyToIndex(int2 pos) { return pos.y * size + pos.x; }
+	
 
 
 
