@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <cstdlib>
-
+#include "Toolbox.h"
 
 using namespace std;
 using namespace cv;
@@ -42,8 +42,8 @@ struct Kcluster {
 	};
 	void addMember(float member_val) { acc_val += member_val; num_members++; };
 	float belonging(float val) {
-		float dist = centroid - val;
-		return 1 / (dist * dist);
+		float dist = abs(centroid - val);
+		return 1 - dist;
 	}
 };
 
@@ -109,13 +109,14 @@ struct Mask {
 class Pixel {
 public:
 	Pixel() {};
-	Pixel(float val, int index) : val(val), index(index) {};
+	Pixel(float val, int index) : val(val), index(index) { color = Color3(val*255); };
 
 	int index;
 	int cluster_id = -1;	// NOT ASSIGNED
 	Color3 color;
 	float median = -999;
 	float* fuzzy_cluster_scores;
+	int k_cluster;
 
 
 
@@ -185,16 +186,16 @@ private:
 
 
 
-
 class TissueCluster {
 public:
 	TissueCluster() {}
 	TissueCluster(int cluster_id, int num_clusters) : cluster_id(cluster_id), total_num_clusters(num_clusters) {
 		cluster_at_index_is_neighbor = new bool[num_clusters]();
 	}
+	Toolbox toolbox;
 
 	bool isMergeable(TissueCluster** clusters, int num_clusters, float absolute_dif, float relative_dif);	//CLUSTER SUBLIST
-	void mergeClusters(TissueCluster** clusters, Pixel* image, int num_clusters);	// remember to set min and max here
+	int mergeClusters(TissueCluster** clusters, Pixel* image, int num_clusters);	// remember to set min and max here
 	void addToCluster(Pixel p, Pixel* image);
 	void handleArraySize();
 	void deadmark(int survivor_id) {
@@ -205,7 +206,6 @@ public:
 			return TC[merged_cluster_id].getSurvivingClusterID(TC);
 		return cluster_id;
 	}
-
 	void addPotentialNeighbors(int* ids, int num) {
 		for (int i = 0; i < num; i++) {
 			if (ids[i] > cluster_id) {
@@ -213,38 +213,34 @@ public:
 			}
 		}
 	}
-	bool recalcCluster() {
+	bool recalcCluster(Pixel* image) {
 		if (deadmarked) { return false; }
 		calcMedian();
+
+		for (int i = 0; i < cluster_size; i++) { // Unessesary later, waste of time
+			image[pixel_indexes[i]].median = median;
+		}
+		//printf("Members: %d   Median: %f\n", cluster_size, median);
 		return true;
 	};
 	void calcMedian() {
-		if (cluster_size > 10000)
+		if (cluster_size > 500)
 			median = getMean();
 		else
-			median = medianOfList(member_values, cluster_size);
+			median = toolbox.medianOfMedian(member_values, cluster_size);
+//			median = medianOfList(member_values, cluster_size);
 	};
 
 	// Decide ALL mergeables before any clusters are linked. Some traversing will occur.
 	void findMergeableIndexes(TissueCluster* clusters, float max_abs_dist);	// SETS MERGEABLE_INDEXES AND NUM_MERGEABLES! MUST BE RUN BEFORE THE ONES BELOW!!!!
 	TissueCluster** makeMergeableSublist(TissueCluster* clusters);	// The new ids from prev. merged clusters are swapped in here
-	void executeMerges(TissueCluster* clusters, Pixel* image) {
-
-		//printf("Merging from cluster %d: %d\n", cluster_id, num_mergeables);
+	int executeMerges(TissueCluster* clusters, Pixel* image) {
 		TissueCluster** mergeables = makeMergeableSublist(clusters);
-		printf("Mergeables: ");
-		for (int i = 0; i < num_mergeables; i++) {
-			printf("%d   ", mergeables[i]->cluster_id);
-		}
-		printf("\n");
-		if (!deadmarked) {
-			mergeClusters(mergeables, image, num_mergeables);
-		}
+		if (!deadmarked) { return mergeClusters(mergeables, image, num_mergeables);}
 		else {
 			int daddy = getSurvivingClusterID(clusters);
-			clusters[daddy].mergeClusters(mergeables, image, num_mergeables);
-		}
-			
+			return clusters[daddy].mergeClusters(mergeables, image, num_mergeables);
+		}			
 	}
 
 	//inline float getMean() { return cluster_mean; }
@@ -402,9 +398,9 @@ private:
 	// CLUSTERING
 	void applyEdges(float* slice, Pixel* image) { for (int i = 0; i < sizesq; i++) if (slice[i] == 1) image[i].makeEdge(); }
 	void propagateCluster(Pixel* image, int cluster_id, Color3 color, float* acc_mean, int* n_members, int* member_indexes, int2 pos, string type);
-	int cluster(Pixel* image, string type="edge_separation");	// Returns num clusters
+	TissueCluster* cluster(Pixel* image, int* num_clusters, string type="edge_separation");	// Sets num clusters
 	void assignClusterMedianToImage(Pixel* image, int num_clusters);
-	void mergeClusters(Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist);
+	void mergeClusters(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist);
 
 
 

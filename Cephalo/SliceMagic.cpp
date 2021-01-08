@@ -11,7 +11,22 @@ float* global_cat_vals;
 
 float medianOfList(float* list, int size) {
     float* ordered_list = new float[size];
-    float ignore = 999999;
+    float ignore = 2;
+    for (int i = 0; i < size; i++) {
+        if (list[i] > 1) {
+            printf("List size %d:\n", size);
+            for (int i = 0; i < size; i++) {
+                if (i == size / 2)
+                    printf(" ----------->");
+                printf("    %f     \n", list[i]);
+            }
+            printf("Median: %f", ordered_list[size / 2]);
+            for (int j = 0; j < 1000000000; j++) {
+                float f = list[j];
+            }
+        }
+    }
+    
 
     for (int i = 0; i < size; i++) {
         float lowest = ignore;
@@ -23,23 +38,37 @@ float medianOfList(float* list, int size) {
             }
         }
         ordered_list[i] = list[lowest_index];
-        list[lowest_index] = ignore;
+        list[lowest_index] += ignore;
     }
-    return ordered_list[size / 2];
+
+    float median = ordered_list[size / 2];
+    if (median > 1) {
+        printf("Ordered list size %d:\n", size);
+        for (int i = 0; i < size; i++) {
+            if (i == size / 2) 
+                printf(" ----------->");
+            printf("    %f     \n", ordered_list[i]);
+        }
+        printf("Median: %f", ordered_list[size / 2]);
+        for (int j = 0; j < 1000000000; j++) {
+            float f = list[j];
+        }
+    }
+    return 7;// median;
 }
 
 void onMouse(int event, int x, int y, int, void*)
-{
+{   
     if (x < 0 || y < 0)
         return;
     Point pt = Point(x, y);
     //std::cout << "(" << pt.x << ", " << pt.y << ")      huval: " << global_hu_vals[y * ss + x] << '\n';
 
-    //printf("(%d, %d)     Hu: %f          Cat median value: %f\n", pt.x, pt.y, global_hu_vals[y * ss + x], global_cat_vals[y * ss + x]);
+    printf("\r(%d, %d)     Hu: %f          Cat median value: %f", pt.x, pt.y, global_hu_vals[y * ss + x], global_cat_vals[y * ss + x]);
 
     //printf("(%d, %d)     Hu: %f     Cluster: %f  \n", pt.x, pt.y, global_hu_vals[y * ss + x], global_km_vals[y * ss + x]);
     
-    printf("(%d, %d)     Hu: %f     \n", pt.x, pt.y, global_hu_vals[y * ss + x]);
+    //printf("(%d, %d)     Hu: %f     \n", pt.x, pt.y, global_hu_vals[y * ss + x]);
     
     
 }
@@ -98,6 +127,7 @@ SliceMagic::SliceMagic() {
     showSlice(colorConvert(slice), "Rotating Mask Filtered");
 
     
+    /*
     float* kmslice = copySlice(slice);
     kMeans(kmslice, 8, 100);
     setGlobalKMLookup(kmslice, sizesq);
@@ -108,13 +138,18 @@ SliceMagic::SliceMagic() {
     sliceToImage(kmslice, image);
     int num_clusters = cluster(image, "absolute_values");
     showImage(image, "K-means clustered");
-    
+    */
 
+    int num_clusters;
     Pixel* image2 = new Pixel[sizesq];
     sliceToImage(slice, image2);
     fuzzyMeans(image2, slice, 8);
-    cluster(image2, "absolute_values");
+    TissueCluster* clusters = cluster(image2, &num_clusters, "absolute_values");
+    setGlobalLookup(image2, sizesq);
     showImage(image2, "Fuzzy Means Clustered");
+
+    mergeClusters(clusters, image2, num_clusters, 0.05, 1.00009);
+    showImage(image2, "Clusters Merged!");
     waitKey();
 
     /*sliceToImage(slice, image);
@@ -196,7 +231,7 @@ void SliceMagic::rotatingMaskFilter(float* slice, int num_masks) {
             }
 
             float best_mean = 0;
-            float lowest_var = 9999999;
+            float lowest_var = 19191919;
             float* kernel_copy = new float[25];
             for (int i = 0; i < num_masks; i++) {
                 copyKernel(kernel, kernel_copy, 25);
@@ -423,14 +458,26 @@ void SliceMagic::propagateCluster(Pixel* image, int cluster_id, Color3 color, fl
                 propagateCluster(image, cluster_id, color, acc_mean, n_members, member_indexes, int2(x_, y_), type);
         }
         else if (type == "absolute_values") {
-            if (!image[index_].isReserved() && image[index_].getVal() == image[index].getVal())
+            if (!image[index_].isReserved() && image[index_].k_cluster == image[index].k_cluster)
                 propagateCluster(image, cluster_id, color, acc_mean, n_members, member_indexes, int2(x_, y_), type);
         }
     }
-
 }
 
-int SliceMagic::cluster(Pixel* image, string type) {
+
+TissueCluster* initTissueCluster(Pixel* image, int num_clusters, int sizesq) {
+    TissueCluster* clusters = new TissueCluster[num_clusters];
+    for (int i = 0; i < num_clusters; i++) {
+        clusters[i] = TissueCluster(i, num_clusters);
+    }
+
+    for (int i = 0; i < sizesq; i++) {
+        Pixel p = image[i];
+        clusters[p.cluster_id].addToCluster(p, image);
+    }
+    return clusters;
+}
+TissueCluster* SliceMagic::cluster(Pixel* image, int* num_clusters, string type) {
     int id = 0;
     Color3 color = Color3().getRandColor();
     float* acc_mean = new float(0);
@@ -472,65 +519,47 @@ int SliceMagic::cluster(Pixel* image, string type) {
     }
     delete(acc_mean, n_members, member_indexes);
     printf("%d clusters found \n", id);
-    return id;  // Num clusters
-}
+    *num_clusters = id;
 
-
-TissueCluster* initTissueCluster(Pixel* image, int num_clusters, int sizesq) {
-    TissueCluster* clusters = new TissueCluster[num_clusters];
-    for (int i = 0; i < num_clusters; i++) {
-        clusters[i] = TissueCluster(i, num_clusters);
-    }
-
-    for (int i = 0; i < sizesq; i++) {
-        Pixel p = image[i];
-        clusters[p.cluster_id].addToCluster(p, image);
+    TissueCluster* clusters = initTissueCluster(image, *num_clusters, sizesq);
+    printf("Preparing clusters\n");
+    for (int i = 0; i < *num_clusters; i++) {
+        clusters[i].recalcCluster(image);
     }
     return clusters;
 }
 
-void SliceMagic::assignClusterMedianToImage(Pixel* image, int num_clusters) {
+void SliceMagic::assignClusterMedianToImage(Pixel* image, int num_clusters) {   // I think this is obsolete
     TissueCluster* clusters = initTissueCluster(image, num_clusters, sizesq);
 
     for (int i = 0; i < num_clusters; i++) {
-        clusters[i].recalcCluster();
+        clusters[i].recalcCluster(image);
     }
     for (int i = 0; i < sizesq; i++) {
         image[i].median = clusters[image[i].cluster_id].getMedian();
     }
 }
 
-void SliceMagic::mergeClusters(Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist) {
-    printf("Merging clusters. RAM req: %d Kb\n", num_clusters * sizeof(TissueCluster) / 1000);
+void SliceMagic::mergeClusters(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist) {
+    int num_merges = 0;
 
-    // First assign all pixels to a cluster
-    printf("Creating clusters\n");
-    TissueCluster* clusters = initTissueCluster(image, num_clusters, sizesq);
-
-
-    // Prepare all clusters for merging
-    printf("Preparing clusters\n");
-    for (int i = 0; i < num_clusters; i++) {
-        clusters[i].recalcCluster();
-    }
-    printf("Finding mergeables\n");
+    // Prepare all clusters for merging   
+    printf("Finding mergeables\n\n");
     for (int i = 0; i < num_clusters; i++) {
         clusters[i].findMergeableIndexes(clusters, max_absolute_dist);
     }
-    printf("Merging clusters\n");
+    printf("Merging clusters\n\n");
     for (int i = 0; i < num_clusters; i++) {
-        clusters[i].executeMerges(clusters, image);
+        num_merges += clusters[i].executeMerges(clusters, image);
     }
 
 
     // Update median vals on each pixel
     for (int i = 0; i < num_clusters; i++) {
-        clusters[i].recalcCluster();
+        clusters[i].recalcCluster(image);
     }
-    for (int i = 0; i < sizesq; i++) {
-        Pixel p = image[i];
-        image[i].median = clusters[p.cluster_id].getMedian();
-    }
+
+    printf("\n              Merging finished. Clusters: %d -> %d\n", num_clusters, num_clusters - num_merges);
 }
 
 
@@ -574,7 +603,7 @@ Kcluster* SliceMagic::kMeans(float* slice, int k, int iterations) {
         for (int i = 0; i < k; i++) {
             total_change += clusters[i].updateCluster();
         }
-        printf("Performing kmeans iteration %d of %d. Change: %f \r ", iter, iterations, total_change);
+        printf("\rPerforming kmeans iteration %d of %d. Change: %f  ", iter, iterations, total_change);
         if (total_change < 0.02)
             break;
     }
@@ -600,11 +629,18 @@ Kcluster* SliceMagic::kMeans(float* slice, int k, int iterations) {
     return clusters;
 }
 
-float gauss_kernel[25] = { 1, 4, 7, 4, 1,    4, 16, 26, 16, 4,    7, 26, 41, 26, 7,   4, 16, 26, 16, 4,     1, 4, 7, 4, 1 };
-
+//float gauss_kernel[25] = { 1, 4, 7, 4, 1,    4, 16, 26, 16, 4,    7, 26, 41, 26, 7,   4, 16, 26, 16, 4,     1, 4, 7, 4, 1 };
+float gauss_kernel[9] = { 1/16.,1/8.,1/16.,     1/8.,1/4.,1/8.,  1 / 16.,1 / 8.,1 / 16. };
+bool isTarget(int x, int y) { 
+    int xt = 271; int yt = 625;
+    if (x == xt && y == yt)
+        return true;
+    return false;
+}
 void SliceMagic::fuzzyMeans(Pixel* image, float* slice, int k) {
     Kcluster* clusters = kMeans(slice, k, 100);
-
+    int kernel_size = 3;
+    int ks2 = kernel_size * kernel_size;
     // First find each pixels belonging score to each cluster
     for (int i = 0; i < sizesq; i++) {
         image[i].fuzzy_cluster_scores = new float[k];
@@ -612,31 +648,35 @@ void SliceMagic::fuzzyMeans(Pixel* image, float* slice, int k) {
             image[i].fuzzy_cluster_scores[j] = clusters[j].belonging(image[i].getVal());
         }
     }
-
     float* new_vals = new float[sizesq];
     for (int y = 0; y < size; y++) {
         for (int x = 0; x < size; x++) {
-            int* kernel_indexes = getKernelIndexes(x, y, 5);
+            int* kernel_indexes = getKernelIndexes(x, y, kernel_size);
             float* scores = new float[k]();
             int index = xyToIndex(x, y);
-
-            if (x == 393 && y == 620)
+            bool target = isTarget(x, y);
+            if (target)
                 printf("my-val: %f \n", image[index].getVal());
 
-            for (int i = 0; i < 25; i++) {
+            for (int i = 0; i < ks2; i++) {
+                float dist = 1 + abs(image[index].getVal() - image[kernel_indexes[i]].getVal());
+                if (target)
+                    printf("    dist4: %f  kernel-val: %f \n", dist, image[kernel_indexes[i]].getVal());
                 for (int j = 0; j < k; j++) {
                     if (kernel_indexes[i] != -1) {
-                        float dist = 1 + abs(image[index].getVal() - image[kernel_indexes[i]].getVal());                            
-                        scores[j] += image[kernel_indexes[i]].fuzzy_cluster_scores[j] * gauss_kernel[i] * 1/(dist*dist*dist*dist);
-                        if (x == 393 && y == 620)
-                            printf("    dist4: %f  kernel-val: %f \n", dist * dist * dist * dist, image[kernel_indexes[i]].getVal());
+                        scores[j] += image[kernel_indexes[i]].fuzzy_cluster_scores[j] * gauss_kernel[i] *1 / (dist * dist );    // including dist2 removes ~300 of 9000 clusters
+                        
                     }                        
                 }
             }
 
             float best = 0;
             int best_index = 0;
+            if (target)
+                printf("Belonging to clusters:\n");
             for (int i = 0; i < k; i++) {
+                if (target)
+                    printf("    Clustermean: %f      Belonging %f\n", clusters[i].centroid, scores[i]);
                 if (scores[i] > best) {
                     best = scores[i];
                     best_index = i;
@@ -644,13 +684,13 @@ void SliceMagic::fuzzyMeans(Pixel* image, float* slice, int k) {
             }
             new_vals[index] = clusters[best_index].centroid;
             //image[index].setVal(clusters[best_index].centroid);
-
+            image[index].k_cluster = best_index;
             delete(kernel_indexes, scores);
         }
     }
 
     for (int i = 0; i < sizesq; i++) {
-        image[i].setVal(new_vals[i]);
+        //image[i].setVal(new_vals[i]);
     }
     delete(clusters, new_vals);
 }
@@ -975,15 +1015,16 @@ TissueCluster** mergeSublist(TissueCluster** main, int main_size, TissueCluster*
     // Too lazy to delete main and addition i guess...
     return merged;
 }
-void TissueCluster::mergeClusters(TissueCluster** clusters_sublist, Pixel* image, int num_clusters) {
+int TissueCluster::mergeClusters(TissueCluster** clusters_sublist, Pixel* image, int num_clusters) {
     // Second redistribute each pixel to the survivor cluster
+    int merges = 0;
     for (int i = 0; i < num_clusters; i++) {
         if (clusters_sublist[i]->isDeadmarked() ) {
             printf("DEADMARKED, NO MERGE\n");
             continue;
         }
         if (clusters_sublist[i]->cluster_id == cluster_id) {
-            printf("Same cluster\n");
+            //printf("Same cluster\n");
             continue;
         }
         printf("Executing merge. %d into %d\n", clusters_sublist[i]->cluster_id, cluster_id);
@@ -995,7 +1036,9 @@ void TissueCluster::mergeClusters(TissueCluster** clusters_sublist, Pixel* image
             image[pixel_index].assignToCluster(cluster_id, color);
         }
         clusters_sublist[i]->deadmark(cluster_id);
+        merges++;
     }
+    return merges;
 }
 
 void copyPtr(int* from, int* to, int size) {
@@ -1071,7 +1114,7 @@ void TissueCluster::findMergeableIndexes(TissueCluster* clusters, float max_abs_
             }
         }
     }
-    printf("%d mergeables found for cluster %d\n", num_mergeables, cluster_id);
+    //printf("%d mergeables found for cluster %d\n", num_mergeables, cluster_id);
 }
 TissueCluster** TissueCluster::makeMergeableSublist(TissueCluster* clusters) {
     int* actual_indexes = new int[num_mergeables];
