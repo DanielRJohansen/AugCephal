@@ -190,7 +190,7 @@ class TissueCluster {
 public:
 	TissueCluster() {}
 	TissueCluster(int cluster_id, int num_clusters) : cluster_id(cluster_id), total_num_clusters(num_clusters) {
-		cluster_at_index_is_neighbor = new bool[num_clusters]();
+		cluster_id_is_neighbor = new bool[num_clusters]();
 	}
 	Toolbox toolbox;
 
@@ -210,7 +210,7 @@ public:
 	void addPotentialNeighbors(int* ids, int num) {
 		for (int i = 0; i < num; i++) {
 			if (ids[i] > cluster_id) {
-				cluster_at_index_is_neighbor[ids[i]] = true;
+				cluster_id_is_neighbor[ids[i]] = true;
 			}
 		}
 	}
@@ -233,16 +233,20 @@ public:
 	};
 
 	// Decide ALL mergeables before any clusters are linked. Some traversing will occur.
-	void findMergeableIndexes(TissueCluster* clusters, float max_abs_dist);	// SETS MERGEABLE_INDEXES AND NUM_MERGEABLES! MUST BE RUN BEFORE THE ONES BELOW!!!!
-	TissueCluster** makeMergeableSublist(TissueCluster* clusters);	// The new ids from prev. merged clusters are swapped in here
+	TissueCluster** findMergeables(TissueCluster* clusters, int num_clusters, float max_abs_dist, int* num_mergs);
+	//void findMergeableIndexes(TissueCluster* clusters, float max_abs_dist);	// SETS MERGEABLE_INDEXES AND NUM_MERGEABLES! MUST BE RUN BEFORE THE ONES BELOW!!!!
+	//TissueCluster** makeMergeableSublist(TissueCluster* clusters);	// The new ids from prev. merged clusters are swapped in here
+	TissueCluster** makeMergeableSublist(TissueCluster* clusters, int* mergeable_indexes, int num_mergeables);
 	int executeMerges(TissueCluster* clusters, Pixel* image) {
+		return 0;
+		/*
 		TissueCluster** mergeables = makeMergeableSublist(clusters);
 		printf("ID: %d   deadmarked: %d\n", cluster_id, deadmarked);
 		if (!deadmarked) { return mergeClusters(mergeables, image, num_mergeables);}
 		else {
 			int daddy = getSurvivingClusterID(clusters);
 			return clusters[daddy].mergeClusters(mergeables, image, num_mergeables);
-		}			
+		}			*/
 	}
 
 	//inline float getMean() { return cluster_mean; }
@@ -287,10 +291,9 @@ private:
 
 	// Neighbors
 	//int num_neighbors = 0;
-	bool* cluster_at_index_is_neighbor;	
+	bool* cluster_id_is_neighbor;	
 
 	float median;
-	int* mergeable_indexes;		// is NOT properly deleted, i think=????
 	int num_mergeables = 0;
 };
 
