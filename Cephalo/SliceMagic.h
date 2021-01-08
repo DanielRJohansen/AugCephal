@@ -202,6 +202,7 @@ public:
 		deadmarked = true; merged_cluster_id = survivor_id;
 	}//delete(pixel_indexes, cluster_at_index_is_neighbor, member_values, mergeables);}
 	int getSurvivingClusterID(TissueCluster* TC) {
+		printf("	cluster_id: %d\n", cluster_id);
 		if (deadmarked)
 			return TC[merged_cluster_id].getSurvivingClusterID(TC);
 		return cluster_id;
@@ -236,6 +237,7 @@ public:
 	TissueCluster** makeMergeableSublist(TissueCluster* clusters);	// The new ids from prev. merged clusters are swapped in here
 	int executeMerges(TissueCluster* clusters, Pixel* image) {
 		TissueCluster** mergeables = makeMergeableSublist(clusters);
+		printf("ID: %d   deadmarked: %d\n", cluster_id, deadmarked);
 		if (!deadmarked) { return mergeClusters(mergeables, image, num_mergeables);}
 		else {
 			int daddy = getSurvivingClusterID(clusters);
@@ -401,6 +403,7 @@ private:
 	TissueCluster* cluster(Pixel* image, int* num_clusters, string type="edge_separation");	// Sets num clusters
 	void assignClusterMedianToImage(Pixel* image, int num_clusters);
 	void mergeClusters(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist);
+	void orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist);
 
 
 

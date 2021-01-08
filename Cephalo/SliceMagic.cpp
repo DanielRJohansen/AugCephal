@@ -9,6 +9,32 @@ float* global_hu_vals;
 float* global_km_vals;
 float* global_cat_vals;
 
+int* bucketSort(int* sizes, int num) {	// Fucks up on size 0 or less!
+    int* ordered_indexes = new int[num];
+    int head = num - 1;
+
+    int bucket_start = 0;
+    int bucket_end = 4;
+    while (true) {
+        for (int i = 0; i < num; i++) {
+            int sizei = sizes[i];
+            if (sizei >= bucket_start && sizei < bucket_end) {
+                ordered_indexes[head] = i;
+                head--;
+                if (head == -1)
+                    return ordered_indexes;
+            }
+        }
+        bucket_start = bucket_end;
+        bucket_end *= 2;
+        if (bucket_end == 0) {
+            printf("SOMETHING WENT WRONG");
+            break;
+        }
+            
+    }
+}
+
 float medianOfList(float* list, int size) {
     float* ordered_list = new float[size];
     float ignore = 2;
@@ -54,7 +80,7 @@ float medianOfList(float* list, int size) {
             float f = list[j];
         }
     }
-    return 7;// median;
+    return median;
 }
 
 void onMouse(int event, int x, int y, int, void*)
@@ -148,7 +174,8 @@ SliceMagic::SliceMagic() {
     setGlobalLookup(image2, sizesq);
     showImage(image2, "Fuzzy Means Clustered");
 
-    mergeClusters(clusters, image2, num_clusters, 0.05, 1.00009);
+    //mergeClusters(clusters, image2, num_clusters, 0.05, 1.00009);
+    orderedPropagatingMerger(clusters, image2, num_clusters, 0.05);
     showImage(image2, "Clusters Merged!");
     waitKey();
 
@@ -518,14 +545,14 @@ TissueCluster* SliceMagic::cluster(Pixel* image, int* num_clusters, string type)
         }
     }
     delete(acc_mean, n_members, member_indexes);
-    printf("%d clusters found \n", id);
     *num_clusters = id;
 
     TissueCluster* clusters = initTissueCluster(image, *num_clusters, sizesq);
-    printf("Preparing clusters\n");
     for (int i = 0; i < *num_clusters; i++) {
         clusters[i].recalcCluster(image);
     }
+    printf("%d clusters found \n", id);
+
     return clusters;
 }
 
@@ -562,6 +589,47 @@ void SliceMagic::mergeClusters(TissueCluster* clusters, Pixel* image, int num_cl
     printf("\n              Merging finished. Clusters: %d -> %d\n", num_clusters, num_clusters - num_merges);
 }
 
+int* orderClustersBySize(TissueCluster* clusters, int num_clusters) { 
+    int* sizes = new int[num_clusters];
+    for (int i = 0; i < num_clusters; i++) {
+        sizes[i] = clusters[i].getSize();
+    }
+    int* ordered_indexes = bucketSort(sizes, num_clusters);
+    delete(sizes);
+    return ordered_indexes;
+}
+void SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist) {
+    int num_merges = 0;
+
+    // Find size order
+    printf("Bucketsorting...");
+    int* ordered_indexes = orderClustersBySize(clusters, num_clusters);
+    printf("finished!\n");
+    for (int i = 0; i < num_clusters; i++) {
+        int index = ordered_indexes[i];
+        if (clusters[i].isDeadmarked())
+            continue;
+        printf("Merging from cluster with ID: %d\n", clusters[index].cluster_id);
+        while (true) {
+            printf("NEW ROUND ----------------------\n");
+            clusters[index].findMergeableIndexes(clusters, max_absolute_dist);
+            printf("EXECUTING MERGES  for index %d----------------------\n", index);
+            int merges = clusters[i].executeMerges(clusters, image);
+            num_merges += merges;
+
+            if (merges == 0)
+                break;
+        }
+    }
+
+
+    // Update median vals on each pixel
+    for (int i = 0; i < num_clusters; i++) {
+        clusters[i].recalcCluster(image);
+    }
+
+    printf("\n              Merging finished. Clusters: %d -> %d\n", num_clusters, num_clusters - num_merges);
+}
 
 void SliceMagic::findNeighbors(Pixel* image) {
     for (int y = 0; y < size; y++) {
