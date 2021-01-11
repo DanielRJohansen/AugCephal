@@ -294,7 +294,7 @@ private:
 	bool* cluster_id_is_neighbor;	
 
 	float median;
-	int num_mergeables = 0;
+	//int num_mergeables = 0;
 };
 
 

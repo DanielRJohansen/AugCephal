@@ -8,6 +8,7 @@ void onMouse(int event, int x, int y, int, void*);
 float* global_hu_vals;
 float* global_km_vals;
 float* global_cat_vals;
+Pixel* global_im;
 
 int* bucketSort(int* sizes, int num) {	// Fucks up on size 0 or less!
     int* ordered_indexes = new int[num];
@@ -90,7 +91,7 @@ void onMouse(int event, int x, int y, int, void*)
     Point pt = Point(x, y);
     //std::cout << "(" << pt.x << ", " << pt.y << ")      huval: " << global_hu_vals[y * ss + x] << '\n';
 
-    printf("\r(%d, %d)     Hu: %f          Cat median value: %f", pt.x, pt.y, global_hu_vals[y * ss + x], global_cat_vals[y * ss + x]);
+    printf("\r(%d, %d)     Hu: %f     ID: %05d     Cluster median value: %f", pt.x, pt.y, global_hu_vals[y * ss + x], global_im[y*ss+x].cluster_id, global_cat_vals[y * ss + x]);
 
     //printf("(%d, %d)     Hu: %f     Cluster: %f  \n", pt.x, pt.y, global_hu_vals[y * ss + x], global_km_vals[y * ss + x]);
     
@@ -102,6 +103,10 @@ void setGlobalLookup(Pixel* image, int size) {
     global_cat_vals = new float[size];
     for (int i = 0; i < size; i++) {
         global_cat_vals[i] = image[i].median;
+    }
+    global_im = new Pixel[size];
+    for (int i = 0; i < size; i++) {
+        global_im[i] = image[i];
     }
 }
 void setGlobalKMLookup(float* slice, int size) {
@@ -175,7 +180,9 @@ SliceMagic::SliceMagic() {
     showImage(image2, "Fuzzy Means Clustered");
 
     //mergeClusters(clusters, image2, num_clusters, 0.05, 1.00009);
-    orderedPropagatingMerger(clusters, image2, num_clusters, 0.05);
+    orderedPropagatingMerger(clusters, image2, num_clusters, 0.1);
+    setGlobalLookup(image2, sizesq);
+
     showImage(image2, "Clusters Merged!");
     waitKey();
 
@@ -600,23 +607,22 @@ int* orderClustersBySize(TissueCluster* clusters, int num_clusters) {
 }
 void SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist) {
     int num_merges = 0;
+    int *num_mergeables = new int;
+
 
     // Find size order
-    printf("Bucketsorting...");
     int* ordered_indexes = orderClustersBySize(clusters, num_clusters);
-    printf("finished!\n");
+    printf("\n");
+
     for (int i = 0; i < num_clusters; i++) {
-        int index = ordered_indexes[i];
+        int index =  ordered_indexes[i];
         if (clusters[i].isDeadmarked())
             continue;
-        printf("Merging from cluster with ID: %d\n", clusters[index].cluster_id);
         while (true) {
-            printf("NEW ROUND ----------------------\n");
-            int num_mergeables = 0;
-            TissueCluster** mergeable_clusters = clusters[index].findMergeables(clusters, num_clusters, max_absolute_dist, &num_mergeables);
-            printf("EXECUTING MERGES  for index %d----------------------\n", index);
+            *num_mergeables = 0;
+            TissueCluster** mergeable_clusters = clusters[index].findMergeables(clusters, num_clusters, max_absolute_dist, num_mergeables);
             //int merges = clusters[i].executeMerges(clusters, image);    //
-            int merges = clusters[i].mergeClusters(mergeable_clusters, image, num_mergeables);
+            int merges = clusters[index].mergeClusters(mergeable_clusters, image, *num_mergeables);
             delete(mergeable_clusters); // Only deletes the sublist, original intact!
             num_merges += merges;
 
@@ -625,14 +631,14 @@ void SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image,
                 break;
         }
     }
-
+    printf("\n");
 
     // Update median vals on each pixel
     for (int i = 0; i < num_clusters; i++) {
         clusters[i].recalcCluster(image);
     }
     delete(ordered_indexes);
-    printf("\n              Merging finished. Clusters: %d -> %d\n", num_clusters, num_clusters - num_merges);
+    printf("\n              Merging finished. Clusters: %05d -> %05d\n", num_clusters, num_clusters - num_merges);
 }
 
 void SliceMagic::findNeighbors(Pixel* image) {
@@ -703,12 +709,6 @@ Kcluster* SliceMagic::kMeans(float* slice, int k, int iterations) {
 
 //float gauss_kernel[25] = { 1, 4, 7, 4, 1,    4, 16, 26, 16, 4,    7, 26, 41, 26, 7,   4, 16, 26, 16, 4,     1, 4, 7, 4, 1 };
 float gauss_kernel[9] = { 1/16.,1/8.,1/16.,     1/8.,1/4.,1/8.,  1 / 16.,1 / 8.,1 / 16. };
-bool isTarget(int x, int y) { 
-    int xt = 271; int yt = 625;
-    if (x == xt && y == yt)
-        return true;
-    return false;
-}
 void SliceMagic::fuzzyMeans(Pixel* image, float* slice, int k) {
     Kcluster* clusters = kMeans(slice, k, 100);
     int kernel_size = 3;
@@ -726,14 +726,11 @@ void SliceMagic::fuzzyMeans(Pixel* image, float* slice, int k) {
             int* kernel_indexes = getKernelIndexes(x, y, kernel_size);
             float* scores = new float[k]();
             int index = xyToIndex(x, y);
-            bool target = isTarget(x, y);
-            if (target)
-                printf("my-val: %f \n", image[index].getVal());
+
 
             for (int i = 0; i < ks2; i++) {
                 float dist = 1 + abs(image[index].getVal() - image[kernel_indexes[i]].getVal());
-                if (target)
-                    printf("    dist4: %f  kernel-val: %f \n", dist, image[kernel_indexes[i]].getVal());
+
                 for (int j = 0; j < k; j++) {
                     if (kernel_indexes[i] != -1) {
                         scores[j] += image[kernel_indexes[i]].fuzzy_cluster_scores[j] * gauss_kernel[i] *1 / (dist * dist );    // including dist2 removes ~300 of 9000 clusters
@@ -744,11 +741,9 @@ void SliceMagic::fuzzyMeans(Pixel* image, float* slice, int k) {
 
             float best = 0;
             int best_index = 0;
-            if (target)
-                printf("Belonging to clusters:\n");
+
             for (int i = 0; i < k; i++) {
-                if (target)
-                    printf("    Clustermean: %f      Belonging %f\n", clusters[i].centroid, scores[i]);
+
                 if (scores[i] > best) {
                     best = scores[i];
                     best_index = i;
@@ -1102,11 +1097,12 @@ int TissueCluster::mergeClusters(TissueCluster** clusters_sublist, Pixel* image,
         }
 
 
-        printf("Executing merge of %d into %d\n", clusters_sublist[i]->cluster_id, cluster_id);
+        printf("\rExecuting merge of %d into %d", clusters_sublist[i]->cluster_id, cluster_id);
         for (int j = 0; j < clusters_sublist[i]->cluster_size; j++) {
             int pixel_index = clusters_sublist[i]->getPixel(j);
             addToCluster(image[pixel_index], image);
             image[pixel_index].assignToCluster(cluster_id, color);
+            //image[pixel_index].color = Color3(255);
         }
         clusters_sublist[i]->deadmark(cluster_id);
         merges++;
@@ -1191,28 +1187,25 @@ TissueCluster** TissueCluster::makeMergeableSublist(TissueCluster* clusters, int
 TissueCluster** TissueCluster::findMergeables(TissueCluster* clusters, int num_clusters, float max_abs_dist, int* num_mergs) {
     //vector<int> merge_indexes;
     int* mergeable_indexes = new int[num_clusters];                    // BAAAAAAAAAAAAAAAAAAAAD
+    int num_mergeables2 = 0;
     for (int i = 0; i < total_num_clusters; i++) { // Only find matches with a higher index!!!
+        
         if (cluster_id_is_neighbor[i]) {
-            if (clusters[i].isDeadmarked())
+            if (clusters[i].isDeadmarked() || clusters[i].cluster_size > cluster_size)
                 continue;
 
             float median_dif = abs(clusters[i].median - median);
             if (median_dif < max_abs_dist ) {
-                mergeable_indexes[num_mergeables] = i;
-                num_mergeables++;
+                mergeable_indexes[num_mergeables2] = i;
+                num_mergeables2++;
             }
         }
     }
     //printf("%d mergeables found for cluster %d\n", num_mergeables, cluster_id);
-    *num_mergs = num_mergeables;
-    TissueCluster** sublist =  makeClusterSublist(clusters, mergeable_indexes, num_mergeables);
+    *num_mergs = num_mergeables2;
+    TissueCluster** sublist =  makeClusterSublist(clusters, mergeable_indexes, num_mergeables2);
     delete(mergeable_indexes);
 
 
-    printf("Mergeables (%d): \n", num_mergeables);
-    for (int i = 0; i < num_mergeables; i++) {
-        printf("    %d", sublist[i]->cluster_id);
-    }
-    printf("\n");
     return sublist;
 }
