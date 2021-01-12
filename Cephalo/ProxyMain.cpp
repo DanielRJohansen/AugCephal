@@ -35,6 +35,7 @@ int pointerPLay() {
 	return 0;
 }
 
+
 int main() {
 
 	SliceMagic SliceM;

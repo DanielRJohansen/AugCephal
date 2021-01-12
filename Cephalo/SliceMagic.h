@@ -163,6 +163,9 @@ public:
 		assignToCluster(p.cluster_id, p.color);
 	}
 
+
+	
+
 private:
 	bool reserved = false;	// used for initial clustering ONLY
 
@@ -209,7 +212,7 @@ public:
 	}
 	void addPotentialNeighbors(int* ids, int num) {
 		for (int i = 0; i < num; i++) {
-			if (ids[i] > cluster_id) {
+			if (ids[i] != cluster_id) {			// "<" was here
 				cluster_id_is_neighbor[ids[i]] = true;
 			}
 		}
@@ -225,7 +228,7 @@ public:
 		return true;
 	};
 	void calcMedian() {
-		if (cluster_size > 500)
+		if (cluster_size > 800)
 			median = getMean();
 		else
 			median = toolbox.medianOfMedian(member_values, cluster_size);
@@ -271,6 +274,15 @@ public:
 	Color3 color = Color3().getRandColor();
 	float cluster_mean = 0;		// I dont think this is used.
 
+	// Debugging
+	void printNeighborIDs() {
+		printf("\n Neighbors:");
+		for (int i = 0; i < total_num_clusters; i++) {
+			if (cluster_id_is_neighbor[i])
+				printf("	%d", i);
+		}
+		printf("\n\n");
+	}
 	
 private:
 	bool deadmarked = false;
@@ -292,6 +304,7 @@ private:
 	// Neighbors
 	//int num_neighbors = 0;
 	bool* cluster_id_is_neighbor;	
+	//int total_num_clusters; //ONLY USE FOR DEBUGGING, NO CRITICAL ROLE!!
 
 	float median;
 	//int num_mergeables = 0;
