@@ -9,6 +9,7 @@ float* global_hu_vals;
 float* global_km_vals;
 float* global_cat_vals;
 Pixel* global_im;
+TissueCluster* global_clusters;
 
 int* bucketSort(int* sizes, int num) {	// Fucks up on size 0 or less!
     int* ordered_indexes = new int[num];
@@ -90,8 +91,8 @@ void onMouse(int event, int x, int y, int, void*)
         return;
     Point pt = Point(x, y);
     //std::cout << "(" << pt.x << ", " << pt.y << ")      huval: " << global_hu_vals[y * ss + x] << '\n';
-
-    printf("\r(%d, %d)     Hu: %f     ID: %05d     Cluster median value: %f", pt.x, pt.y, global_hu_vals[y * ss + x], global_im[y*ss+x].cluster_id, global_cat_vals[y * ss + x]);
+    Pixel p = global_im[y * ss + x];
+    printf("\r(%d, %d)     Hu: %f     ID: %05d  Size: %07d   Cluster median value: %f", pt.x, pt.y, global_hu_vals[y * ss + x], p.cluster_id, global_clusters[p.cluster_id].getSize(), global_cat_vals[y * ss + x]);
 
     //printf("(%d, %d)     Hu: %f     Cluster: %f  \n", pt.x, pt.y, global_hu_vals[y * ss + x], global_km_vals[y * ss + x]);
     
@@ -99,7 +100,7 @@ void onMouse(int event, int x, int y, int, void*)
     
     
 }
-void setGlobalLookup(Pixel* image, int size) {
+void setGlobalLookup(TissueCluster* clusters, int num_clusters, Pixel* image, int size) {
     global_cat_vals = new float[size];
     for (int i = 0; i < size; i++) {
         global_cat_vals[i] = image[i].median;
@@ -107,6 +108,10 @@ void setGlobalLookup(Pixel* image, int size) {
     global_im = new Pixel[size];
     for (int i = 0; i < size; i++) {
         global_im[i] = image[i];
+    }
+    global_clusters = new TissueCluster[num_clusters];
+    for (int i = 0; i < num_clusters; i++) {
+        global_clusters[i] = clusters[i];
     }
 }
 void setGlobalKMLookup(float* slice, int size) {
@@ -147,9 +152,6 @@ SliceMagic::SliceMagic() {
 
 
     windowSlice(slice, -500, 500);
-    //showSlice(colorConvert(slice), "Resized");
-    //histogramFuckingAround(slice);
-    //makeHistogram(slice, 500, sizesq);
     rotatingMaskFilter(slice, 14);
 
     global_hu_vals = copySlice(slice);
@@ -157,60 +159,22 @@ SliceMagic::SliceMagic() {
 
     showSlice(colorConvert(slice), "Rotating Mask Filtered");
 
-    
-    /*
-    float* kmslice = copySlice(slice);
-    kMeans(kmslice, 8, 100);
-    setGlobalKMLookup(kmslice, sizesq);
-    showSlice(colorConvert(kmslice), "16 K means, 20 iter");
-    
-
-    Pixel* image = new Pixel[sizesq];
-    sliceToImage(kmslice, image);
-    int num_clusters = cluster(image, "absolute_values");
-    showImage(image, "K-means clustered");
-    */
 
     int num_clusters;
     Pixel* image2 = new Pixel[sizesq];
     sliceToImage(slice, image2);
     fuzzyMeans(image2, slice, 10);
     TissueCluster* clusters = cluster(image2, &num_clusters, "absolute_values");
-    setGlobalLookup(image2, sizesq);
     showImage(image2, "Fuzzy Means Clustered");
 
     orderedPropagatingMerger(clusters, image2, num_clusters, 0.05);
-    setGlobalLookup(image2, sizesq);
-
     showImage(image2, "Clusters Merged!");
-    waitKey();
-
-    /*sliceToImage(slice, image);
-    float* cannyIm = copySlice(slice);
-    applyCanny(cannyIm);          
-    applyEdges(cannyIm, image);   // Copies all edges fr slice to image
-    showSlice(colorConvert(cannyIm), "Canny detected edges");
-
-
-    num_clusters = cluster(image);
-   
-
-    showImage(image, "Clustered");
-
-    for (int i = 0; i < sizesq; i++) {
-        image[i].assignToBestNeighbor(image);
-    }
-    assignClusterMedianToImage(image, num_clusters);
-    setGlobalLookup(image, sizesq);
-    showImage(image, "No edges");
-
     
-    mergeClusters(image, num_clusters, 0.02, 1.00009);
-
-    showImage(image, "Clusters Merged!");
-
+    vesicleElimination(clusters, image2, num_clusters, 10, 100, 0.5);
+    setGlobalLookup(clusters, num_clusters, image2, sizesq);
+    showImage(image2, "Vesicles eliminated");
     waitKey();
-    */
+
 }
 
 /*float cm1[25] = { 1, 0.2, 0, 0, 0,  0.2, 1, 0.2, 0, 0,  0, 0.2, 1, 0.2, 0,  0, 0, 0.2, 1, 0.2,  0, 0, 0, 0.2, 1 };
@@ -588,21 +552,19 @@ int* orderClustersBySize(TissueCluster* clusters, int num_clusters) {
 void SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist) {
     int num_merges = 0;
     int *num_mergeables = new int;
-
-
     // Find size order
     int* ordered_indexes = orderClustersBySize(clusters, num_clusters);
 
     for (int i = 0; i < num_clusters; i++) {
         int index =  ordered_indexes[i];
-        if (clusters[i].isDeadmarked())
+        if (clusters[index].isDeadmarked())
             continue;
         while (true) {
             *num_mergeables = 0;
 
             TissueCluster** mergeable_clusters = clusters[index].findMergeables(clusters, num_clusters, max_absolute_dist, num_mergeables);
             int merges = clusters[index].mergeClusters(mergeable_clusters, image, *num_mergeables);
-            clusters[index].recalcCluster(image);    // Update median vals 
+            //clusters[index].recalcCluster(image);    // Update median vals 
             delete(mergeable_clusters); // Only deletes the sublist, original intact!
             num_merges += merges;
 
@@ -614,9 +576,35 @@ void SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image,
 
 
 
-    delete(ordered_indexes);
+    delete(ordered_indexes, num_mergeables);
     printf("\n              Merging finished. Clusters: %05d -> %05d\n", num_clusters, num_clusters - num_merges);
 }
+
+int SliceMagic::vesicleElimination(TissueCluster* clusters, Pixel* image, int num_clusters, int size1, int size2, int size2_threshold) {
+    int eliminations = 0;
+    for (int i = 0; i < num_clusters; i++) {
+        if (clusters[i].isDeadmarked())
+            continue;
+        if (clusters[i].getSize() < size2) {
+            if (clusters[i].getSize() < size1) {
+                clusters[i].assignToClosestNeighbor(clusters, image, num_clusters);
+                eliminations++;
+            }
+            else {
+                if (clusters[i].getNumLiveNeighbors(clusters, num_clusters) < 3) {
+                    clusters[i].assignToClosestNeighbor(clusters, image, num_clusters, size2_threshold);
+                    eliminations++;
+                }
+            }
+        }
+
+    }
+    printf("\n%d Vesicles eliminated\n", eliminations);
+    return eliminations;
+}
+
+
+
 
 void SliceMagic::findNeighbors(Pixel* image) {
     for (int y = 0; y < size; y++) {
@@ -1061,6 +1049,9 @@ TissueCluster** mergeSublist(TissueCluster** main, int main_size, TissueCluster*
 }
 int TissueCluster::mergeClusters(TissueCluster** clusters_sublist, Pixel* image, int num_clusters) {
     // Second redistribute each pixel to the survivor cluster
+    if (isDeadmarked()) {
+        printf("\n----------AM DEADMARKED, THIS SHOULD NOT HAPPEN------\n");
+    }
     int merges = 0;
     for (int i = 0; i < num_clusters; i++) {
         cluster_id_is_neighbor[clusters_sublist[i]->cluster_id] = 0;
@@ -1084,6 +1075,7 @@ int TissueCluster::mergeClusters(TissueCluster** clusters_sublist, Pixel* image,
         clusters_sublist[i]->deadmark(cluster_id);
         merges++;
     }
+    recalcCluster(image);
     return merges;
 }
 

@@ -22,7 +22,6 @@ struct Color3 {
 };
 
 
-
 struct Kcluster {
 	Kcluster() {};
 	Kcluster(float fraction) {
@@ -49,6 +48,7 @@ struct Kcluster {
 
 
 float medianOfList(float* list, int size);
+
 
 struct Mask {
 	Mask() {};
@@ -205,7 +205,6 @@ public:
 		deadmarked = true; merged_cluster_id = survivor_id;
 	}//delete(pixel_indexes, cluster_at_index_is_neighbor, member_values, mergeables);}
 	int getSurvivingClusterID(TissueCluster* TC) {
-		printf("	cluster_id: %d\n", cluster_id);
 		if (deadmarked)
 			return TC[merged_cluster_id].getSurvivingClusterID(TC);
 		return cluster_id;
@@ -228,32 +227,21 @@ public:
 		return true;
 	};
 	void calcMedian() {
-		if (cluster_size > 800)
+		if (cluster_size > 600)
 			median = getMean();
 		else
 			median = toolbox.medianOfMedian(member_values, cluster_size);
 //			median = medianOfList(member_values, cluster_size);
 	};
 
-	// Decide ALL mergeables before any clusters are linked. Some traversing will occur.
 	TissueCluster** findMergeables(TissueCluster* clusters, int num_clusters, float max_abs_dist, int* num_mergs);
-	//void findMergeableIndexes(TissueCluster* clusters, float max_abs_dist);	// SETS MERGEABLE_INDEXES AND NUM_MERGEABLES! MUST BE RUN BEFORE THE ONES BELOW!!!!
-	//TissueCluster** makeMergeableSublist(TissueCluster* clusters);	// The new ids from prev. merged clusters are swapped in here
 	TissueCluster** makeMergeableSublist(TissueCluster* clusters, int* mergeable_indexes, int num_mergeables);
 	int executeMerges(TissueCluster* clusters, Pixel* image) {
 		return 0;
-		/*
-		TissueCluster** mergeables = makeMergeableSublist(clusters);
-		printf("ID: %d   deadmarked: %d\n", cluster_id, deadmarked);
-		if (!deadmarked) { return mergeClusters(mergeables, image, num_mergeables);}
-		else {
-			int daddy = getSurvivingClusterID(clusters);
-			return clusters[daddy].mergeClusters(mergeables, image, num_mergeables);
-		}			*/
+
 	}
 
-	//inline float getMean() { return cluster_mean; }
-	//printf("Here is may go wrong: %d\n", cluster_id);
+
 	inline float getMin() { return min_val; }
 	inline float getMax() { return max_val; }
 	inline int getPixel(int index) { return pixel_indexes[index]; }
@@ -267,7 +255,42 @@ public:
 		}
 		return acc / (float)cluster_size;
 	}
+	int getNumLiveNeighbors(TissueCluster* clusters, int num_clusters) {
+		int num = 0;
+		for (int i = 0; i < num_clusters; i++) {
+			if (i == cluster_id)
+				continue;
+			if (cluster_id_is_neighbor[i]) {
+				if (!clusters[i].isDeadmarked()) {
+					num++;
+				}
+			}
+		}
+		return num;
+	}
+	void assignToClosestNeighbor(TissueCluster* clusters, Pixel* image, int num_clusters, float threshold=1) {
+		float lowest_dif = 1;
+		int best_index;
+		for (int i = 0; i < num_clusters; i++) {
+			if (cluster_id_is_neighbor[i]) {
+				int index = clusters[i].getSurvivingClusterID(clusters);
+				if (index == cluster_id)
+					continue;
+				float dif = abs(clusters[index].getMedian() - median);
+				if (dif < lowest_dif) {
+					lowest_dif = dif;
+					best_index = index;
+				}
+			}
+		}
+		if threshold 
+		if (lowest_dif < threshold) {
+			TissueCluster** t = new TissueCluster * [1];
+			t[0] = &clusters[cluster_id];
 
+			clusters[best_index].mergeClusters(t, image, 1);
+		}
+	}
 
 	int cluster_id = -1;
 	int merged_cluster_id;
@@ -304,9 +327,10 @@ private:
 	// Neighbors
 	//int num_neighbors = 0;
 	bool* cluster_id_is_neighbor;	
-	//int total_num_clusters; //ONLY USE FOR DEBUGGING, NO CRITICAL ROLE!!
+	int num_neighbors;
 
 	float median;
+	float mean;
 	//int num_mergeables = 0;
 };
 
@@ -420,7 +444,7 @@ private:
 	void assignClusterMedianToImage(Pixel* image, int num_clusters);
 	void mergeClusters(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist);
 	void orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist);
-
+	int vesicleElimination(TissueCluster* clusters, Pixel* image, int num_clusters, int size1, int size2, int size2_threshold);
 
 
 	// CANNY EDGE DETECTION
