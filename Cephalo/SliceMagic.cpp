@@ -151,27 +151,29 @@ SliceMagic::SliceMagic() {
     int min_n = 2;
 
 
-    windowSlice(slice, -500, 500);
+    int from = -1000;
+    int to = 500;
+    windowSlice(slice, from, to);
+    showSlice(colorConvert(slice), "Linear window from -700 to 500");
+
+    
     rotatingMaskFilter(slice, 14);
-
     global_hu_vals = copySlice(slice);
-
-
     showSlice(colorConvert(slice), "Rotating Mask Filtered");
 
 
     int num_clusters;
     Pixel* image2 = new Pixel[sizesq];
     sliceToImage(slice, image2);
-    fuzzyMeans(image2, slice, 10);
+    fuzzyMeans(image2, slice, 14);
     TissueCluster* clusters = cluster(image2, &num_clusters, "absolute_values");
     showImage(image2, "Fuzzy Means Clustered");
 
-    orderedPropagatingMerger(clusters, image2, num_clusters, 0.05);
-    showImage(image2, "Clusters Merged!");
-    
-    vesicleElimination(clusters, image2, num_clusters, 10, 100, 0.5);
+    int remaining_clusters = orderedPropagatingMerger(clusters, image2, num_clusters, 0.05);
     setGlobalLookup(clusters, num_clusters, image2, sizesq);
+    showImage(image2, "Clusters Merged!");
+
+    vesicleElimination(clusters, image2, num_clusters, 10, 80, 0.2, remaining_clusters);
     showImage(image2, "Vesicles eliminated");
     waitKey();
 
@@ -549,7 +551,7 @@ int* orderClustersBySize(TissueCluster* clusters, int num_clusters) {
     delete(sizes);
     return ordered_indexes;
 }
-void SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist) {
+int SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist) {
     int num_merges = 0;
     int *num_mergeables = new int;
     // Find size order
@@ -565,7 +567,7 @@ void SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image,
             TissueCluster** mergeable_clusters = clusters[index].findMergeables(clusters, num_clusters, max_absolute_dist, num_mergeables);
             int merges = clusters[index].mergeClusters(mergeable_clusters, image, *num_mergeables);
             //clusters[index].recalcCluster(image);    // Update median vals 
-            delete(mergeable_clusters); // Only deletes the sublist, original intact!
+            //delete(mergeable_clusters); // Only deletes the sublist, original intact!
             num_merges += merges;
 
 
@@ -574,13 +576,12 @@ void SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image,
         }
     }
 
-
-
     delete(ordered_indexes, num_mergeables);
-    printf("\n              Merging finished. Clusters: %05d -> %05d\n", num_clusters, num_clusters - num_merges);
+    printf("\n              Merging finished. Clusters: %05d -> %05d\n\n", num_clusters, num_clusters - num_merges);
+    return num_clusters - num_merges;
 }
 
-int SliceMagic::vesicleElimination(TissueCluster* clusters, Pixel* image, int num_clusters, int size1, int size2, int size2_threshold) {
+int SliceMagic::vesicleElimination(TissueCluster* clusters, Pixel* image, int num_clusters, int size1, int size2, float size2_threshold, int num_remaining_clusters) {
     int eliminations = 0;
     for (int i = 0; i < num_clusters; i++) {
         if (clusters[i].isDeadmarked())
@@ -599,8 +600,9 @@ int SliceMagic::vesicleElimination(TissueCluster* clusters, Pixel* image, int nu
         }
 
     }
-    printf("\n%d Vesicles eliminated\n", eliminations);
-    return eliminations;
+    int remaining = num_remaining_clusters - eliminations;
+    printf("\n              Vesicle eliminated completed. Clusters %d -> %d\n\n", num_remaining_clusters, remaining);
+    return remaining;
 }
 
 
@@ -1076,6 +1078,8 @@ int TissueCluster::mergeClusters(TissueCluster** clusters_sublist, Pixel* image,
         merges++;
     }
     recalcCluster(image);
+
+    delete(clusters_sublist);
     return merges;
 }
 
@@ -1125,6 +1129,7 @@ void TissueCluster::addToCluster(Pixel pixel, Pixel* image) {
     }
     addPotentialNeighbors(pixel_neighbors, num_neighbors);
     cluster_size++;
+    delete(pixel_neighbors);
 }
 
 

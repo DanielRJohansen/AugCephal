@@ -203,7 +203,8 @@ public:
 	void handleArraySize();
 	void deadmark(int survivor_id) {
 		deadmarked = true; merged_cluster_id = survivor_id;
-	}//delete(pixel_indexes, cluster_at_index_is_neighbor, member_values, mergeables);}
+		delete(pixel_indexes, cluster_id_is_neighbor, member_values);
+	}//
 	int getSurvivingClusterID(TissueCluster* TC) {
 		if (deadmarked)
 			return TC[merged_cluster_id].getSurvivingClusterID(TC);
@@ -283,7 +284,9 @@ public:
 				}
 			}
 		}
-		if threshold 
+		//if threshold 
+		if (cluster_id == 2543)
+			printf("\nthresh %f     dif%f\n", threshold, lowest_dif);
 		if (lowest_dif < threshold) {
 			TissueCluster** t = new TissueCluster * [1];
 			t[0] = &clusters[cluster_id];
@@ -443,8 +446,8 @@ private:
 	TissueCluster* cluster(Pixel* image, int* num_clusters, string type="edge_separation");	// Sets num clusters
 	void assignClusterMedianToImage(Pixel* image, int num_clusters);
 	void mergeClusters(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist, float max_fractional_dist);
-	void orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist);
-	int vesicleElimination(TissueCluster* clusters, Pixel* image, int num_clusters, int size1, int size2, int size2_threshold);
+	int orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist);
+	int vesicleElimination(TissueCluster* clusters, Pixel* image, int num_clusters, int size1, int size2, float size2_threshold, int num_remaining_clusters);
 
 
 	// CANNY EDGE DETECTION
