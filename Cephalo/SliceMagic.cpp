@@ -567,7 +567,7 @@ int SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, 
             TissueCluster** mergeable_clusters = clusters[index].findMergeables(clusters, num_clusters, max_absolute_dist, num_mergeables);
             int merges = clusters[index].mergeClusters(mergeable_clusters, image, *num_mergeables);
             //clusters[index].recalcCluster(image);    // Update median vals 
-            //delete(mergeable_clusters); // Only deletes the sublist, original intact!
+            //delete(mergeable_clusters); 
             num_merges += merges;
 
 
@@ -601,7 +601,7 @@ int SliceMagic::vesicleElimination(TissueCluster* clusters, Pixel* image, int nu
 
     }
     int remaining = num_remaining_clusters - eliminations;
-    printf("\n              Vesicle eliminated completed. Clusters %d -> %d\n\n", num_remaining_clusters, remaining);
+    printf("\n              Vesicle elimination finished. %d -> %d\n\n", num_remaining_clusters, remaining);
     return remaining;
 }
 
@@ -717,14 +717,9 @@ void SliceMagic::fuzzyMeans(Pixel* image, float* slice, int k) {
                 }
             }
             new_vals[index] = clusters[best_index].centroid;
-            //image[index].setVal(clusters[best_index].centroid);
             image[index].k_cluster = best_index;
             delete(kernel_indexes, scores);
         }
-    }
-
-    for (int i = 0; i < sizesq; i++) {
-        //image[i].setVal(new_vals[i]);
     }
     delete(clusters, new_vals);
 }
@@ -1079,7 +1074,7 @@ int TissueCluster::mergeClusters(TissueCluster** clusters_sublist, Pixel* image,
     }
     recalcCluster(image);
 
-    delete(clusters_sublist);
+    delete(clusters_sublist);   // Only deletes the sublist, original intact!
     return merges;
 }
 
@@ -1093,7 +1088,7 @@ void copyPtr(float* from, float* to, int size) {
         to[i] = from[i];
     }
 }
-void TissueCluster::handleArraySize() {
+/*void TissueCluster::handleArraySize() {
     if (cluster_size == allocated_size) {
         int new_size;
         if (allocated_size == 0)
@@ -1105,22 +1100,24 @@ void TissueCluster::handleArraySize() {
         else
             new_size = allocated_size * 2;
 
-        float* copyf = member_values;
+        float* copyf = member_hu_values;
         member_values = new float[new_size];
         copyPtr(copyf, member_values, allocated_size);
 
-        int* copy = pixel_indexes;
+        int* copy = member_pixel_indexes;
         pixel_indexes = new int[new_size];
         copyPtr(copy, pixel_indexes, allocated_size);
 
         allocated_size = new_size;
     }
-}
+}*/
 
 void TissueCluster::addToCluster(Pixel pixel, Pixel* image) {
-    handleArraySize();
-    pixel_indexes[cluster_size] = pixel.index;
-    member_values[cluster_size] = pixel.getVal();
+    //handleArraySize();
+    //member_pixel_indexes[cluster_size] = pixel.index;
+    //member_hu_values[cluster_size] = pixel.getVal();
+    member_pixel_indexes.push_back(pixel.index);
+    member_hu_values.push_back(pixel.getVal());
 
     int* pixel_neighbors = new int[9];
     int num_neighbors = pixel.getNeighbors(pixel_neighbors);

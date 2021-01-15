@@ -1,6 +1,7 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <vector>
 #include <string>
 #include <cstdlib>
 #include "Toolbox.h"
@@ -203,7 +204,8 @@ public:
 	void handleArraySize();
 	void deadmark(int survivor_id) {
 		deadmarked = true; merged_cluster_id = survivor_id;
-		delete(pixel_indexes, cluster_id_is_neighbor, member_values);
+		//delete(pixel_indexes, cluster_id_is_neighbor, member_values);
+		delete(cluster_id_is_neighbor);
 	}//
 	int getSurvivingClusterID(TissueCluster* TC) {
 		if (deadmarked)
@@ -222,16 +224,21 @@ public:
 		calcMedian();
 
 		for (int i = 0; i < cluster_size; i++) { // Unessesary later, waste of time
-			image[pixel_indexes[i]].median = median;
+			image[member_pixel_indexes[i]].median = median;
 		}
 		//printf("Members: %d   Median: %f\n", cluster_size, median);
 		return true;
 	};
 	void calcMedian() {
-		if (cluster_size > 600)
+		if (cluster_size > 300)	//600
+
 			median = getMean();
-		else
-			median = toolbox.medianOfMedian(member_values, cluster_size);
+		else {
+			float* list = toolbox.vectorToList(member_hu_values);
+			median = toolbox.medianOfMedian(list, cluster_size);
+			delete(list);
+		}
+			
 //			median = medianOfList(member_values, cluster_size);
 	};
 
@@ -245,14 +252,14 @@ public:
 
 	inline float getMin() { return min_val; }
 	inline float getMax() { return max_val; }
-	inline int getPixel(int index) { return pixel_indexes[index]; }
+	inline int getPixel(int index) { return member_pixel_indexes[index]; }
 	inline int getSize() { return cluster_size; }
 	bool isDeadmarked() { return deadmarked; }
 	float getMedian() { return median; }
 	float getMean() {
 		float acc = 0;
 		for (int i = 0; i < cluster_size; i++) {
-			acc += member_values[i];
+			acc += member_hu_values[i];			
 		}
 		return acc / (float)cluster_size;
 	}
@@ -323,9 +330,9 @@ private:
 	int allocated_size = 0;
 
 	// Member pixels
-	int* pixel_indexes;
-	// Member pixel hu values;		- COULD ALSO USE MEMBERS CLUSTER MEAN VALUE. WOULD OFC ONLY MAKE SENSE AFTER SOME CLUSTERS HAVE MERGED!
-	float* member_values;
+	vector<int> member_pixel_indexes;
+	vector<float> member_hu_values;	// Idea: use batching here, and count how many in each batch. The median can quickly and accurate
+								// Be found
 
 	// Neighbors
 	//int num_neighbors = 0;
