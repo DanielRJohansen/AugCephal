@@ -17,9 +17,10 @@ struct Color3 {
 	Color3() {};
 	Color3(float r, float g, float b) : r(r), g(g), b(b) {}
 	Color3(float gray) : r(gray), g(gray), b(gray) {}
+	void print() { printf("%f  %f  %f\n", r, g, b); }
 	Color3 getRandColor() { return Color3(rand() % 255, rand() % 255, rand() % 255); }
 	inline Color3 operator*(float s) const { return Color3(r * s, g * s, b * s); }
-	float r, g, b;
+	float r = 0, g = 0, b = 0;
 };
 
 
@@ -392,15 +393,16 @@ private:
 	// I/O FUNCTIONS
 	float* loadOriginal();
 	float* copySlice(float* slice);
-	Color3* colorConvert(float* slice);
+	Color3* colorConvert(float* slice, int size=1024*1024);
 	void showSlice(Color3* slice, string title, int s=-1);
 	void showImage(Pixel* image, string title);
 	inline float normVal(float hu, float min, float max) { return (hu - min) / (max - min); }
-	void windowSlice(float* slice, float min, float max);
+	void windowSlice(float* slice, float min, float max, int size);
 	
 	// HELPER FUNCTIONS
 	inline bool isLegal(int x, int y) { return x >= 0 && y >= 0 && x < size && y < size; }
 	inline int xyToIndex(int x, int y) { return y * size + x; }
+	inline int xyToIndex(int x, int y, int size) { return y * size + x; }
 	inline int xyToIndex(int2 pos) { return pos.y * size + pos.x; }
 	int* getKernelIndexes(int x, int y, int size) {
 		int* indexes = new int[size * size];
