@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <iostream>
+#include "CudaContainers.cuh"
 
 class Resizer
 {
@@ -10,7 +11,7 @@ public:
 	float* Interpolate2D(float* slice);
 
 	// INTERPOLATION CAN ONLY HANDLE DOUBLING THE XY SIZE!
-	float* Interpolate3D(float* slices, int xy_from, int xy_to, int num_slices, float z_over_xy);	//Final arg refers to pixel spacing
+	int3 Interpolate3D(float* raw_scan, float* resized_scan, int xy_from, int xy_to, int num_slices, float z_over_xy);	//Final arg refers to pixel spacing. Returns new size.
 
 private:
 	int size_from, size_to;

@@ -97,30 +97,50 @@ void Resizer::getKernel(float* kernel, int x, int y, int z) {
 	}
 }
 
-float* Resizer::Interpolate3D(float* slices, int xy_from, int xy_to, int num_slices, float z_over_xy) {
+int3 Resizer::Interpolate3D(float* raw_scans, float* resized_scan, int xy_from, int xy_to, int num_slices, float z_over_xy) {
 	int num_slices_ = (int)num_slices_ * z_over_xy;
 	width_old = xy_from; width_new = xy_to; height_old = num_slices; height_new = num_slices;
 
-	float* resized = new float[num_slices * xy_to * xy_to];
+	resized_scan = new float[num_slices_ * xy_to * xy_to];
 	printf("Resizing %d %d %d   to %d %d %d", num_slices, xy_from, xy_from, num_slices_, xy_to, xy_to);
 
 	float* kernel = new float[4 * 4 * 4];
+	double kernel_arr[4][4][4];
 	int z_new = 0;
+	float z_new_mapped = z_new / z_over_xy;
+
 	for (int z = -1; z <= num_slices; z++) {
 		for (int y = 0; y < xy_from; y++) {	// Honestly we dont really care about the edges here, so lets just save some computation.
 			for (int x = 0; x < xy_from; x++) {
-				getKernel(kernel, x, y, z);
 
-				while (z_new / z_over_xy < z + 2) {
-					float rel_z = ;
+				getKernel(kernel, x, y, z);
+				for (int i = 0; i < 64; i++) {
+					kernel_arr[i/16][i / 4][i % 4] = (double)kernel[i];
 				}
+
+				while (z_new_mapped < (float)(z + 2)) {
+					z_new_mapped = z_new / z_over_xy;
+					float rel_z = (z_new_mapped - z) / 3.;	//Image on phone for explanation
+					
+
+					for (int yoff = 0; yoff < 2; yoff++) {
+						for (int xoff = 0; xoff < 2; xoff++) {
+							if (isLegal(x * 2 + xoff, y * 2 + yoff, size_to)) {
+								double point_val = tricubicInterpolate(kernel_arr, 2 / 6. + xoff / 6., 2 / 6. + yoff / 6., rel_z);
+								int point_index = xyzToIndex(x * 2 + xoff, y * 2 + yoff, z_new, width_new, height_new);
+								resized_scan[point_index] = point_val;
+							}
+						}
+					}
+				}
+
+
 				z_new++;
 			}
 		}
-
 	}
 	delete(kernel);
-	return resized;
+	return int3(width_new, width_new, num_slices);
 }
 
 

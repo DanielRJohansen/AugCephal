@@ -91,6 +91,7 @@
     <CudaCompile Include="backup.cu" />
     <CudaCompile Include="CudaOps.cu" />
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="Preprocessing.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
@@ -111,9 +112,11 @@
     <ClInclude Include="ColorMaker.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="Containers.h" />
+    <ClInclude Include="CudaContainers.cuh" />
     <ClInclude Include="CudaContainers.h" />
     <ClInclude Include="CudaOps.cuh" />
     <ClInclude Include="Environment.h" />
+    <ClInclude Include="Preprocessing.cuh" />
     <ClInclude Include="Raytracing.h" />
     <ClInclude Include="Resizer.h" />
     <ClInclude Include="resource.h" />
