@@ -20,7 +20,7 @@ VolumeMaker::VolumeMaker() {}
 VolumeMaker::VolumeMaker(bool default_config) {
     volume = new Block[VOL_X * VOL_Y * VOL_Z];
     loadScans();
-    
+    printf("Scans loaded\n");
     CudaOperator CudaOps;
     CudaOps.rotatingMaskFilter(copyVolume(volume), volume);
     CudaOps.kMeansClustering(volume);
@@ -65,6 +65,7 @@ VolumeMaker::VolumeMaker(bool default_config) {
     locateEmptyYSlices();
     locateEmptyXSlices();
     printf("\n");
+    printf("Volume made\n");
 }
 std::ofstream outfile("E:\\NormImages\\gl3.txt");
 
@@ -386,7 +387,6 @@ void saveNormIm(Mat im, int number, string foldername) {
     }
     imwrite("E:\\NormImages\\" + foldername + "\\" + to_string(number) + ".png", im);
 }
-
 void VolumeMaker::loadScans() {
     stringvec v;
     read_directory(folder_path, v);

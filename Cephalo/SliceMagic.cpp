@@ -9,7 +9,7 @@ float* global_hu_vals;
 float* global_km_vals;
 float* global_cat_vals;
 Pixel* global_im;
-TissueCluster* global_clusters;
+TissueCluster2D* global_clusters;
 
 int* bucketSort(int* sizes, int num) {	// Fucks up on size 0 or less!
     int* ordered_indexes = new int[num];
@@ -100,7 +100,7 @@ void onMouse(int event, int x, int y, int, void*)
     
     
 }
-void setGlobalLookup(TissueCluster* clusters, int num_clusters, Pixel* image, int size) {
+void setGlobalLookup(TissueCluster2D* clusters, int num_clusters, Pixel* image, int size) {
     global_cat_vals = new float[size];
     for (int i = 0; i < size; i++) {
         global_cat_vals[i] = image[i].median;
@@ -109,7 +109,7 @@ void setGlobalLookup(TissueCluster* clusters, int num_clusters, Pixel* image, in
     for (int i = 0; i < size; i++) {
         global_im[i] = image[i];
     }
-    global_clusters = new TissueCluster[num_clusters];
+    global_clusters = new TissueCluster2D[num_clusters];
     for (int i = 0; i < num_clusters; i++) {
         global_clusters[i] = clusters[i];
     }
@@ -170,7 +170,7 @@ SliceMagic::SliceMagic() {
     Pixel* image2 = new Pixel[sizesq];
     sliceToImage(slice, image2);
     fuzzyMeans(image2, slice, 14);
-    TissueCluster* clusters = cluster(image2, &num_clusters, "absolute_values");
+    TissueCluster2D* clusters = cluster(image2, &num_clusters, "absolute_values");
     showImage(image2, "Fuzzy Means Clustered");
 
     int remaining_clusters = orderedPropagatingMerger(clusters, image2, num_clusters, 0.05);
@@ -468,10 +468,10 @@ void SliceMagic::propagateCluster(Pixel* image, int cluster_id, Color3 color, fl
 }
 
 
-TissueCluster* initTissueCluster(Pixel* image, int num_clusters, int sizesq) {
-    TissueCluster* clusters = new TissueCluster[num_clusters];
+TissueCluster2D* initTissueCluster2D(Pixel* image, int num_clusters, int sizesq) {
+    TissueCluster2D* clusters = new TissueCluster2D[num_clusters];
     for (int i = 0; i < num_clusters; i++) {
-        clusters[i] = TissueCluster(i, num_clusters);
+        clusters[i] = TissueCluster2D(i, num_clusters);
     }
 
     for (int i = 0; i < sizesq; i++) {
@@ -481,7 +481,7 @@ TissueCluster* initTissueCluster(Pixel* image, int num_clusters, int sizesq) {
     }
     return clusters;
 }
-TissueCluster* SliceMagic::cluster(Pixel* image, int* num_clusters, string type) {
+TissueCluster2D* SliceMagic::cluster(Pixel* image, int* num_clusters, string type) {
     printf("Clustering using %s\n", type);
     
     int id = 0;
@@ -526,7 +526,7 @@ TissueCluster* SliceMagic::cluster(Pixel* image, int* num_clusters, string type)
     delete(acc_mean, n_members, member_indexes);
     *num_clusters = id;
     printf("Calculating cluster medians. ");
-    TissueCluster* clusters = initTissueCluster(image, *num_clusters, sizesq);
+    TissueCluster2D* clusters = initTissueCluster2D(image, *num_clusters, sizesq);
     for (int i = 0; i < *num_clusters; i++) {   
         clusters[i].recalcCluster(image);                                                                                       
     }
@@ -536,7 +536,7 @@ TissueCluster* SliceMagic::cluster(Pixel* image, int* num_clusters, string type)
 }
 
 void SliceMagic::assignClusterMedianToImage(Pixel* image, int num_clusters) {   // I think this is obsolete
-    TissueCluster* clusters = initTissueCluster(image, num_clusters, sizesq);
+    TissueCluster2D* clusters = initTissueCluster2D(image, num_clusters, sizesq);
 
     for (int i = 0; i < num_clusters; i++) {
         clusters[i].recalcCluster(image);
@@ -546,7 +546,7 @@ void SliceMagic::assignClusterMedianToImage(Pixel* image, int num_clusters) {   
     }
 }
 
-int* orderClustersBySize(TissueCluster* clusters, int num_clusters) { 
+int* orderClustersBySize(TissueCluster2D* clusters, int num_clusters) { 
     int* sizes = new int[num_clusters];
     for (int i = 0; i < num_clusters; i++) {
         sizes[i] = clusters[i].getSize();
@@ -555,7 +555,7 @@ int* orderClustersBySize(TissueCluster* clusters, int num_clusters) {
     delete(sizes);
     return ordered_indexes;
 }
-int SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, int num_clusters, float max_absolute_dist) {
+int SliceMagic::orderedPropagatingMerger(TissueCluster2D* clusters, Pixel* image, int num_clusters, float max_absolute_dist) {
     int num_merges = 0;
     int *num_mergeables = new int;
     // Find size order
@@ -568,7 +568,7 @@ int SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, 
         while (true) {
             *num_mergeables = 0;
 
-            TissueCluster** mergeable_clusters = clusters[index].findMergeables(clusters, num_clusters, max_absolute_dist, num_mergeables);
+            TissueCluster2D** mergeable_clusters = clusters[index].findMergeables(clusters, num_clusters, max_absolute_dist, num_mergeables);
             int merges = clusters[index].mergeClusters(mergeable_clusters, image, *num_mergeables);
             //clusters[index].recalcCluster(image);    // Update median vals 
             //delete(mergeable_clusters); 
@@ -585,7 +585,7 @@ int SliceMagic::orderedPropagatingMerger(TissueCluster* clusters, Pixel* image, 
     return num_clusters - num_merges;
 }
 
-int SliceMagic::vesicleElimination(TissueCluster* clusters, Pixel* image, int num_clusters, int size1, int size2, float size2_threshold, int num_remaining_clusters) {
+int SliceMagic::vesicleElimination(TissueCluster2D* clusters, Pixel* image, int num_clusters, int size1, int size2, float size2_threshold, int num_remaining_clusters) {
     int eliminations = 0;
     for (int i = 0; i < num_clusters; i++) {
         if (clusters[i].isDeadmarked())
@@ -1012,7 +1012,7 @@ int Pixel::connectedClusters(Pixel* image, int* connected_indexes) {
 
 
 
-void getMinMax(TissueCluster** clusters, int num_clusters, float* min, float* max) {
+void getMinMax(TissueCluster2D** clusters, int num_clusters, float* min, float* max) {
     *min = 99999999;
     *max = -9999999;
     for (int i = 0; i < num_clusters; i++) {
@@ -1026,7 +1026,7 @@ void getMinMax(TissueCluster** clusters, int num_clusters, float* min, float* ma
     if (*min > *max)
         printf("WTF WENT WRONG HERE, MIN LARGER THAN MAX\n");
 }
-bool TissueCluster::isMergeable(TissueCluster** clusters, int num_clusters, float absolute_dif, float relative_dif) {
+bool TissueCluster2D::isMergeable(TissueCluster2D** clusters, int num_clusters, float absolute_dif, float relative_dif) {
     float* min = new float;
     float* max = new float;
     getMinMax(clusters, num_clusters, min, max);
@@ -1040,8 +1040,8 @@ bool TissueCluster::isMergeable(TissueCluster** clusters, int num_clusters, floa
     return false;
 }
 
-TissueCluster** mergeSublist(TissueCluster** main, int main_size, TissueCluster** addition, int addition_size) {
-    TissueCluster** merged = new TissueCluster * [main_size + addition_size];
+TissueCluster2D** mergeSublist(TissueCluster2D** main, int main_size, TissueCluster2D** addition, int addition_size) {
+    TissueCluster2D** merged = new TissueCluster2D * [main_size + addition_size];
     for (int i = 0; i < main_size; i++) {
         merged[i] = main[i];
     }
@@ -1051,7 +1051,7 @@ TissueCluster** mergeSublist(TissueCluster** main, int main_size, TissueCluster*
     // Too lazy to delete main and addition i guess...
     return merged;
 }
-int TissueCluster::mergeClusters(TissueCluster** clusters_sublist, Pixel* image, int num_clusters) {
+int TissueCluster2D::mergeClusters(TissueCluster2D** clusters_sublist, Pixel* image, int num_clusters) {
     // Second redistribute each pixel to the survivor cluster
     if (isDeadmarked()) {
         printf("\n----------AM DEADMARKED, THIS SHOULD NOT HAPPEN------\n");
@@ -1095,7 +1095,7 @@ void copyPtr(float* from, float* to, int size) {
         to[i] = from[i];
     }
 }
-/*void TissueCluster::handleArraySize() {
+/*void TissueCluster2D::handleArraySize() {
     if (cluster_size == allocated_size) {
         int new_size;
         if (allocated_size == 0)
@@ -1119,7 +1119,7 @@ void copyPtr(float* from, float* to, int size) {
     }
 }*/
 
-void TissueCluster::addToCluster(Pixel pixel, Pixel* image) {
+void TissueCluster2D::addToCluster(Pixel pixel, Pixel* image) {
     //handleArraySize();
     //member_pixel_indexes[cluster_size] = pixel.index;
     //member_hu_values[cluster_size] = pixel.getVal();
@@ -1139,14 +1139,14 @@ void TissueCluster::addToCluster(Pixel pixel, Pixel* image) {
 
 
 
-TissueCluster** makeClusterSublist(TissueCluster* original, int* indexes, int size) {   // Verified it works
-    TissueCluster** sub = new TissueCluster * [size];
+TissueCluster2D** makeClusterSublist(TissueCluster2D* original, int* indexes, int size) {   // Verified it works
+    TissueCluster2D** sub = new TissueCluster2D * [size];
     for (int i = 0; i < size; i++) {
         sub[i] = &original[indexes[i]];
     }
     return sub;
 }
-TissueCluster** TissueCluster::makeMergeableSublist(TissueCluster* clusters, int* mergeable_indexes, int num_mergeables) {  // Only necessary if the cluster is not merged immediately after, so change may have occured
+TissueCluster2D** TissueCluster2D::makeMergeableSublist(TissueCluster2D* clusters, int* mergeable_indexes, int num_mergeables) {  // Only necessary if the cluster is not merged immediately after, so change may have occured
     int* actual_indexes = new int[num_mergeables];
     int actual_num_mergeables = 0;
     for (int i = 0; i < num_mergeables; i++) { // Only find matches with a higher index!!!
@@ -1158,11 +1158,11 @@ TissueCluster** TissueCluster::makeMergeableSublist(TissueCluster* clusters, int
         }
     }
     num_mergeables = actual_num_mergeables;
-    TissueCluster** sublist = makeClusterSublist(clusters, actual_indexes, actual_num_mergeables);
+    TissueCluster2D** sublist = makeClusterSublist(clusters, actual_indexes, actual_num_mergeables);
     delete(actual_indexes);
     return sublist;
 }
-TissueCluster** TissueCluster::findMergeables(TissueCluster* clusters, int num_clusters, float max_abs_dist, int* num_mergs) {
+TissueCluster2D** TissueCluster2D::findMergeables(TissueCluster2D* clusters, int num_clusters, float max_abs_dist, int* num_mergs) {
     //vector<int> merge_indexes;
     int* mergeable_indexes = new int[num_clusters];                    // BAAAAAAAAAAAAAAAAAAAAD
     int num_mergeables = 0;
@@ -1181,7 +1181,7 @@ TissueCluster** TissueCluster::findMergeables(TissueCluster* clusters, int num_c
     }
     //printf("%d mergeables found for cluster %d\n", num_mergeables, cluster_id);
     *num_mergs = num_mergeables;
-    TissueCluster** sublist =  makeClusterSublist(clusters, mergeable_indexes, num_mergeables);
+    TissueCluster2D** sublist =  makeClusterSublist(clusters, mergeable_indexes, num_mergeables);
     delete(mergeable_indexes);
 
 

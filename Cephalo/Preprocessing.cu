@@ -1,19 +1,6 @@
 #include "Preprocessing.cuh"
 
-void read_directory(const string& name, stringvec& v)
-{
-    string pattern(name);
-    pattern.append("\\*");
-    WIN32_FIND_DATA data;
-    HANDLE hFind;
-    if ((hFind = FindFirstFile(pattern.c_str(), &data)) != INVALID_HANDLE_VALUE) {
-        do {
-            v.push_back(data.cFileName);
-        } while (FindNextFile(hFind, &data) != 0);
-        FindClose(hFind);
-    }
 
-}
 
 void Preprocessor::insertImInVolume(cv::Mat img, int z) {
     for (int y = 0; y < input_size.y; y++) {
@@ -21,7 +8,7 @@ void Preprocessor::insertImInVolume(cv::Mat img, int z) {
             int hu = img.at<uint16_t>(y, x) - 32768;
             //if (hu < HU_MIN || hu > HU_MAX) 
               //  volume[xyzToIndex(x, y, z)].ignore = true;
-            raw_scan[xyzToIndex(int3(x,y,z), input_size)] = (float) hu;
+            raw_scan[xyzToIndex(Int3(x,y,z), input_size)] = (float) hu;
         }
     }
 }

@@ -32,7 +32,7 @@ public:
 
 private:
 	//string folder_path = "E:\\NIH_images\\003412_03_01\\";
-	string folder_path = "E:\\NIH_images\\004425_01_01\\";
+	string folder_path = "D:\\DumbLesion\\NIH_scans\\004425_01_01\\";
 
 	ColorMaker colormaker;
 

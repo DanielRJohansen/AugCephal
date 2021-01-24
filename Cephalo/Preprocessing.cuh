@@ -19,7 +19,7 @@ public:
 	Preprocessor() {};
 
 
-	Volume* processScan(string path, int3 s, float z_over_xy) {
+	Volume* processScan(string path, Int3 s, float z_over_xy) {
 		input_size = s;
 		loadScans(path);
 		size = resizer.Interpolate3D(raw_scan, resized_scan, input_size.x, 1024, input_size.z, z_over_xy);
@@ -30,7 +30,7 @@ public:
 		delete(raw_scan, resized_scan);
 		return volume;
 	}
-	Block* VolToBlockvol(Volume* vol, int3 size) {
+	Block* VolToBlockvol(Volume* vol, Int3 size) {
 		int s = (size.x * size.y * size.z);
 		Block* vol_ = new Block[s];
 		for (int i = 0; i < s; i++) {
@@ -41,12 +41,12 @@ public:
 	}
 
 
-	int3 size;
+	Int3 size;
 	int len;
 private:
 	void loadScans(string folder_path);
 	void insertImInVolume(cv::Mat img, int z);
-	Volume* convertToVolume(float* scan, int3 size) {
+	Volume* convertToVolume(float* scan, Int3 size) {
 		Volume* vol = new Volume(size, resized_scan);
 	}
 
@@ -62,15 +62,43 @@ private:
 
 
 
-	inline int xyzToIndex(int3 coord, int3 size) {
-		return coord.z * size.y * size.x + coord.y * size.x + x;
+	inline int xyzToIndex(Int3 coord, Int3 size) {
+		return coord.z * size.y * size.x + coord.y * size.x + coord.x;
 	}
 
 
-	int3 input_size;
+	Int3 input_size;
 	float* raw_scan;
 	float* resized_scan;
 
 
 	Resizer resizer;
+
+
+
+
+
+
+
+
+
+
+
+
+	// Hopefully temporary
+	void read_directory(const string& name, stringvec& v)
+	{
+		string pattern(name);
+		pattern.append("\\*");
+		WIN32_FIND_DATA data;
+		HANDLE hFind;
+		if ((hFind = FindFirstFile(pattern.c_str(), &data)) != INVALID_HANDLE_VALUE) {
+			do {
+				v.push_back(data.cFileName);
+			} while (FindNextFile(hFind, &data) != 0);
+			FindClose(hFind);
+		}
+	}
 };
+
+

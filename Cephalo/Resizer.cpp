@@ -97,7 +97,7 @@ void Resizer::getKernel(float* kernel, int x, int y, int z) {
 	}
 }
 
-int3 Resizer::Interpolate3D(float* raw_scans, float* resized_scan, int xy_from, int xy_to, int num_slices, float z_over_xy) {
+Int3 Resizer::Interpolate3D(float* raw_scans, float* resized_scan, int xy_from, int xy_to, int num_slices, float z_over_xy) {
 	int num_slices_ = (int)num_slices_ * z_over_xy;
 	width_old = xy_from; width_new = xy_to; height_old = num_slices; height_new = num_slices;
 
@@ -140,7 +140,7 @@ int3 Resizer::Interpolate3D(float* raw_scans, float* resized_scan, int xy_from, 
 		}
 	}
 	delete(kernel);
-	return int3(width_new, width_new, num_slices);
+	return Int3(width_new, width_new, num_slices);
 }
 
 
