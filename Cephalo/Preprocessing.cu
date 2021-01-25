@@ -14,20 +14,25 @@ void Preprocessor::insertImInVolume(cv::Mat img, int z) {
 }
 
 void Preprocessor::loadScans(string folder_path) {
+    int successes = 0;
     stringvec v;
+    printf("Reading directory %s\n", folder_path.c_str());
     read_directory(folder_path, v);
     for (int i = 2; i < input_size.z + 2; i++) {
         string im_path = folder_path;
         im_path.append(v[i]);
-        cout << '\r' << im_path;
+        printf("Loading slice: %s               \r", im_path.c_str());
 
         cv::Mat img = imread(im_path, cv::IMREAD_UNCHANGED);
         int z = input_size.z - 1 - i + 2;
         if (img.empty()) {
-            cout << "imload failed" << endl;
+            cout << "\n        Failed!\n" << endl;
             return;
         }
+        else successes++;
         //saveNormIm(img, i - 2, "163slices");
         insertImInVolume(img, z);
     }
+
+    printf("\n%d Slices loaded succesfully\n", successes);
 }

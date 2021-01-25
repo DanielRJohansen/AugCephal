@@ -4,7 +4,10 @@
 #include "CudaOps.cuh"
 #include <thread>
 #include "Containers.h"
-#include "SliceMagic.h"
+//#include "SliceMagic.h"
+#include "CudaContainers.cuh"
+#include "Preprocessing.cuh"
+
 
 using namespace std;
 
@@ -38,10 +41,13 @@ int pointerPLay() {
 
 int main() {
 	//SliceMagic SliceM;
+	Preprocessor PP;
+	Volume* vol = PP.processScan("D:\\DumbLesion\\NIH_scans\\002701_04_03\\", Int3(512, 512, 191), 1. / 0.8164);
+	Block* b = PP.volToBlockvol(vol);
 
-
-	Environment Env;
-	Env.Run();
+	Environment Env(vol);
+	//Environment Env;
+	//Env.Run();
 
 	return 0;
 }

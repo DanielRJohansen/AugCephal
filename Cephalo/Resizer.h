@@ -7,7 +7,7 @@
 class Resizer
 {
 public:
-	Resizer();
+	Resizer() {};
 	Resizer(int size_from, int size_to) : size_from(size_from), size_to(size_to) {};	// Old impl
 	float* Interpolate2D(float* slice);
 
@@ -15,9 +15,13 @@ public:
 	Int3 Interpolate3D(float* raw_scan, float* resized_scan, int xy_from, int xy_to, int num_slices, float z_over_xy);	//Final arg refers to pixel spacing. Returns new size.
 
 private:
+	// Not used
 	int size_from, size_to;
 	float* from_slice;
 	float* to_slice;
+
+
+	float* raw_scans;
 
 
 	int width_old, width_new, height_old, height_new;

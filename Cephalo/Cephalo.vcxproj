@@ -92,6 +92,7 @@
     <CudaCompile Include="CudaOps.cu" />
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="Preprocessing.cu" />
+    <CudaCompile Include="Rendering.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
@@ -102,8 +103,6 @@
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="ProxyMain.cpp" />
     <ClCompile Include="Raytracing.cpp" />
-    <ClCompile Include="Resizer.cpp" />
-    <ClCompile Include="SliceMagic.cpp" />
     <ClCompile Include="Toolbox.cpp" />
     <ClCompile Include="VolumeMaker.cpp" />
   </ItemGroup>
@@ -118,9 +117,8 @@
     <ClInclude Include="Environment.h" />
     <ClInclude Include="Preprocessing.cuh" />
     <ClInclude Include="Raytracing.h" />
-    <ClInclude Include="Resizer.h" />
+    <ClInclude Include="Rendering.cuh" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="SliceMagic.h" />
     <ClInclude Include="Toolbox.h" />
     <ClInclude Include="Tools.h" />
     <ClInclude Include="VolumeMaker.h" />

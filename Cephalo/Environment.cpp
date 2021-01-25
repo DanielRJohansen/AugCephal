@@ -17,6 +17,29 @@ Environment::Environment() {
 	RT.updateEmptySlices(VM->empty_y_slices, VM->empty_x_slices);
 }
 
+Environment::Environment(Volume* volume) {
+	camera = new Camera();
+
+	/*image = new sf::Image();
+	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
+	cuda_texture = new sf::Texture;
+	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);*/
+}
+Environment::Environment(Block* vol) {
+	volume = vol;
+
+	camera = new Camera();
+
+	image = new sf::Image();
+	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
+	cuda_texture = new sf::Texture;
+	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);
+
+	RT.initRaytracer(camera, image);
+	RT.updateVol(volume);
+	RT.updateEmptySlices(VM->empty_y_slices, VM->empty_x_slices);
+}
+
 
 void Environment::Run() {
 	cout << "Environment running" << endl;

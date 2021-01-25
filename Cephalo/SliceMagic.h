@@ -363,7 +363,7 @@ private:
 
 
 //const int size = 512;
-const string ip = "D:\\DumbLesion\\NIH_scans\\Images_png\\002701_04_03\\160.png";
+const string ip = "D:\\DumbLesion\\NIH_scans\\002701_04_03\\160.png";
 const int ss = 1024;
 //const string ip = "E:\\NIH_images\\000330_06_01\\183.png";
 

@@ -8,6 +8,8 @@
 #include "Containers.h"
 #include <SFML\graphics.hpp>
 #include "CudaContainers.h"
+#include "CudaContainers.cuh"
+
 
 #include <chrono>
 #include <ctime>
@@ -65,3 +67,12 @@ private:
 	__device__ void copyWindow();
 	__device__ int numOutsideSpectrum();
 };
+
+
+
+
+
+float* Interpolate3D(float* raw_scan, Int3 size_from, Int3* size_to, float z_over_xy);	//Final arg refers to pixel spacing. Returns new size.
+
+
+

@@ -87,7 +87,8 @@ void Resizer::getKernel(float* kernel, int x, int y, int z) {
 		for (int y_ = y; y_ < y + 4; y_++) {
 			for (int x_ = x; x_ < x + 4; x_++) {
 				if (isLegal(x_, y_, z_, width_old, height_old)) {
-					kernel[i] = from_slice[xyzToIndex(x_, y_, z_, width_old, height_old)];
+					float a = raw_scans[xyzToIndex(x_, y_, z_, width_old, height_old)];
+					kernel[i] = a;
 				}
 				else
 					kernel[i] = 0;
@@ -97,28 +98,29 @@ void Resizer::getKernel(float* kernel, int x, int y, int z) {
 	}
 }
 
-Int3 Resizer::Interpolate3D(float* raw_scans, float* resized_scan, int xy_from, int xy_to, int num_slices, float z_over_xy) {
-	int num_slices_ = (int)num_slices_ * z_over_xy;
-	width_old = xy_from; width_new = xy_to; height_old = num_slices; height_new = num_slices;
+Int3 Resizer::Interpolate3D(float* rs, float* resized_scan, int xy_from, int xy_to, int num_slices, float z_over_xy) {
+	int num_slices_ = (int)num_slices * z_over_xy;
+	width_old = xy_from; width_new = xy_to; height_old = num_slices; height_new = num_slices_;
 
+	raw_scans = rs;
 	resized_scan = new float[num_slices_ * xy_to * xy_to];
-	printf("Resizing %d %d %d   to %d %d %d", num_slices, xy_from, xy_from, num_slices_, xy_to, xy_to);
+	printf("Resizing from:		%d %d %d   to %d %d %d\n", height_old, width_old, width_old, height_new, width_new, width_new);
 
 	float* kernel = new float[4 * 4 * 4];
 	double kernel_arr[4][4][4];
 	int z_new = 0;
 	float z_new_mapped = z_new / z_over_xy;
 
-	for (int z = -1; z <= num_slices; z++) {
-		for (int y = 0; y < xy_from; y++) {	// Honestly we dont really care about the edges here, so lets just save some computation.
-			for (int x = 0; x < xy_from; x++) {
-
+	for (int z = -1; z <= height_old; z++) {
+		printf("Z: %d\r", z);
+		for (int y = 0; y < width_old; y++) {	// Honestly we dont really care about the edges here, so lets just save some computation.
+			for (int x = 0; x < width_old; x++) {
 				getKernel(kernel, x, y, z);
 				for (int i = 0; i < 64; i++) {
-					kernel_arr[i/16][i / 4][i % 4] = (double)kernel[i];
+					kernel_arr[i/16][(i % 16) / 4][i % 4] = kernel[i];
 				}
-
-				while (z_new_mapped < (float)(z + 2)) {
+				
+				while (z_new / z_over_xy < (float)(z + 2)) {
 					z_new_mapped = z_new / z_over_xy;
 					float rel_z = (z_new_mapped - z) / 3.;	//Image on phone for explanation
 					
@@ -132,15 +134,14 @@ Int3 Resizer::Interpolate3D(float* raw_scans, float* resized_scan, int xy_from, 
 							}
 						}
 					}
+					z_new++;
 				}
-
-
-				z_new++;
 			}
 		}
 	}
 	delete(kernel);
-	return Int3(width_new, width_new, num_slices);
+	printf("\nResizing completed\n");
+	return Int3(width_new, width_new, height_new);
 }
 
 

@@ -3,6 +3,7 @@
 #include "Raytracing.h"
 #include <SFML\graphics.hpp>
 #include "VolumeMaker.h"
+#include "CudaContainers.cuh"
 
 struct Task {
 	Task(int c, bool h) { cat_index = c; hide = h; }
@@ -14,6 +15,8 @@ class Environment {
 
 public:
 	Environment();
+	Environment(Volume* volume);
+	Environment(Block* vol);
 	void newVolume(Block* vol);
 
 	Camera *camera;

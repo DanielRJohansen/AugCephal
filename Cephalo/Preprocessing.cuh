@@ -7,7 +7,8 @@
 #include <vector>
 
 #include "CudaContainers.cuh"
-#include "Resizer.h"
+//#include "Resizer.h"
+#include "CudaOps.cuh"
 #include "Containers.h"	// Temporary!!!!
 using namespace std;
 
@@ -21,16 +22,24 @@ public:
 
 	Volume* processScan(string path, Int3 s, float z_over_xy) {
 		input_size = s;
-		loadScans(path);
-		size = resizer.Interpolate3D(raw_scan, resized_scan, input_size.x, 1024, input_size.z, z_over_xy);
 		len = size.x * size.y * size.z;
+		raw_scan = new float[len];
+		loadScans(path);
+
+		//size = resizer.Interpolate3D(raw_scan, resized_scan, input_size.x, 1024, input_size.z, z_over_xy);
+		Int3* new_size = new Int3;
+		resized_scan = Interpolate3D(raw_scan, input_size, new_size, z_over_xy);
+		size = *new_size;
+		printf("Return size: %d  %d  %d\n", size.x, size.y, size.z);
+
 		Volume* volume = convertToVolume(resized_scan, size);
 
 
 		delete(raw_scan, resized_scan);
 		return volume;
 	}
-	Block* VolToBlockvol(Volume* vol, Int3 size) {
+	Block* volToBlockvol(Volume* vol) {
+		Int3 size = vol->size;
 		int s = (size.x * size.y * size.z);
 		Block* vol_ = new Block[s];
 		for (int i = 0; i < s; i++) {
@@ -38,16 +47,16 @@ public:
 			float c = (float) (vol->voxels[i].norm_val*255);	// floats wtf
 			vol_[i].color = Color(c, c, c);
 		}
+		return vol_;
 	}
 
 
 	Int3 size;
-	int len;
 private:
 	void loadScans(string folder_path);
 	void insertImInVolume(cv::Mat img, int z);
 	Volume* convertToVolume(float* scan, Int3 size) {
-		Volume* vol = new Volume(size, resized_scan);
+		return new Volume(size, resized_scan);
 	}
 
 
@@ -68,11 +77,10 @@ private:
 
 
 	Int3 input_size;
+	int len;
 	float* raw_scan;
 	float* resized_scan;
 
-
-	Resizer resizer;
 
 
 
