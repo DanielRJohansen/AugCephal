@@ -102,9 +102,7 @@
     <ClCompile Include="deleted_routines.cpp" />
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="ProxyMain.cpp" />
-    <ClCompile Include="Raytracing.cpp" />
     <ClCompile Include="Toolbox.cpp" />
-    <ClCompile Include="VolumeMaker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
@@ -112,16 +110,13 @@
     <ClInclude Include="Constants.h" />
     <ClInclude Include="Containers.h" />
     <ClInclude Include="CudaContainers.cuh" />
-    <ClInclude Include="CudaContainers.h" />
     <ClInclude Include="CudaOps.cuh" />
     <ClInclude Include="Environment.h" />
     <ClInclude Include="Preprocessing.cuh" />
-    <ClInclude Include="Raytracing.h" />
     <ClInclude Include="Rendering.cuh" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Toolbox.h" />
     <ClInclude Include="Tools.h" />
-    <ClInclude Include="VolumeMaker.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Cephalo.rc" />

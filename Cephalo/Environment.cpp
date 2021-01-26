@@ -3,29 +3,10 @@
 const int ILLEGAL_TYPE = -33;
 
 Environment::Environment() {
-	VM = new VolumeMaker(true);	//Do clustering
-	volume = VM->volume;
-	camera = new Camera();
-
-	image = new sf::Image();
-	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
-	cuda_texture = new sf::Texture;
-	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);
-
-	RT.initRaytracer(camera, image);
-	RT.updateVol(volume);
-	RT.updateEmptySlices(VM->empty_y_slices, VM->empty_x_slices);
 }
 
-Environment::Environment(Volume* volume) {
-	camera = new Camera();
 
-	/*image = new sf::Image();
-	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
-	cuda_texture = new sf::Texture;
-	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);*/
-}
-Environment::Environment(Block* vol) {
+Environment::Environment(Volume* vol) {
 	volume = vol;
 
 	camera = new Camera();
@@ -35,9 +16,7 @@ Environment::Environment(Block* vol) {
 	cuda_texture = new sf::Texture;
 	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);
 
-	RT.initRaytracer(camera, image);
-	RT.updateVol(volume);
-	RT.updateEmptySlices(VM->empty_y_slices, VM->empty_x_slices);
+
 }
 
 
@@ -50,7 +29,7 @@ void Environment::Run() {
 		"3D body", sf::Style::Close );
 	sf::Texture texture;
 	sf::Sprite sprite;
-	RT.render(cuda_texture);
+	//RT.render(cuda_texture);
 	texture.loadFromImage(*image);
 	sprite.setTexture(*cuda_texture, true);
 
@@ -83,7 +62,7 @@ void Environment::updateSprite() {
 
 bool Environment::handleTasks() {
 	if (volume_updated) {
-		RT.render(cuda_texture);
+		//RT.render(cuda_texture);
 		volume_updated = false;
 		return true;
 	}
@@ -125,7 +104,7 @@ bool Environment::handleEvents(sf::Event event) {
 		return false;	// Key release events
 	
 	camera->updatePos(action);
-	RT.render(cuda_texture);	
+	//RT.render(cuda_texture);																			// CGHECJ
 	return true;
 }
 
@@ -161,12 +140,12 @@ void Environment::handleConsole() {
 		type_index = idFromString(type);
 		//cout << type_index << endl << endl;
 		if (type_index != ILLEGAL_TYPE) {
-			if (VM->setIgnore(type_index, hide)) {
+			/*if (VM->setIgnore(type_index, hide)) {					// UHHHHHHHHHHHH
 				printf("Updating volume...");
 				RT.updateVol(VM->volume);
 				volume_updated = true;
 				printf(" Volume updated\n");
-			}
+			}*/
 		}
 					
 	}

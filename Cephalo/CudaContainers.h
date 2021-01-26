@@ -24,7 +24,6 @@ struct CudaFloat3 {
 	__device__ CudaFloat3(float x, float y, float z) : x(x), y(y), z(z) {};
 	__device__ inline CudaFloat3 operator*(float s) const { return CudaFloat3(x * s, y * s, z * s); }
 	float x, y, z;
-
 };
 
 struct CudaRay {

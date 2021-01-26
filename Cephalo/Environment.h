@@ -1,9 +1,8 @@
 #pragma once
 #include "Camera.h"
-#include "Raytracing.h"
 #include <SFML\graphics.hpp>
-#include "VolumeMaker.h"
 #include "CudaContainers.cuh"
+#include <thread>
 
 struct Task {
 	Task(int c, bool h) { cat_index = c; hide = h; }
@@ -21,12 +20,9 @@ public:
 
 	Camera *camera;
 	sf::Image *image;
-	Raytracer RT;
-	VolumeMaker *VM;
-
+	Volume* volume;
 	sf::Texture* cuda_texture;
 
-	Block* volume;
 	void handleConsole();
 
 	void Run();

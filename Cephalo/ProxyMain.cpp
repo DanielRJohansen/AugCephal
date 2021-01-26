@@ -1,6 +1,5 @@
 #include <iostream>
 #include "Environment.h"
-#include "Raytracing.h"
 #include "CudaOps.cuh"
 #include <thread>
 #include "Containers.h"
@@ -43,11 +42,11 @@ int main() {
 	//SliceMagic SliceM;
 	Preprocessor PP;
 	Volume* vol = PP.processScan("D:\\DumbLesion\\NIH_scans\\002701_04_03\\", Int3(512, 512, 191), 1. / 0.8164);
-	Block* b = PP.volToBlockvol(vol);
+	//Block* b = PP.volToBlockvol(vol);
 
 	Environment Env(vol);
 	//Environment Env;
-	//Env.Run();
+	Env.Run();
 
 	return 0;
 }

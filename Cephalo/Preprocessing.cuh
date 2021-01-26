@@ -7,9 +7,7 @@
 #include <vector>
 
 #include "CudaContainers.cuh"
-//#include "Resizer.h"
 #include "CudaOps.cuh"
-#include "Containers.h"	// Temporary!!!!
 using namespace std;
 
 typedef vector<string> stringvec;	// Used for reading directory
@@ -38,7 +36,7 @@ public:
 		delete(raw_scan, resized_scan);
 		return volume;
 	}
-	Block* volToBlockvol(Volume* vol) {
+	/*Block* volToBlockvol(Volume* vol) {
 		Int3 size = vol->size;
 		int s = (size.x * size.y * size.z);
 		Block* vol_ = new Block[s];
@@ -48,7 +46,7 @@ public:
 			vol_[i].color = Color(c, c, c);
 		}
 		return vol_;
-	}
+	}*/
 
 
 	Int3 size;
@@ -63,12 +61,15 @@ private:
 	void windowVolume(Volume* vol, int min, int max) {
 		for (int i = 0; i < vol->len; i++) {
 			int hu = vol->voxels[i].hu_val - 32768;
-			if (hu > max) { vol->voxels[i].norm_val = 1; }
-			else if (hu < min) { vol->voxels[i].norm_val = 0; }
-			else vol->voxels[i].norm_val = (hu - min) / (max - min);		
+			float norm_val;
+			if (hu > max) { norm_val = 1; }
+			else if (hu < min) { norm_val = 0; }
+			else norm_val = (hu - min) / (max - min);		
+			vol->voxels[i].norm_val = norm_val;
+			vol->voxels[i].color = CudaColor(norm_val, norm_val, norm_val);		// Temporary!
 		}
 	}
-
+	
 
 
 	inline int xyzToIndex(Int3 coord, Int3 size) {
