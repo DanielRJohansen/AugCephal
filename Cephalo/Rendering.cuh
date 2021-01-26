@@ -14,14 +14,21 @@
 
 
 
-__device__ const float RAY_SS = 0.5;
+__device__ const float RAY_SS = 1;
 __device__ const float e = 2.7182;
+
+__device__ 
 
 class RenderEngine {
 public:
 	RenderEngine() {};
 	RenderEngine(Volume* vol, Camera* c) {
+
 		volume = vol;
+		camera = c;
+
+		CUDAPlanning();
+
 		cudaMallocManaged(&voxels, vol->len * sizeof(Voxel));
 		updateVolume();
 
@@ -30,8 +37,8 @@ public:
 
 		cudaMallocManaged(&image_device, NUM_RAYS * 4 * sizeof(uint8_t));	//4 = RGBA
 		image_host = new uint8_t[NUM_RAYS * 4];
+		printf("RenderEngine initialized. Approx GPU size: %d Mb\n\n", (int)((NUM_RAYS * sizeof(Ray) + vol->len * sizeof(Voxel)) / 1000000.));
 	}
-	Ray* initRays();
 	void render(sf::Texture* texture);
 	void updateVolume() {
 		cudaMemcpy(voxels, volume->voxels, volume->len * sizeof(Voxel), cudaMemcpyHostToDevice);
@@ -66,6 +73,7 @@ private:
 		image_stream_bytes = stream_size * 4 * sizeof(uint8_t);
 		printf("Blocks per SM: %d \n", blocks_per_sm);
 	}
+	Ray* initRays();
 
 
 

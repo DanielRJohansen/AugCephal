@@ -21,8 +21,9 @@ __device__ bool isInVolume(Int3 coord, Int3 size) {
     return coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z;
 }
 
-__device__ int xyzToIndex(int vol_x, int vol_y, int vol_z) {            // Currently wrooooooooooooooooooooooong
-    return vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
+__device__ int xyzToIndex(Int3 coord, Int3 size) {            // Currently wrooooooooooooooooooooooong
+    //return vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
+    return coord.z * size.y * size.x + coord.y * size.x + coord.x;
 }
 
 __device__ float activationFunction(float counts) {
@@ -69,9 +70,13 @@ __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
 
     return CudaFloat3(x_z, y_z, z_y);
 }
-
-__global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset, uint8_t* image, Int3 vol_size) {
-    int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x + offset;
+__global__ void testKernel(int* f) {
+    *f = 99;
+    return;
+}
+__global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, int* finished) {
+    int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x +offset;
+    *finished = 42;
     Ray ray = rayptr[index];    // This operation alone takes ~60 ms
 
     //CudaFloat3 unit_vector(x_z, y_z, z_y);
@@ -84,7 +89,7 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
     int prev_vol_index = -1;    // Impossible index
 
 
-    for (int step = 500; step < RAY_STEPS; step++) {
+    for (int step = 100; step < RAY_STEPS; step++) {    //500
 
         int x = cc.origin.x + cray.step_vector.x * step;
         int y = cc.origin.y + cray.step_vector.y * step;
@@ -95,14 +100,15 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
         int vol_z = (int) (z + vol_size.z / 2);
 
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { // Only proceed if coordinate is within volume!
-            int volume_index = xyzToIndex(vol_x, vol_y, vol_z);
+            int volume_index = xyzToIndex(Int3(vol_x, vol_y, vol_z), vol_size);
 
-            /*if (vol_z == 0) {
-                cray.color.r = 0;
-                cray.color.g = 114;
-                cray.color.b = 158;
+            if (vol_z == 0) {
+                float remaining_alpha = 1 - cray.alpha;
+                //cray.color.r = 0;
+                cray.color.g += 114 * remaining_alpha;
+                cray.color.b += 158 * remaining_alpha;
                 break;
-            }*/
+            }
             //if (empty_y_slices[vol_y] || empty_x_slices[vol_x]) { continue; }
 
             if (volume_index == prev_vol_index) {
@@ -133,6 +139,8 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
 
 
 void RenderEngine::render(sf::Texture* texture) {
+    auto start = chrono::high_resolution_clock::now();
+    
     CompactCam cc = CompactCam(camera->origin, camera->plane_pitch, camera->plane_yaw, camera->radius);
 
 
@@ -146,13 +154,12 @@ void RenderEngine::render(sf::Texture* texture) {
         int offset = i * stream_size;
         cudaMemcpyAsync(&rayptr_device[offset], &rayptr_host[offset], ray_stream_bytes, cudaMemcpyHostToDevice, stream[i]);
     }
-
-
+    int* f_device;
+    cudaMallocManaged(&f_device, sizeof(int));
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
-        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr_device, voxels, cc, offset, image_device, volume->size);// , dev_empty_y_slices, dev_empty_x_slices);
+        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr_device, voxels, cc, offset, image_device, volume->size, f_device);// , dev_empty_y_slices, dev_empty_x_slices);
     }
-
 
     printf("Rendering...");
     for (int i = 0; i < N_STREAMS; i++) {
@@ -160,13 +167,18 @@ void RenderEngine::render(sf::Texture* texture) {
         cudaMemcpyAsync(&image_host[offset * 4], &image_device[offset * 4], image_stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
     }
 
-    printf("  Received!\n");
-    //cudaDeviceSynchronize();
+    
+
+    cudaDeviceSynchronize();
     texture->update(image_host);
 
     for (int i = 0; i < N_STREAMS; i++) {
         cudaStreamDestroy(stream[i]);
     }
+
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+    printf("Executed in %d ms.\n", duration);
 }
 
 

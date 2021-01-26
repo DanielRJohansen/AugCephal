@@ -2,6 +2,7 @@
 #include "Camera.h"
 #include <SFML\graphics.hpp>
 #include "CudaContainers.cuh"
+#include "Rendering.cuh"
 #include <thread>
 
 struct Task {
@@ -27,6 +28,8 @@ public:
 
 	void Run();
 private:
+	RenderEngine REE;
+
 	void scheduleTask(Task);		//By subthreads
 	bool handleTasks();	// By main thread
 	bool volume_updated = false;

@@ -5,10 +5,8 @@
 void Preprocessor::insertImInVolume(cv::Mat img, int z) {
     for (int y = 0; y < input_size.y; y++) {
         for (int x = 0; x < input_size.x; x++) {
-            int hu = img.at<uint16_t>(y, x) - 32768;
-            //if (hu < HU_MIN || hu > HU_MAX) 
-              //  volume[xyzToIndex(x, y, z)].ignore = true;
-            raw_scan[xyzToIndex(Int3(x,y,z), input_size)] = (float) hu;
+            float hu = img.at<uint16_t>(y, x) - 32768.; // Load as float here, as we do all further calcs on floats in GPU
+            raw_scan[xyzToIndex(Int3(x,y,z), input_size)] = hu;
         }
     }
 }
@@ -30,7 +28,6 @@ void Preprocessor::loadScans(string folder_path) {
             return;
         }
         else successes++;
-        //saveNormIm(img, i - 2, "163slices");
         insertImInVolume(img, z);
     }
 

@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <windows.h>
 #include <vector>
+#include <chrono>
 
 #include "CudaContainers.cuh"
 #include "CudaOps.cuh"
@@ -24,29 +25,21 @@ public:
 		raw_scan = new float[len];
 		loadScans(path);
 
-		//size = resizer.Interpolate3D(raw_scan, resized_scan, input_size.x, 1024, input_size.z, z_over_xy);
+		size = s;		// In case we dont resize 
 		Int3* new_size = new Int3;
-		resized_scan = Interpolate3D(raw_scan, input_size, new_size, z_over_xy);
+		resized_scan = Interpolate3D(raw_scan, input_size, new_size, z_over_xy);		// Does not work RN.
 		size = *new_size;
-		printf("Return size: %d  %d  %d\n", size.x, size.y, size.z);
 
 		Volume* volume = convertToVolume(resized_scan, size);
+		windowVolume(volume, -700, 800);
+		setIgnoreBelow(volume, -600);
 
 
-		delete(raw_scan, resized_scan);
+
+		printf("Preprocessing finished!\n\n");
+		delete(raw_scan, resized_scan, new_size);
 		return volume;
 	}
-	/*Block* volToBlockvol(Volume* vol) {
-		Int3 size = vol->size;
-		int s = (size.x * size.y * size.z);
-		Block* vol_ = new Block[s];
-		for (int i = 0; i < s; i++) {
-			vol_[i].cat = 0;
-			float c = (float) (vol->voxels[i].norm_val*255);	// floats wtf
-			vol_[i].color = Color(c, c, c);
-		}
-		return vol_;
-	}*/
 
 
 	Int3 size;
@@ -54,20 +47,24 @@ private:
 	void loadScans(string folder_path);
 	void insertImInVolume(cv::Mat img, int z);
 	Volume* convertToVolume(float* scan, Int3 size) {
-		return new Volume(size, resized_scan);
+		return new Volume(size, scan);
+	}
+	void setIgnoreBelow(Volume* vol, float below) {
+		for (int i = 0; i < vol->len; i++) {
+			if (vol->voxels[i].hu_val < below)
+				vol->voxels[i].ignore = true;
+		}
 	}
 
 
 	void windowVolume(Volume* vol, int min, int max) {
-		for (int i = 0; i < vol->len; i++) {
-			int hu = vol->voxels[i].hu_val - 32768;
-			float norm_val;
-			if (hu > max) { norm_val = 1; }
-			else if (hu < min) { norm_val = 0; }
-			else norm_val = (hu - min) / (max - min);		
-			vol->voxels[i].norm_val = norm_val;
-			vol->voxels[i].color = CudaColor(norm_val, norm_val, norm_val);		// Temporary!
-		}
+		auto start = chrono::high_resolution_clock::now();
+		for (int i = 0; i < vol->len; i++) 	
+			vol->voxels[i].norm(min, max);
+		
+		auto stop = chrono::high_resolution_clock::now();
+		auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+		printf("Volume windowed in %d ms.\n", duration);
 	}
 	
 

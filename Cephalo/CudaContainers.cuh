@@ -52,14 +52,21 @@ struct Int3 {
 
 struct Voxel{	//Lots of values
 	Voxel() {}
-	Voxel(int hu_val) : hu_val(hu_val) {}
+	Voxel(float hu_val) : hu_val(hu_val) {}
 
 	bool ignore = false;
-	int hu_val;
+	float hu_val;
 	int cluster_id = -1;
-	int alpha;
+	int alpha = 1;
 	float norm_val;
 	CudaColor color;
+
+	void norm(int min, int max) {
+		if (hu_val > max) { norm_val = 1; }
+		else if (hu_val < min) { norm_val = 0; }
+		else norm_val = (hu_val - min) / (max - min);
+		color = CudaColor(norm_val);										// TEMPORARY!
+	}
 };
 
 struct TissueCluster {	// Lots of functions

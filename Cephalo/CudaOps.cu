@@ -47,16 +47,20 @@ __device__ void getInterpolationKernel(float* raw_scans, float* kernel, int x, i
         }
     }
 }
-
+__device__ void ptrtest(int* in) {
+    in[2] = 1;
+}
 __global__ void interpolationKernel(float* raw_scans, float* resized_scan, Int3 size_from, Int3 size_to, float z_over_xy) {
     int x = blockIdx.x;
     int y = threadIdx.x;
-
-    float* kernel = new float[4 * 4 * 4];
+    //float* kernel = new float[4 * 4 * 4];
+    float kernel[4 * 4 * 4];
     float kernel_arr[4][4][4];
-
+     
     int z_new = 0;
     for (int z = -1; z <= size_from.z; z++) {
+        
+
         getInterpolationKernel(raw_scans, kernel, x, y, z, size_from);
         for (int i = 0; i < 64; i++) {
             kernel_arr[i / 16][(i % 16) / 4][i % 4] = kernel[i];
@@ -89,6 +93,8 @@ __global__ void interpolationKernel(float* raw_scans, float* resized_scan, Int3 
 float* Interpolate3D(float* raw_scans, Int3 size_from, Int3* size_out, float z_over_xy) {
     auto start = chrono::high_resolution_clock::now();
     
+   
+
     int num_slices_ = (int)(size_from.z * z_over_xy);
     Int3 size_to(1024, 1024, num_slices_);
     int len1D_new = size_to.x * size_to.y * size_to.z;
@@ -103,7 +109,7 @@ float* Interpolate3D(float* raw_scans, Int3 size_from, Int3* size_out, float z_o
     float* resiz;
     cudaMallocManaged(&raws, len1D_old * sizeof(float));
     cudaMallocManaged(&resiz, len1D_new * sizeof(float));
-
+    
     cudaMemcpy(raws, raw_scans, len1D_old * sizeof(float), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
     interpolationKernel << <size_to.y, size_to.x >> > (raws, resiz, size_from, size_to, z_over_xy);    // Init
@@ -116,7 +122,7 @@ float* Interpolate3D(float* raw_scans, Int3 size_from, Int3* size_out, float z_o
 
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-    printf(" Resizing completed in %d ms.\n", duration);
+    printf("Resizing completed in %d ms.\n", duration);
 
     // Returning values
     *size_out = size_to;
