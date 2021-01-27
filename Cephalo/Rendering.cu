@@ -16,15 +16,13 @@ Ray* RenderEngine::initRays() {
     return rayptr_host;
 };
 
-
+__device__ __host__ int xyzToIndex(Int3 coord, Int3 size) {
+    return coord.z * size.y * size.x + coord.y * size.x + coord.x;
+}
 __device__ bool isInVolume(Int3 coord, Int3 size) {
     return coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z;
 }
 
-__device__ int xyzToIndex(Int3 coord, Int3 size) {            // Currently wrooooooooooooooooooooooong
-    //return vol_z * VOL_X * VOL_Y + vol_y * VOL_X + vol_x;
-    return coord.z * size.y * size.x + coord.y * size.x + coord.x;
-}
 
 __device__ float activationFunction(float counts) {
     return 2 / (1 + powf(e, (-counts / 4.))) - 1.;

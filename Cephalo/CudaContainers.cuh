@@ -37,7 +37,7 @@ struct CudaRay {
 	float alpha = 0;
 };
 
-__global__ struct Int2 {
+struct Int2 {
 	Int2(int x, int y) : x(x), y(y) {}
 
 	int x, y;
@@ -51,8 +51,8 @@ struct Int3 {
 };
 
 struct Voxel{	//Lots of values
-	Voxel() {}
-	Voxel(float hu_val) : hu_val(hu_val) {}
+	__device__ __host__ Voxel() {}
+	__device__ __host__ Voxel(float hu_val) : hu_val(hu_val) {}
 
 	bool ignore = false;
 	float hu_val;
@@ -77,6 +77,10 @@ struct TissueCluster {	// Lots of functions
 class Volume {
 public: 
 	Volume(){}
+	Volume(Voxel* v, Int3 size) : size(size){
+		voxels = v;
+		len = size.x * size.y * size.z;
+	}
 	Volume(Int3 size, float* scan) : size(size) {
 		len = size.x * size.y * size.z;
 		voxels = new Voxel[len];

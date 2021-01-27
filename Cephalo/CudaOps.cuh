@@ -4,10 +4,8 @@
 #include "device_launch_parameters.h"
 #include <stdio.h>
 #include <iostream>
-//#include "Constants.h"
-//#include "Containers.h"
+
 #include <SFML\graphics.hpp>
-//#include "CudaContainers.h"
 #include "CudaContainers.cuh"
 
 
@@ -17,12 +15,12 @@
 using namespace std;
 
 
+//#ifndef GLOBAL_HELPER_FUNCTIONS
+//#define GLOBAL_HELPER_FUNCTIONS
+//__device__ __host__ int xyzToIndex(Int3 coord, Int3 size);
+//#endif
 
 
-
-
-
-float* Interpolate3D(float* raw_scan, Int3 size_from, Int3* size_to, float z_over_xy);	//Final arg refers to pixel spacing. Returns new size.
 
 
 

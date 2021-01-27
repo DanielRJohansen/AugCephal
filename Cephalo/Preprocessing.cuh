@@ -8,10 +8,13 @@
 #include <chrono>
 
 #include "CudaContainers.cuh"
-#include "CudaOps.cuh"
+//#include "CudaOps.cuh"
 using namespace std;
 
 typedef vector<string> stringvec;	// Used for reading directory
+
+
+float* Interpolate3D(float* raw_scan, Int3 size_from, Int3* size_to, float z_over_xy);	//Final arg refers to pixel spacing. Returns new size.
 
 
 class Preprocessor {
@@ -20,35 +23,33 @@ public:
 
 
 	Volume* processScan(string path, Int3 s, float z_over_xy) {
+		speedTest();
+		return new Volume;
 		input_size = s;
 		len = size.x * size.y * size.z;
 		raw_scan = new float[len];
 		loadScans(path);
 
-		size = s;		// In case we dont resize 
-		Int3* new_size = new Int3;
-		resized_scan = Interpolate3D(raw_scan, input_size, new_size, z_over_xy);		// Does not work RN.
-		size = *new_size;
-
+		resized_scan = Interpolate3D(raw_scan, input_size, &size, z_over_xy);		
+		delete(raw_scan);
 		Volume* volume = convertToVolume(resized_scan, size);
+
 		windowVolume(volume, -700, 800);
 		setIgnoreBelow(volume, -600);
 
 
 
 		printf("Preprocessing finished!\n\n");
-		delete(raw_scan, resized_scan, new_size);
 		return volume;
 	}
 
 
 	Int3 size;
 private:
+	void speedTest();
 	void loadScans(string folder_path);
 	void insertImInVolume(cv::Mat img, int z);
-	Volume* convertToVolume(float* scan, Int3 size) {
-		return new Volume(size, scan);
-	}
+	Volume* convertToVolume(float* scan, Int3 size);
 	void setIgnoreBelow(Volume* vol, float below) {
 		for (int i = 0; i < vol->len; i++) {
 			if (vol->voxels[i].hu_val < below)
@@ -69,9 +70,7 @@ private:
 	
 
 
-	inline int xyzToIndex(Int3 coord, Int3 size) {
-		return coord.z * size.y * size.x + coord.y * size.x + coord.x;
-	}
+	
 
 
 	Int3 input_size;

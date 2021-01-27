@@ -41,7 +41,9 @@ public:
 	}
 	void render(sf::Texture* texture);
 	void updateVolume() {
+		auto start = chrono::high_resolution_clock::now();
 		cudaMemcpy(voxels, volume->voxels, volume->len * sizeof(Voxel), cudaMemcpyHostToDevice);
+		printf("Volume moved to GPU in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 	}
 
 private:

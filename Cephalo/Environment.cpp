@@ -16,7 +16,6 @@ Environment::Environment(Volume* vol) {
 	cuda_texture = new sf::Texture;
 	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);
 
-	printf("Trying from environment\n");
 	REE = RenderEngine(volume, camera);
 }
 
