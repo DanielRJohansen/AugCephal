@@ -19,7 +19,7 @@ Ray* RenderEngine::initRays() {
 __device__ __host__ int xyzToIndex(Int3 coord, Int3 size) {
     return coord.z * size.y * size.x + coord.y * size.x + coord.x;
 }
-__device__ bool isInVolume(Int3 coord, Int3 size) {
+__device__ inline bool isInVolume(Int3 coord, Int3 size) {
     return coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z;
 }
 
@@ -68,11 +68,14 @@ __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
 
     return CudaFloat3(x_z, y_z, z_y);
 }
+
 __global__ void testKernel(int* f) {
     *f = 99;
     return;
 }
-__global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, int* finished) {
+
+
+__global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, int* finished, bool* xyIgnores, CompactBool* CB_global, unsigned* ignores) {
     int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x +offset;
     *finished = 42;
     Ray ray = rayptr[index];    // This operation alone takes ~60 ms
@@ -80,7 +83,7 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
     //CudaFloat3 unit_vector(x_z, y_z, z_y);
     CudaFloat3 unit_vector = makeUnitVector(&ray, cc);
     CudaRay cray(unit_vector * RAY_SS);
-
+    CompactBool CB;
 
     Voxel* cached_voxel;
     cached_voxel = &voxels[0];  // Init Block, doesn't matter is never used before another is loaded.
@@ -97,8 +100,20 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
         int vol_y = (int) (y + vol_size.y / 2);
         int vol_z = (int) (z + vol_size.z / 2);
 
+        // Check if entire column is air, if then skip
+        
+          //  continue;
+        //bool a = isInVolume(Int3(vol_x, vol_y, vol_z), vol_size);
+        //Int3 b = Int3(vol_x, vol_y, vol_z);
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { // Only proceed if coordinate is within volume!
             int volume_index = xyzToIndex(Int3(vol_x, vol_y, vol_z), vol_size);
+
+            int column_index = vol_y * vol_size.x + vol_x;
+            if (CB.getBit(ignores, column_index) == 1)
+                continue;
+
+            //if (xyIgnores[vol_y * vol_size.x + vol_x])
+            //    continue;
 
             if (vol_z == 0) {
                 float remaining_alpha = 1 - cray.alpha;
@@ -156,7 +171,7 @@ void RenderEngine::render(sf::Texture* texture) {
     cudaMallocManaged(&f_device, sizeof(int));
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
-        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr_device, voxels, cc, offset, image_device, volume->size, f_device);// , dev_empty_y_slices, dev_empty_x_slices);
+        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr_device, voxels, cc, offset, image_device, volume->size, f_device, xyColumnIgnores, CB, compactignores);// , dev_empty_y_slices, dev_empty_x_slices);
     }
 
     printf("Rendering...");

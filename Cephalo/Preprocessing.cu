@@ -38,64 +38,94 @@ void Preprocessor::loadScans(string folder_path) {
 }
 
 
-
 __global__ void conversionKernel(Voxel* voxels, float* hu_vals, Int3 size) {
     int x = blockIdx.x;
     int y = threadIdx.x;
     for (int z = 0; z < size.z; z++) {
         int index = xyzToIndex2(Int3(x, y, z), size);
-        //voxels[index] = Voxel(hu_vals[index]);
-        //voxels[index] = Voxel();
         voxels[index].hu_val = 600;
-
     }
-    hu_vals[0] = 4242;
 }
 
 Volume* Preprocessor::convertToVolume(float* scan, Int3 size) {
     auto start = chrono::high_resolution_clock::now();
     int len = size.x * size.y * size.z;
+    int bytesize = len * sizeof(Voxel);
 
-    Voxel* v = new Voxel[len];
+    // Initialize voxels
+    Voxel* v_host = new Voxel[len];
     for (int i = 0; i < len; i++)
-        v[i].hu_val = scan[i];
+        v_host[i].hu_val = scan[i];
     
-    delete(scan);
+    // Move voxels to GPU
+    Voxel* v_device;
+    cudaMallocManaged(&v_device, bytesize);
+    cudaMemcpy(v_device, v_host, bytesize, cudaMemcpyHostToDevice);
+
+    // C
+    Volume* volume = new Volume(v_device, size);
+
+    delete(scan, v_host);
+
     printf("CPU side conversion in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
-    return new Volume(v, size);
+    return volume;
 }
-Voxel* Preprocessor::makeGPUVoxelPtr(Volume* volume) {
-    auto start = chrono::high_resolution_clock::now();
 
 
-    Voxel* ptr;
-    int bytesize = volume->len * sizeof(Voxel);
-    cudaMallocManaged(&ptr, bytesize);
+
+__global__ void setIgnoreBelowKernel(Voxel* voxels, float below, Int3 size) {
+    int x = blockIdx.x;
+    int y = threadIdx.x;
+    for (int z = 0; z < size.z; z++) {
+        int index = xyzToIndex2(Int3(x, y, z), size);
+        if (voxels[index].hu_val < below)
+            voxels[index].ignore = true;
+    }
+}
+void Preprocessor::setIgnoreBelow(Volume* volume, float below) {
+    Int3 size = volume->size;
+    setIgnoreBelowKernel << < size.y, size.x >> > (volume->voxels, below, size);
     cudaDeviceSynchronize();
-    cudaMemcpy(ptr, volume->voxels, bytesize, cudaMemcpyHostToDevice);
-    printf("volume len: %d\n", volume->len);
-    printf("Voxel size: %d\n", sizeof(Voxel));
-    int size = ((long)volume->len * sizeof(Voxel)) / 1000000;
-    printf("GPU voxel ptr (%d Mb VRAM) initialized in %d ms.\n", size, chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
-
- 
-
-    return ptr;
 }
 
-void Preprocessor::updateHostVolume(Volume* volume, Voxel* gpu_voxel_ptr) {
-    auto start = chrono::high_resolution_clock::now();
-    Voxel* v = new Voxel[volume->len];
-    //cudaMemcpy(volume->voxels, gpu_voxel_ptr, volume->len*sizeof(Voxel), cudaMemcpyDeviceToHost);
-    cudaMemcpy(v, gpu_voxel_ptr, volume->len * sizeof(Voxel), cudaMemcpyDeviceToHost);
+
+__global__ void setColumnIgnoresKernel(Voxel* voxels, bool* xyColumnIgnores, Int3 size, CompactBool* CB, unsigned* compacted) {
+    int x = blockIdx.x;
+    int y = threadIdx.x; 
+    int ignore_index = y * size.x + x;
+    xyColumnIgnores[ignore_index] = 0;
+    int counts = 0;
+    for (int z = 0; z < size.z; z++) {
+        int index = xyzToIndex2(Int3(x, y, z), size);
+        if (!voxels[index].ignore) {
+            counts++;
+            if (counts > 200)
+                return;
+        }
+            
+    }
+    xyColumnIgnores[ignore_index] = 1;
+    //if (x < 100)
+    CB->setBit(compacted, ignore_index);
+}
+
+void Preprocessor::setColumnIgnores(Volume* volume) {
+    Int3 size = volume->size;
+    int boolbytesize = volume->len * sizeof(bool);
+
+    volume->xyIgnores = new CompactBool();
+    CompactBool* gpu_CB;
+    cudaMallocManaged(&gpu_CB, sizeof(CompactBool));
+    cudaMemcpy(gpu_CB, volume->xyIgnores, sizeof(CompactBool), cudaMemcpyHostToDevice);
+    unsigned* gpu_compact_ignores = volume->xyIgnores->makeCompact(volume->len);
+    
+    cudaMallocManaged(&volume->xyColumnIgnores, boolbytesize);
+
+    printf("Allocating xy ignore table of size: %d Mb\n", boolbytesize / 100000);
+    setColumnIgnoresKernel << < size.y, size.x >> > (volume->voxels, volume->xyColumnIgnores, size, gpu_CB, gpu_compact_ignores);
     cudaDeviceSynchronize();
-    delete(volume->voxels);
-    volume->voxels = v;
-    //volume->voxels = v;
-    printf("Host volume updated in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    volume->xyIgnores->compactedbool = gpu_compact_ignores;
 }
-
-
 
 
 
@@ -109,13 +139,13 @@ __global__ void windowKernel(Voxel* voxels, float min, float max, Int3 size) {
     }
 }
 
-void Preprocessor::windowVolume(Volume* volume, Voxel* gpu_voxels, float min, float max) {
+void Preprocessor::windowVolume(Volume* volume, float min, float max) {
     auto start = chrono::high_resolution_clock::now();
     Int3 size = volume->size;
-    windowKernel <<< size.y, size.x >>> (gpu_voxels, min, max, size);
+    //windowKernel <<< size.y, size.x >>> (gpu_voxels, min, max, size);
+    windowKernel << < size.y, size.x >> > (volume->voxels, min, max, size);
 
     cudaError_t err = cudaGetLastError();        // Get error code
-
     if (err != cudaSuccess)
     {
         printf("CUDA Error: %s\n", cudaGetErrorString(err));
@@ -125,6 +155,15 @@ void Preprocessor::windowVolume(Volume* volume, Voxel* gpu_voxels, float min, fl
     cudaDeviceSynchronize();
     printf("Windowing executed in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 }
+
+
+
+
+
+
+
+
+
 
 void Preprocessor::speedTest() {
     int len = 6000000000;
@@ -226,7 +265,7 @@ __device__ void getInterpolationKernel(float* raw_scans, float* kernel, int x, i
                     kernel[i] = a;
                 }
                 else
-                    kernel[i] = 0;
+                    kernel[i] = -1000;
                 i++;
             }
         }
@@ -252,8 +291,14 @@ __global__ void interpolationKernel(float* raw_scans, float* resized_scan, Int3 
             float z_new_mapped = z_new / z_over_xy;
             float rel_z = (z_new_mapped - z) / 3.;	//Image on phone for explanation
 
-
-            for (int yoff = 0; yoff < 2; yoff++) {
+            // No xy increase
+            Int3 coord(x, y, z_new);
+            if (isLegal(coord, size_to)) {
+                float point_val = tricubicInterpolate(kernel_arr, 3 / 6., 3 / 6., rel_z);
+                int point_index = xyzToIndex2(coord, size_to);
+                resized_scan[point_index] = point_val;
+            }
+            /*for (int yoff = 0; yoff < 2; yoff++) {
                 for (int xoff = 0; xoff < 2; xoff++) {
                     Int3 coord(x * 2 + xoff, y * 2 + yoff, z_new);
                     if (isLegal(coord, size_to)) {
@@ -262,7 +307,7 @@ __global__ void interpolationKernel(float* raw_scans, float* resized_scan, Int3 
                         resized_scan[point_index] = point_val;
                     }
                 }
-            }
+            }*/
             z_new++;
         }
     }
@@ -275,7 +320,7 @@ float* Interpolate3D(float* raw_scans, Int3 size_from, Int3* size_out, float z_o
 
 
     int num_slices_ = (int)(size_from.z * z_over_xy);
-    Int3 size_to(1024, 1024, num_slices_);
+    Int3 size_to(512, 512, num_slices_);
     int len1D_new = size_to.x * size_to.y * size_to.z;
     int len1D_old = size_from.x * size_from.y * size_from.z;
 
@@ -291,6 +336,12 @@ float* Interpolate3D(float* raw_scans, Int3 size_from, Int3* size_out, float z_o
 
     cudaMemcpy(raws, raw_scans, len1D_old * sizeof(float), cudaMemcpyHostToDevice);
     interpolationKernel << <size_to.y, size_to.x >> > (raws, resiz, size_from, size_to, z_over_xy);   
+    cudaError_t err = cudaGetLastError();        // Get error code
+    if (err != cudaSuccess)
+    {
+        printf("CUDA Error: %s\n", cudaGetErrorString(err));
+        exit(-1);
+    }
     cudaMemcpy(resized_scan, resiz, len1D_new * sizeof(float), cudaMemcpyDeviceToHost);
 
     // Free up memory

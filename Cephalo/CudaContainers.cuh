@@ -50,6 +50,44 @@ struct Int3 {
 	int x, y, z;
 };
 
+struct CompactBool {
+	__host__ __device__ CompactBool() {}
+	__host__ unsigned* makeCompact(int size) {
+		int compact_size = ceil((float)size / 16.);
+		bytesize = compact_size * sizeof(unsigned);
+		printf("Creating compact vector of size: %d Kb\n", bytesize / 1000);
+
+		unsigned* compacted;
+		cudaMallocManaged(&compacted, bytesize);
+		return compacted;
+	}
+	unsigned* makeCompactHost(int size) {
+		int compact_size = ceil((float)size / 16.);
+		
+		unsigned* compact = new unsigned[compact_size]();
+		return compact;
+	}
+
+	__host__ __device__ int getIntIndex(int index) {
+		return index / 16;
+	}
+	__host__ __device__ unsigned getBit(unsigned* compacted, int index) {
+		uint8_t bit_index = index % 16;
+		unsigned byte = compacted[getIntIndex(index)];
+		return (byte >> bit_index) & 1U;
+	}
+	__host__ __device__ void setBit(unsigned* compacted, int index) {
+		uint8_t bit_index = index % 16;
+		printf("Index %d mapped to byte %d bit %d\n", index, getIntIndex(index), bit_index);
+		compacted[getIntIndex(index)] |= 1U << bit_index;
+		printf("Updated: %u\n\n", compacted[getIntIndex(index)]);
+	}
+
+	int bytesize;
+	unsigned* compactedbool;		// FOR STORAGE ONLY, NO OPERATIONS ALLOWED
+};
+
+
 struct Voxel{	//Lots of values
 	Voxel() {}	
 
@@ -100,9 +138,15 @@ public:
 
 	Int3 size;
 	int len = 0;
-	Voxel* voxels;
+
+	// GPU side
+	Voxel* voxels;	
+	bool* xyColumnIgnores;
+	CompactBool* xyIgnores;	//Host side
 	TissueCluster* clusters;
 };
+
+
 
 
 

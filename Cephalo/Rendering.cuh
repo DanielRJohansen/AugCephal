@@ -29,8 +29,12 @@ public:
 
 		CUDAPlanning();
 
-		cudaMallocManaged(&voxels, vol->len * sizeof(Voxel));
-		updateVolume();
+		//cudaMallocManaged(&voxels, vol->len * sizeof(Voxel));
+		voxels = vol->voxels;
+		xyColumnIgnores = vol->xyColumnIgnores;
+		CB = vol->xyIgnores;
+		compactignores = CB->compactedbool;
+		//updateVolume();
 
 		rayptr_host = initRays();
 		cudaMallocManaged(&rayptr_device, NUM_RAYS * sizeof(Ray));
@@ -49,6 +53,10 @@ public:
 private:
 	Volume* volume;				// Host side
 	Voxel* voxels;				// Device side
+	bool* xyColumnIgnores;
+	unsigned* compactignores;
+	CompactBool* CB;
+
 	Ray* rayptr_device;
 	Ray* rayptr_host;
 	Camera* camera;
