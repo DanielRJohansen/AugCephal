@@ -51,21 +51,36 @@ struct Int3 {
 };
 
 struct Voxel{	//Lots of values
-	__device__ __host__ Voxel() {}
-	__device__ __host__ Voxel(float hu_val) : hu_val(hu_val) {}
+	Voxel() {}	
 
 	bool ignore = false;
-	float hu_val;
+	float hu_val = 10;
 	int cluster_id = -1;
 	int alpha = 1;
-	float norm_val;
+	float norm_val = 0;
 	CudaColor color;
 
-	void norm(int min, int max) {
+	__device__ void norm(float min, float max) {
 		if (hu_val > max) { norm_val = 1; }
 		else if (hu_val < min) { norm_val = 0; }
 		else norm_val = (hu_val - min) / (max - min);
-		color = CudaColor(norm_val);										// TEMPORARY!
+		color = CudaColor(norm_val);									// TEMPORARY!
+	}
+	void normCPU(float min, float max) {
+		if (hu_val > max) { norm_val = 1; }
+		else if (hu_val < min) { norm_val = 0; }
+		else norm_val = (hu_val - min) / (max - min);
+		color = CudaColor(norm_val);									// TEMPORARY!
+	}
+};
+
+struct TestCUDA {
+	TestCUDA() {};
+
+	float a = 0;
+
+	__device__ void dothing() {
+		a = 5;
 	}
 };
 
@@ -81,17 +96,10 @@ public:
 		voxels = v;
 		len = size.x * size.y * size.z;
 	}
-	Volume(Int3 size, float* scan) : size(size) {
-		len = size.x * size.y * size.z;
-		voxels = new Voxel[len];
-		for (int i = 0; i < len; i++) {
-			//printf("%d: %f\n"i, scan[i]);
-			voxels[i] = Voxel((int)scan[i]);
-		}
-	};
+
 
 	Int3 size;
-	int len;
+	int len = 0;
 	Voxel* voxels;
 	TissueCluster* clusters;
 };

@@ -17,7 +17,7 @@
 __device__ const float RAY_SS = 1;
 __device__ const float e = 2.7182;
 
-__device__ 
+
 
 class RenderEngine {
 public:

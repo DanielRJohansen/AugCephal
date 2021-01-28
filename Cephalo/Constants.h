@@ -12,13 +12,13 @@ const int RAY_BLOCKS_PER_DIM = 2;
 const int NUM_RAYS = RAYS_PER_DIM * RAYS_PER_DIM;
 //const float RAY_RANGE = 3.1415 * 0.1;
 const float RAY_STEPSIZE = 5;
-const int RAY_STEPS = 1300;
+const int RAY_STEPS = 1600;
 const int N_STREAMS = 16;
 const int THREADS_PER_BLOCK = 256;
 
 // CAMERA SPECIFIC
 const float FOCAL_LEN = 1;	
-const int CAM_RADIUS = 1024;
+const int CAM_RADIUS = 1300;
 const int CAM_RADIUS_INC = 100;
 const float CAM_ROTATION_STEP = 2 * 3.1415 / 20; // 20 clicks per rotation
 

@@ -23,22 +23,28 @@ public:
 
 
 	Volume* processScan(string path, Int3 s, float z_over_xy) {
-		speedTest();
-		return new Volume;
+		//speedTest();
+		//return new Volume;
 		input_size = s;
 		len = size.x * size.y * size.z;
 		raw_scan = new float[len];
 		loadScans(path);
+		scan = raw_scan;
+		size = s;
 
-		resized_scan = Interpolate3D(raw_scan, input_size, &size, z_over_xy);		
-		delete(raw_scan);
-		Volume* volume = convertToVolume(resized_scan, size);
+		scan = Interpolate3D(raw_scan, input_size, &size, z_over_xy);		
+		Volume* volume = convertToVolume(scan, size);
+		Voxel* gpu_voxel_ptr = makeGPUVoxelPtr(volume);
 
-		windowVolume(volume, -700, 800);
+		windowVolume(volume, gpu_voxel_ptr, -700, 800);
+		windowVolumeCPU(volume, -700, 800);
+		//updateHostVolume(volume, gpu_voxel_ptr);
+
 		setIgnoreBelow(volume, -600);
 
 
-
+		//updateHostVolume(volume, gpu_voxel_ptr);
+		//cudaFree(gpu_voxel_ptr);
 		printf("Preprocessing finished!\n\n");
 		return volume;
 	}
@@ -50,18 +56,20 @@ private:
 	void loadScans(string folder_path);
 	void insertImInVolume(cv::Mat img, int z);
 	Volume* convertToVolume(float* scan, Int3 size);
+	Voxel* makeGPUVoxelPtr(Volume* volume);
+	void updateHostVolume(Volume* volume, Voxel* gpu_voxel_ptr);
 	void setIgnoreBelow(Volume* vol, float below) {
 		for (int i = 0; i < vol->len; i++) {
 			if (vol->voxels[i].hu_val < below)
 				vol->voxels[i].ignore = true;
 		}
 	}
+	void windowVolume(Volume* volume, Voxel* gpu_voxels, float min, float max);
 
-
-	void windowVolume(Volume* vol, int min, int max) {
+	void windowVolumeCPU(Volume* vol, int min, int max) {
 		auto start = chrono::high_resolution_clock::now();
 		for (int i = 0; i < vol->len; i++) 	
-			vol->voxels[i].norm(min, max);
+			vol->voxels[i].normCPU(min, max);
 		
 		auto stop = chrono::high_resolution_clock::now();
 		auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
@@ -76,7 +84,7 @@ private:
 	Int3 input_size;
 	int len;
 	float* raw_scan;
-	float* resized_scan;
+	float* scan;
 
 
 

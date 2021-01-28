@@ -37,57 +37,94 @@ void Preprocessor::loadScans(string folder_path) {
     printf("\n%d Slices loaded succesfully\n", successes);
 }
 
+
+
 __global__ void conversionKernel(Voxel* voxels, float* hu_vals, Int3 size) {
     int x = blockIdx.x;
     int y = threadIdx.x;
     for (int z = 0; z < size.z; z++) {
         int index = xyzToIndex2(Int3(x, y, z), size);
-        voxels[index] = Voxel(hu_vals[index]);
+        //voxels[index] = Voxel(hu_vals[index]);
+        //voxels[index] = Voxel();
+        voxels[index].hu_val = 600;
+
     }
+    hu_vals[0] = 4242;
 }
 
 Volume* Preprocessor::convertToVolume(float* scan, Int3 size) {
     auto start = chrono::high_resolution_clock::now();
-    printf("Converting...");
     int len = size.x * size.y * size.z;
-    printf("Voxel size: %d Mb.    Scan size: %d Mb\n", (len * sizeof(Voxel)) / 1000000, (len * sizeof(float)) / 1000000);
 
-    Voxel* voxels_device;
+    Voxel* v = new Voxel[len];
+    for (int i = 0; i < len; i++)
+        v[i].hu_val = scan[i];
     
-    printf("Allocating Scan...\n");
-    float* scan_device;
-    cudaMallocManaged(&scan_device, len * sizeof(float));
-    auto t1 = chrono::high_resolution_clock::now();
-    cudaMemcpy(scan_device, scan, len * sizeof(float), cudaMemcpyHostToDevice);
-    printf("Scan sent to GPU in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
     delete(scan);
+    printf("CPU side conversion in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    return new Volume(v, size);
+}
+Voxel* Preprocessor::makeGPUVoxelPtr(Volume* volume) {
+    auto start = chrono::high_resolution_clock::now();
 
-    printf("Allocating host voxels\n");
-    Voxel* voxels_host = new Voxel[len];
-    printf("Allocating voxels...\n");
-    cudaMallocManaged(&voxels_device, len * sizeof(Voxel));
-    
+
+    Voxel* ptr;
+    int bytesize = volume->len * sizeof(Voxel);
+    cudaMallocManaged(&ptr, bytesize);
     cudaDeviceSynchronize();
-    printf("Sending...");
-    conversionKernel << <size.y, size.x >> > (voxels_device, scan_device, size);
-    printf("Finished...");
-    auto t2 = chrono::high_resolution_clock::now();
-    cudaMemcpy(voxels_host, voxels_device, len * sizeof(Voxel), cudaMemcpyDeviceToHost);
-    printf("Volume returned from GPU in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t2));
+    cudaMemcpy(ptr, volume->voxels, bytesize, cudaMemcpyHostToDevice);
+    printf("volume len: %d\n", volume->len);
+    printf("Voxel size: %d\n", sizeof(Voxel));
+    int size = ((long)volume->len * sizeof(Voxel)) / 1000000;
+    printf("GPU voxel ptr (%d Mb VRAM) initialized in %d ms.\n", size, chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
-    printf("Returned\n");
-    Volume* volume = new Volume(voxels_host, size);
-    cudaFree(voxels_device);
-    cudaFree(scan_device);
+ 
 
-    auto stop = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-    printf("Volume converted in %d ms.\n", duration);
-    while (true)
-        int a = 0;
-    return volume;
+    return ptr;
 }
 
+void Preprocessor::updateHostVolume(Volume* volume, Voxel* gpu_voxel_ptr) {
+    auto start = chrono::high_resolution_clock::now();
+    Voxel* v = new Voxel[volume->len];
+    //cudaMemcpy(volume->voxels, gpu_voxel_ptr, volume->len*sizeof(Voxel), cudaMemcpyDeviceToHost);
+    cudaMemcpy(v, gpu_voxel_ptr, volume->len * sizeof(Voxel), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    delete(volume->voxels);
+    volume->voxels = v;
+    //volume->voxels = v;
+    printf("Host volume updated in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+}
+
+
+
+
+
+__global__ void windowKernel(Voxel* voxels, float min, float max, Int3 size) {
+    int x = blockIdx.x;
+    int y = threadIdx.x;
+    for (int z = 0; z < size.z; z++) {
+        int index = xyzToIndex2(Int3(x, y, z), size);
+        //float a = voxels[index].norm_val;
+        voxels[index].norm(min, max);
+    }
+}
+
+void Preprocessor::windowVolume(Volume* volume, Voxel* gpu_voxels, float min, float max) {
+    auto start = chrono::high_resolution_clock::now();
+    Int3 size = volume->size;
+    windowKernel <<< size.y, size.x >>> (gpu_voxels, min, max, size);
+
+    cudaError_t err = cudaGetLastError();        // Get error code
+
+    if (err != cudaSuccess)
+    {
+        printf("CUDA Error: %s\n", cudaGetErrorString(err));
+        exit(-1);
+    }
+
+    cudaDeviceSynchronize();
+    printf("Windowing executed in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+}
 
 void Preprocessor::speedTest() {
     int len = 6000000000;
@@ -245,7 +282,7 @@ float* Interpolate3D(float* raw_scans, Int3 size_from, Int3* size_out, float z_o
     float* resized_scan = new float[len1D_new]();    // Reserve space on Host side
 
     printf("Resizing from:		%d %d %d   to %d %d %d\n", size_from.x, size_from.y, size_from.z, size_to.x, size_to.y, size_to.z);
-
+    printf("Required VRAM: %d Mb\n", (len1D_old * sizeof(float) + len1D_new * sizeof(float)) / 1000000);
 
     float* raws;
     float* resiz;
@@ -253,18 +290,15 @@ float* Interpolate3D(float* raw_scans, Int3 size_from, Int3* size_out, float z_o
     cudaMallocManaged(&resiz, len1D_new * sizeof(float));
 
     cudaMemcpy(raws, raw_scans, len1D_old * sizeof(float), cudaMemcpyHostToDevice);
-    cudaDeviceSynchronize();
-    interpolationKernel << <size_to.y, size_to.x >> > (raws, resiz, size_from, size_to, z_over_xy);    // Init
-    cudaDeviceSynchronize();
+    interpolationKernel << <size_to.y, size_to.x >> > (raws, resiz, size_from, size_to, z_over_xy);   
     cudaMemcpy(resized_scan, resiz, len1D_new * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
 
+    // Free up memory
     cudaFree(raws);
     cudaFree(resiz);
+    delete(raw_scans);
 
-    auto stop = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-    printf("Resizing completed in %d ms.\n", duration);
+    printf("Resizing completed in %d ms.\n\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
     // Returning values
     *size_out = size_to;

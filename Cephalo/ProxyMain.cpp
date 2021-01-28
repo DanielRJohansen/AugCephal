@@ -10,6 +10,12 @@ using namespace std;
 
 class A {
 public:
+	A() {
+		h[0] = 24;
+	}
+	A(float s) {
+		h[0] = s;
+	}
 	float h[10] = { 0 };
 };
 
@@ -37,7 +43,7 @@ int pointerPLay() {
 
 
 int main() {
-
+	
 	//SliceMagic SliceM;
 	Preprocessor PP;
 	Volume* vol = PP.processScan("F:\\DumbLesion\\NIH_scans\\002701_04_03\\", Int3(512, 512, 191), 1. / 0.8164);
