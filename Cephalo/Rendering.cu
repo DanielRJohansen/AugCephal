@@ -68,6 +68,49 @@ __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
 
     return CudaFloat3(x_z, y_z, z_y);
 }
+__device__ float overwriteIfLower(float old, float newval, float above) {
+    if (newval < old && newval > above)
+        return newval;
+    return old;
+}
+__device__ float calcDist(float origin, float vec, float point) {
+    if (vec < 0.00001)
+        return 999999;
+    float dist = (point - origin) / vec;
+    if (dist < 0)
+        dist = 0;
+    return dist;
+}
+__device__ float boundedMinPosVal(CudaFloat3 origin, CudaFloat3 vector, CudaFloat3 size, float above) {
+    float lowest = 9999;
+    lowest = overwriteIfLower(lowest, calcDist(origin.x, vector.x, 0), above);
+    lowest = overwriteIfLower(lowest, calcDist(origin.y, vector.y, 0), above);
+    lowest = overwriteIfLower(lowest, calcDist(origin.z, vector.z, 0), above);
+    lowest = overwriteIfLower(lowest, calcDist(origin.x, vector.x, size.x), above);
+    lowest = overwriteIfLower(lowest, calcDist(origin.y, vector.y, size.y), above);
+    lowest = overwriteIfLower(lowest, calcDist(origin.z, vector.z, size.z), above);
+    return lowest;
+}
+
+__device__ bool originIsInVolume(CudaFloat3 relativeorigin, CudaFloat3 vol_size) {
+    return relativeorigin.x >= 0 && relativeorigin.y >= 0 && relativeorigin.z >= 0 && relativeorigin.x <= vol_size.x && relativeorigin.y <= vol_size.y && relativeorigin.z <= vol_size.z;
+}
+
+__device__ Int2 getStartAndStop(CudaFloat3 origin, CudaFloat3 vector, Int3 vol_size) {
+    CudaFloat3 volsize = CudaFloat3((float)vol_size.x, (float)vol_size.y, (float)vol_size.z);
+    CudaFloat3 relativeorigin = origin + (volsize * 0.5);
+
+    float start, end;
+    if (originIsInVolume(origin, volsize)) {
+        start = 0;
+        end = boundedMinPosVal(relativeorigin, vector, volsize, 0);
+    }
+    else {
+        start = boundedMinPosVal(relativeorigin, vector, volsize, 0);
+        end = boundedMinPosVal(relativeorigin, vector, volsize, start);
+    }
+    return Int2(start, end);
+}
 
 __global__ void testKernel(int* f) {
     *f = 99;
@@ -75,10 +118,22 @@ __global__ void testKernel(int* f) {
 }
 
 
-__global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, int* finished, bool* xyIgnores, CompactBool* CB_global, unsigned* ignores) {
+__global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, int* finished, unsigned* ignores) {
     int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x +offset;
     *finished = 42;
     Ray ray = rayptr[index];    // This operation alone takes ~60 ms
+
+    /*__shared__ bool block_ready;// = false;
+    __shared__ unsigned xyignores[8192];
+    __shared__ bool block_wait;*/
+    //block_wait = true;
+    
+    /*if (threadIdx.x == 0) {
+        for (int i = 0; i < 8192; i++) {
+            xyignores[i] = tester[i];
+        }
+        block_wait = false;
+    }*/
 
     //CudaFloat3 unit_vector(x_z, y_z, z_y);
     CudaFloat3 unit_vector = makeUnitVector(&ray, cc);
@@ -89,8 +144,10 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
     cached_voxel = &voxels[0];  // Init Block, doesn't matter is never used before another is loaded.
     int prev_vol_index = -1;    // Impossible index
 
-
-    for (int step = 100; step < RAY_STEPS; step++) {    //500
+    //while (block_wait) {}
+    bool started = false;
+    Int2 start_stop = getStartAndStop(CudaFloat3(cc.origin.x, cc.origin.y, cc.origin.z), unit_vector * RAY_SS, vol_size);
+    for (int step = start_stop.x; step < RAY_STEPS; step++) {    //500
 
         int x = cc.origin.x + cray.step_vector.x * step;
         int y = cc.origin.y + cray.step_vector.y * step;
@@ -100,20 +157,21 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
         int vol_y = (int) (y + vol_size.y / 2);
         int vol_z = (int) (z + vol_size.z / 2);
 
-        // Check if entire column is air, if then skip
         
-          //  continue;
-        //bool a = isInVolume(Int3(vol_x, vol_y, vol_z), vol_size);
-        //Int3 b = Int3(vol_x, vol_y, vol_z);
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { // Only proceed if coordinate is within volume!
             int volume_index = xyzToIndex(Int3(vol_x, vol_y, vol_z), vol_size);
 
+            if (!started) {
+                started = true;
+                //step -= 7;
+                //continue;
+            }
+
             int column_index = vol_y * vol_size.x + vol_x;
-            if (CB.getBit(ignores, column_index) == 1)
+            if (CB.getBit(ignores, column_index) != 0)
                 continue;
 
-            //if (xyIgnores[vol_y * vol_size.x + vol_x])
-            //    continue;
+           
 
             if (vol_z == 0) {
                 float remaining_alpha = 1 - cray.alpha;
@@ -131,6 +189,8 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
                 prev_vol_index = volume_index;
                 if (voxels[volume_index].ignore) { continue; }
                 else { cached_voxel = &voxels[volume_index]; }
+                
+                
             }
 
 
@@ -141,6 +201,9 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
             cray.alpha += cached_voxel->alpha;
             if (cray.alpha >= 1)
                 break;
+        }
+        else {
+            //step += 5;
         }
     }
     cray.color.cap();   //Caps each channel at 255
@@ -168,10 +231,13 @@ void RenderEngine::render(sf::Texture* texture) {
         cudaMemcpyAsync(&rayptr_device[offset], &rayptr_host[offset], ray_stream_bytes, cudaMemcpyHostToDevice, stream[i]);
     }
     int* f_device;
+    unsigned icopy[8192];
+    for (int i = 0; i < 8192; i++)
+        icopy[i] = hostignores[i];
     cudaMallocManaged(&f_device, sizeof(int));
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
-        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr_device, voxels, cc, offset, image_device, volume->size, f_device, xyColumnIgnores, CB, compactignores);// , dev_empty_y_slices, dev_empty_x_slices);
+        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, 0, stream[i] >> > (rayptr_device, voxels, cc, offset, image_device, volume->size, f_device, compactignores);// , dev_empty_y_slices, dev_empty_x_slices);
     }
 
     printf("Rendering...");

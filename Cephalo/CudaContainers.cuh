@@ -27,6 +27,8 @@ struct CudaFloat3 {
 	__device__ CudaFloat3() {};
 	__device__ CudaFloat3(float x, float y, float z) : x(x), y(y), z(z) {};
 	__device__ inline CudaFloat3 operator*(float s) const { return CudaFloat3(x * s, y * s, z * s); }
+	__device__ inline CudaFloat3 operator+(CudaFloat3 s) const { return CudaFloat3(x + s.x, y + s.y, z + s.z); }
+
 	float x, y, z;
 };
 
@@ -38,7 +40,8 @@ struct CudaRay {
 };
 
 struct Int2 {
-	Int2(int x, int y) : x(x), y(y) {}
+	__device__ __host__ Int2() {};
+	__device__ __host__ Int2(int x, int y) : x(x), y(y) {}
 
 	int x, y;
 };
@@ -52,39 +55,44 @@ struct Int3 {
 
 struct CompactBool {
 	__host__ __device__ CompactBool() {}
-	__host__ unsigned* makeCompact(int size) {
-		int compact_size = ceil((float)size / 16.);
-		bytesize = compact_size * sizeof(unsigned);
-		printf("Creating compact vector of size: %d Kb\n", bytesize / 1000);
+	__host__ CompactBool(bool* boolean_gpu, int column_len) {
+		int compact_size = ceil((float)column_len / 32.);
+		int compact_bytesize = compact_size * sizeof(unsigned);
+		int boolbytesize = column_len * sizeof(bool);
+		printf("Creating compact vector for %d values of size: %d Kb\n", column_len, compact_bytesize / 1000);
 
-		unsigned* compacted;
-		cudaMallocManaged(&compacted, bytesize);
-		return compacted;
-	}
-	unsigned* makeCompactHost(int size) {
-		int compact_size = ceil((float)size / 16.);
-		
+		bool* boolean_host = new bool[column_len];
+		cudaMemcpy(boolean_host, boolean_gpu, boolbytesize, cudaMemcpyDeviceToHost);
+
 		unsigned* compact = new unsigned[compact_size]();
-		return compact;
+		for (int i = 0; i < column_len; i++) {
+			if (boolean_host[i])
+				setBit(compact, i);
+		}
+		cudaMallocManaged(&compact_gpu, compact_bytesize);
+		cudaMemcpy(compact_gpu, compact, compact_bytesize, cudaMemcpyHostToDevice);
+		//delete(compact, boolean_host);	
+		compact_host = compact;
+		cudaFree(boolean_gpu);
 	}
 
-	__host__ __device__ int getIntIndex(int index) {
-		return index / 16;
-	}
 	__host__ __device__ unsigned getBit(unsigned* compacted, int index) {
-		uint8_t bit_index = index % 16;
-		unsigned byte = compacted[getIntIndex(index)];
-		return (byte >> bit_index) & 1U;
+		unsigned byte = compacted[quadIndex(index)];
+		return (byte >> bitIndex(index)) & (unsigned)1;
 	}
-	__host__ __device__ void setBit(unsigned* compacted, int index) {
-		uint8_t bit_index = index % 16;
-		printf("Index %d mapped to byte %d bit %d\n", index, getIntIndex(index), bit_index);
-		compacted[getIntIndex(index)] |= 1U << bit_index;
-		printf("Updated: %u\n\n", compacted[getIntIndex(index)]);
+	__device__ unsigned getQuad(unsigned* compacted, int index) {
+		unsigned quad = compacted[quadIndex(index)];
+		return quad;
 	}
+	__host__ __device__ inline int quadIndex(int index) { return index / 32; }
 
-	int bytesize;
-	unsigned* compactedbool;		// FOR STORAGE ONLY, NO OPERATIONS ALLOWED
+	unsigned* compact_gpu;		// FOR STORAGE ONLY, NO OPERATIONS ALLOWED
+	unsigned* compact_host;
+private:
+	__host__ __device__ void setBit(unsigned* compacted, int index) {
+		compacted[quadIndex(index)] |= ((unsigned)1 << bitIndex(index));
+	}
+	__host__ __device__ inline int bitIndex(int index) { return index % 32; }
 };
 
 
@@ -142,7 +150,7 @@ public:
 	// GPU side
 	Voxel* voxels;	
 	bool* xyColumnIgnores;
-	CompactBool* xyIgnores;	//Host side
+	CompactBool* CB;	//Host side
 	TissueCluster* clusters;
 };
 

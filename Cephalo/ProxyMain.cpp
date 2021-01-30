@@ -43,19 +43,13 @@ int pointerPLay() {
 
 
 int main() {
-	CompactBool CB;
-
-	unsigned* u = CB.makeCompactHost(1000);
-
-	for (int i = 0; i < 100; i++) {
-		if (i%2)
-			CB.setBit(u, i);
-	}
-	for (int i = 0; i < 110; i++) {
-		printf("%d\n", CB.getBit(u, i));
-	}
-
-	return 1;
+	/*unsigned h[10000];
+	
+	unsigned test[4];
+	printf("%u\n", nullptr);
+	printf("text %u\n", test[3]);
+	printf("text %d\n", h[3293]);
+	return 0;*/
 	//SliceMagic SliceM;
 	Preprocessor PP;
 	Volume* vol = PP.processScan("F:\\DumbLesion\\NIH_scans\\002701_04_03\\", Int3(512, 512, 191), 1. / 0.8164);

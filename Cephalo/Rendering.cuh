@@ -32,8 +32,9 @@ public:
 		//cudaMallocManaged(&voxels, vol->len * sizeof(Voxel));
 		voxels = vol->voxels;
 		xyColumnIgnores = vol->xyColumnIgnores;
-		CB = vol->xyIgnores;
-		compactignores = CB->compactedbool;
+		CB = vol->CB;
+		compactignores = CB->compact_gpu;
+		hostignores = CB->compact_host;
 		//updateVolume();
 
 		rayptr_host = initRays();
@@ -55,6 +56,7 @@ private:
 	Voxel* voxels;				// Device side
 	bool* xyColumnIgnores;
 	unsigned* compactignores;
+	unsigned* hostignores;
 	CompactBool* CB;
 
 	Ray* rayptr_device;

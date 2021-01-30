@@ -89,7 +89,7 @@ void Preprocessor::setIgnoreBelow(Volume* volume, float below) {
 }
 
 
-__global__ void setColumnIgnoresKernel(Voxel* voxels, bool* xyColumnIgnores, Int3 size, CompactBool* CB, unsigned* compacted) {
+__global__ void setColumnIgnoresKernel(Voxel* voxels, bool* xyColumnIgnores, Int3 size) {
     int x = blockIdx.x;
     int y = threadIdx.x; 
     int ignore_index = y * size.x + x;
@@ -98,33 +98,32 @@ __global__ void setColumnIgnoresKernel(Voxel* voxels, bool* xyColumnIgnores, Int
     for (int z = 0; z < size.z; z++) {
         int index = xyzToIndex2(Int3(x, y, z), size);
         if (!voxels[index].ignore) {
-            counts++;
-            if (counts > 200)
-                return;
-        }
-            
+            return;
+        }            
     }
     xyColumnIgnores[ignore_index] = 1;
-    //if (x < 100)
-    CB->setBit(compacted, ignore_index);
 }
 
 void Preprocessor::setColumnIgnores(Volume* volume) {
     Int3 size = volume->size;
-    int boolbytesize = volume->len * sizeof(bool);
+    int column_len = size.x * size.y;
+    int boolbytesize = column_len * sizeof(bool);
+    printf("BoolBytesize %d\n", boolbytesize);
 
-    volume->xyIgnores = new CompactBool();
-    CompactBool* gpu_CB;
-    cudaMallocManaged(&gpu_CB, sizeof(CompactBool));
-    cudaMemcpy(gpu_CB, volume->xyIgnores, sizeof(CompactBool), cudaMemcpyHostToDevice);
-    unsigned* gpu_compact_ignores = volume->xyIgnores->makeCompact(volume->len);
+
+
     
     cudaMallocManaged(&volume->xyColumnIgnores, boolbytesize);
 
-    printf("Allocating xy ignore table of size: %d Mb\n", boolbytesize / 100000);
-    setColumnIgnoresKernel << < size.y, size.x >> > (volume->voxels, volume->xyColumnIgnores, size, gpu_CB, gpu_compact_ignores);
+    printf("Allocating xy ignore table of size: %d Kb\n", boolbytesize / 1000);
+
+    setColumnIgnoresKernel << < size.y, size.x >> > (volume->voxels, volume->xyColumnIgnores, size);
     cudaDeviceSynchronize();
-    volume->xyIgnores->compactedbool = gpu_compact_ignores;
+
+
+
+    volume->CB = new CompactBool(volume->xyColumnIgnores, column_len);
+
 }
 
 
