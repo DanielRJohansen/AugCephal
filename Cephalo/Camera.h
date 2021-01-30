@@ -6,7 +6,7 @@ using namespace std;
 
 class Camera {
 public:
-	Camera() { updatePos("n");}
+	Camera() { updatePos("n"); printf("Camera initialized at position %f %f %f\n", origin.x, origin.y, origin.z); }
 
 	Float3 origin;
 	float radius = CAM_RADIUS;

@@ -6,6 +6,22 @@
 
 using namespace std;
 
+struct Int2 {
+	__device__ __host__ Int2() {};
+	__device__ __host__ Int2(int x, int y) : x(x), y(y) {}
+
+	int x, y;
+};
+struct CudaFloat3;
+
+struct Int3 {
+	__device__ __host__ Int3() {}
+	__device__ Int3(CudaFloat3 s);
+	__device__ __host__ Int3(int x, int y, int z) : x(x), y(y), z(z) {}
+
+	int x, y, z;
+};
+
 struct CudaColor {
 	__device__ __host__ CudaColor() {};
 	__device__ __host__ CudaColor(float v) { r = v * 255; g = v * 255; b = v * 255; };
@@ -25,6 +41,7 @@ struct CudaColor {
 
 struct CudaFloat3 {
 	__device__ CudaFloat3() {};
+	__device__ CudaFloat3(Int3 s) { x = s.x; y = s.y; z = s.z; };
 	__device__ CudaFloat3(float x, float y, float z) : x(x), y(y), z(z) {};
 	__device__ inline CudaFloat3 operator*(float s) const { return CudaFloat3(x * s, y * s, z * s); }
 	__device__ inline CudaFloat3 operator+(CudaFloat3 s) const { return CudaFloat3(x + s.x, y + s.y, z + s.z); }
@@ -39,19 +56,7 @@ struct CudaRay {
 	float alpha = 0;
 };
 
-struct Int2 {
-	__device__ __host__ Int2() {};
-	__device__ __host__ Int2(int x, int y) : x(x), y(y) {}
 
-	int x, y;
-};
-
-struct Int3 {
-	__device__ __host__ Int3() {}
-	__device__ __host__ Int3(int x, int y, int z) : x(x), y(y), z(z) {}
-
-	int x, y, z;
-};
 
 struct CompactBool {
 	__host__ __device__ CompactBool() {}

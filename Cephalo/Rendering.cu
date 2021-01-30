@@ -69,73 +69,75 @@ __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
     return CudaFloat3(x_z, y_z, z_y);
 }
 __device__ float overwriteIfLower(float old, float newval, float above) {
-    if (newval < old && newval > above)
+    if (newval > old && newval > above)
         return newval;
     return old;
 }
+__device__ bool isInVolume(CudaFloat3 relativeorigin, CudaFloat3 vol_size) {
+    float buf = 0.001;
+    return relativeorigin.x+buf >= 0 && relativeorigin.y + buf >= 0 && relativeorigin.z + buf >= 0 && relativeorigin.x - buf <= vol_size.x && relativeorigin.y - buf <= vol_size.y && relativeorigin.z - buf <= vol_size.z;
+}
+__device__ bool isInVolume(CudaFloat3 relativeorigin, Int3 vol_size) {
+    float buf = 0.001;
+    return relativeorigin.x + buf >= 0 && relativeorigin.y + buf >= 0 && relativeorigin.z + buf >= 0 && relativeorigin.x - buf <= vol_size.x && relativeorigin.y - buf <= vol_size.y && relativeorigin.z - buf <= vol_size.z;
+}
+
+__device__ float overwriteIfLowerAndIntersect(Int3 size, CudaFloat3 origin, CudaFloat3 vector, float old, float newval, float above) {
+    if (newval < old && newval > above) {
+        if (isInVolume(origin+(vector*newval), size))
+            return newval;
+    }
+    return old;
+}
 __device__ float calcDist(float origin, float vec, float point) {
-    if (vec < 0.00001)
-        return 999999;
+    if (abs(vec) < 0.0001)
+        return 9999;
     float dist = (point - origin) / vec;
     if (dist < 0)
         dist = 0;
     return dist;
 }
-__device__ float boundedMinPosVal(CudaFloat3 origin, CudaFloat3 vector, CudaFloat3 size, float above) {
-    float lowest = 9999;
-    lowest = overwriteIfLower(lowest, calcDist(origin.x, vector.x, 0), above);
-    lowest = overwriteIfLower(lowest, calcDist(origin.y, vector.y, 0), above);
-    lowest = overwriteIfLower(lowest, calcDist(origin.z, vector.z, 0), above);
-    lowest = overwriteIfLower(lowest, calcDist(origin.x, vector.x, size.x), above);
-    lowest = overwriteIfLower(lowest, calcDist(origin.y, vector.y, size.y), above);
-    lowest = overwriteIfLower(lowest, calcDist(origin.z, vector.z, size.z), above);
+
+
+__device__ float firstIntersection(CudaFloat3 origin, CudaFloat3 vector, Int3 size, float above) {
+    float lowest = 4000;
+    lowest = overwriteIfLowerAndIntersect(size, origin, vector, lowest, calcDist(origin.x, vector.x, size.x), above);
+    lowest = overwriteIfLowerAndIntersect(size, origin, vector, lowest, calcDist(origin.y, vector.y, size.y), above);
+    lowest = overwriteIfLowerAndIntersect(size, origin, vector, lowest, calcDist(origin.z, vector.z, size.z), above);
+    lowest = overwriteIfLowerAndIntersect(size, origin, vector, lowest, calcDist(origin.x, vector.x, 0), above);
+    lowest = overwriteIfLowerAndIntersect(size, origin, vector, lowest, calcDist(origin.y, vector.y, 0), above);
+    lowest = overwriteIfLowerAndIntersect(size, origin, vector, lowest, calcDist(origin.z, vector.z, 0), above);
+
     return lowest;
 }
 
-__device__ bool originIsInVolume(CudaFloat3 relativeorigin, CudaFloat3 vol_size) {
-    return relativeorigin.x >= 0 && relativeorigin.y >= 0 && relativeorigin.z >= 0 && relativeorigin.x <= vol_size.x && relativeorigin.y <= vol_size.y && relativeorigin.z <= vol_size.z;
+__device__ Int2 smartStartStop(CudaFloat3 origin, CudaFloat3 vector, Int3 vol_size) {
+    CudaFloat3 size = CudaFloat3(vol_size);
+    CudaFloat3 rel_origin = origin + (size * 0.5);
+
+    float start, stop;
+    if (isInVolume(rel_origin, vol_size))
+        start = 50;
+    else
+        start = firstIntersection(rel_origin, vector, vol_size, 0);
+    stop = firstIntersection(rel_origin, vector, vol_size, start);
+    return Int2(start, stop);
 }
 
-__device__ Int2 getStartAndStop(CudaFloat3 origin, CudaFloat3 vector, Int3 vol_size) {
-    CudaFloat3 volsize = CudaFloat3((float)vol_size.x, (float)vol_size.y, (float)vol_size.z);
-    CudaFloat3 relativeorigin = origin + (volsize * 0.5);
-
-    float start, end;
-    if (originIsInVolume(origin, volsize)) {
-        start = 0;
-        end = boundedMinPosVal(relativeorigin, vector, volsize, 0);
-    }
-    else {
-        start = boundedMinPosVal(relativeorigin, vector, volsize, 0);
-        end = boundedMinPosVal(relativeorigin, vector, volsize, start);
-    }
-    return Int2(start, end);
-}
-
-__global__ void testKernel(int* f) {
-    *f = 99;
-    return;
-}
 
 
 __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, int* finished, unsigned* ignores) {
     int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x +offset;
-    *finished = 42;
+    //50
     Ray ray = rayptr[index];    // This operation alone takes ~60 ms
 
-    /*__shared__ bool block_ready;// = false;
     __shared__ unsigned xyignores[8192];
-    __shared__ bool block_wait;*/
-    //block_wait = true;
-    
-    /*if (threadIdx.x == 0) {
-        for (int i = 0; i < 8192; i++) {
-            xyignores[i] = tester[i];
-        }
-        block_wait = false;
-    }*/
+    int specific_index = threadIdx.x;
+    while (specific_index < 8192) {
+        xyignores[specific_index] = 0;
+        specific_index += THREADS_PER_BLOCK;
+    }
 
-    //CudaFloat3 unit_vector(x_z, y_z, z_y);
     CudaFloat3 unit_vector = makeUnitVector(&ray, cc);
     CudaRay cray(unit_vector * RAY_SS);
     CompactBool CB;
@@ -144,11 +146,11 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
     cached_voxel = &voxels[0];  // Init Block, doesn't matter is never used before another is loaded.
     int prev_vol_index = -1;    // Impossible index
 
-    //while (block_wait) {}
-    bool started = false;
-    Int2 start_stop = getStartAndStop(CudaFloat3(cc.origin.x, cc.origin.y, cc.origin.z), unit_vector * RAY_SS, vol_size);
-    for (int step = start_stop.x; step < RAY_STEPS; step++) {    //500
+    //77
+    Int2 start_stop = smartStartStop(CudaFloat3(cc.origin.x, cc.origin.y, cc.origin.z), unit_vector* RAY_SS, vol_size);
+    //81
 
+    for (int step = start_stop.x; step < start_stop.y; step++) {    //500
         int x = cc.origin.x + cray.step_vector.x * step;
         int y = cc.origin.y + cray.step_vector.y * step;
         int z = cc.origin.z + cray.step_vector.z * step;
@@ -156,33 +158,25 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
         int vol_x = (int) (x + vol_size.x / 2);
         int vol_y = (int) (y + vol_size.y / 2);
         int vol_z = (int) (z + vol_size.z / 2);
-
+        Int3 pos = Int3(vol_x, vol_y, vol_z);
         
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { // Only proceed if coordinate is within volume!
-            int volume_index = xyzToIndex(Int3(vol_x, vol_y, vol_z), vol_size);
+            int volume_index = xyzToIndex(pos, vol_size);
 
-            if (!started) {
-                started = true;
-                //step -= 7;
-                //continue;
-            }
 
             int column_index = vol_y * vol_size.x + vol_x;
-            if (CB.getBit(ignores, column_index) != 0)
+            int quad_index = CB.quadIndex(column_index);
+            if (xyignores[quad_index] == 0)
+                xyignores[quad_index] = ignores[quad_index];
+            if (CB.getBit(xyignores, column_index) != 0)
                 continue;
 
            
 
-            if (vol_z == 0) {
-                float remaining_alpha = 1 - cray.alpha;
-                //cray.color.r = 0;
-                cray.color.g += 114 * remaining_alpha;
-                cray.color.b += 158 * remaining_alpha;
-                break;
-            }
-            //if (empty_y_slices[vol_y] || empty_x_slices[vol_x]) { continue; }
+
 
             if (volume_index == prev_vol_index) {
+                continue;
                 if (cached_voxel->ignore) { continue; }
             }
             else {
@@ -194,7 +188,7 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
             }
 
 
-            CudaColor block_color = CudaColor(cached_voxel->color.r, cached_voxel->color.g, cached_voxel->color.b);
+            CudaColor block_color = cached_voxel->color;// CudaColor(cached_voxel->color.r, cached_voxel->color.g, cached_voxel->color.b);
             float brightness = 1;// lightSeeker(voxels, CudaFloat3(vol_x, vol_y, vol_z));
             block_color = block_color * brightness;
             cray.color.add(block_color * cached_voxel->alpha);
@@ -202,11 +196,12 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
             if (cray.alpha >= 1)
                 break;
         }
-        else {
-            //step += 5;
-        }
+
     }
+    //127
     cray.color.cap();   //Caps each channel at 255
+    //127
+
     image[index * 4 + 0] = (int)cray.color.r;
     image[index * 4 + 1] = (int)cray.color.g;
     image[index * 4 + 2] = (int)cray.color.b;

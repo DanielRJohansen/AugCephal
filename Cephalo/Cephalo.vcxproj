@@ -89,6 +89,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="backup.cu" />
+    <CudaCompile Include="CudaContainers.cu" />
     <CudaCompile Include="CudaOps.cu" />
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="Preprocessing.cu" />
