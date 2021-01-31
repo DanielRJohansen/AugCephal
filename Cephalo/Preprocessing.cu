@@ -276,7 +276,7 @@ void Preprocessor::rmf(Volume* vol) {
     auto start = chrono::high_resolution_clock::now();
 
     float* normcopy = makeNormvalCopy(vol);
-    printf("Copy made in%d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    printf("Copy made in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
     rotatingMaskFilterKernel << <vol->size.y, vol->size.x >> > (vol->voxels, normcopy, vol->size);
     cudaDeviceSynchronize();
