@@ -99,7 +99,6 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ColorMaker.cpp" />
     <ClCompile Include="Containers.cpp" />
-    <ClCompile Include="CudaContainers.cpp" />
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="ProxyMain.cpp" />
     <ClCompile Include="Toolbox.cpp" />

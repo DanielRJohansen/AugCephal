@@ -160,6 +160,89 @@ public:
 };
 
 
+struct CudaMask {
+	__device__ CudaMask() {}
+	__device__ CudaMask(int x, int y, int z) {
+		for (int i = 0; i < masksize; i++) {
+			mask[i] = 0;
+		}
+		for (int z_ = z; z_ < z + 3; z_++) {
+			for (int y_ = y; y_ < y + 3; y_++) {
+				for (int x_ = x; x_ < x + 3; x_++) {
+					mask[xyzC(x_, y_, z_)] = 1;
+				}
+			}
+		}
+		weight = 27;
+		
+	}
+	
+
+	__device__ float applyMask(float kernel[125]) {
+		mean = 0;
+		for (int i = 0; i < 125; i++) {
+			masked_kernel[i] = kernel[i] * mask[i];
+			mean += masked_kernel[i];
+		}
+		mean /= 27;
+		return calcVar(mean);
+	};
+	__device__ float calcVar(float mean) {
+		float var = 0;
+		for (int i = 0; i < 125; i++) {
+			float dist = masked_kernel[i] - mean;
+			var += dist * dist;
+		}
+		return var;
+	};
+
+	__device__ inline int xyzC(int x, int y, int z) { return z * 5 * 5 + y * 5 + x; }
+	
+	// Constant
+	int weight = 1;
+	int masksize = 125;
+	float mask[125];
+
+	// Changed each step
+	float mean;
+	float masked_kernel[125];
+};
+
+/*
+struct CudaMask2 {
+	__device__ CudaMask2() {}
+	__device__ CudaMask2(int a) {
+		for (int i = 0; i < 125; i++) {
+			mask[i] = 0;
+		}
+	}
+	__device__ CudaMask2(int x, int y, int z) {
+		for (int i = 0; i < masksize; i++) {
+			mask[i] = 0;
+		}
+		for (int z_ = z; z_ < z + 3; z_++) {
+			for (int y_ = y; y_ < y + 3; y_++) {
+				for (int x_ = x; x_ < x + 3; x_++) {
+					mask[xyzC(x_, y_, z_)] = 1;
+				}
+			}
+		}
+	}
+	float mask[125];
+	const int masksize = 125;
+	__device__ inline int xyzC(int x, int y, int z) { return z * 125 * 125 + y * 125 + x; }
+};
+	__device__ float applyMask(float kernel[125]) {
+		float mean = 0;
+		for (int i = 0; i < 125; i++) {
+			kernel[i] *= mask[i];
+			mean += kernel[i];
+		}
+		mean /= 27;
+		return mean;
+	};				// Returns mean
+		// Returns var
+	*/
 
 
 

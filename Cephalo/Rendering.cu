@@ -68,15 +68,8 @@ __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
 
     return CudaFloat3(x_z, y_z, z_y);
 }
-__device__ float overwriteIfLower(float old, float newval, float above) {
-    if (newval > old && newval > above)
-        return newval;
-    return old;
-}
-__device__ bool isInVolume(CudaFloat3 relativeorigin, CudaFloat3 vol_size) {
-    float buf = 0.001;
-    return relativeorigin.x+buf >= 0 && relativeorigin.y + buf >= 0 && relativeorigin.z + buf >= 0 && relativeorigin.x - buf <= vol_size.x && relativeorigin.y - buf <= vol_size.y && relativeorigin.z - buf <= vol_size.z;
-}
+
+
 __device__ bool isInVolume(CudaFloat3 relativeorigin, Int3 vol_size) {
     float buf = 0.001;
     return relativeorigin.x + buf >= 0 && relativeorigin.y + buf >= 0 && relativeorigin.z + buf >= 0 && relativeorigin.x - buf <= vol_size.x && relativeorigin.y - buf <= vol_size.y && relativeorigin.z - buf <= vol_size.z;
@@ -170,9 +163,6 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
                 xyignores[quad_index] = ignores[quad_index];
             if (CB.getBit(xyignores, column_index) != 0)
                 continue;
-
-           
-
 
 
             if (volume_index == prev_vol_index) {

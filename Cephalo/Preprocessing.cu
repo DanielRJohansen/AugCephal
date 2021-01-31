@@ -61,6 +61,7 @@ Volume* Preprocessor::convertToVolume(float* scan, Int3 size) {
     Voxel* v_device;
     cudaMallocManaged(&v_device, bytesize);
     cudaMemcpy(v_device, v_host, bytesize, cudaMemcpyHostToDevice);
+    printf("%d MB of VRAM allocated to Voxels\n", bytesize / 1000000);
 
     // C
     Volume* volume = new Volume(v_device, size);
@@ -108,7 +109,6 @@ void Preprocessor::setColumnIgnores(Volume* volume) {
     Int3 size = volume->size;
     int column_len = size.x * size.y;
     int boolbytesize = column_len * sizeof(bool);
-    printf("BoolBytesize %d\n", boolbytesize);
 
 
 
@@ -125,6 +125,35 @@ void Preprocessor::setColumnIgnores(Volume* volume) {
     volume->CB = new CompactBool(volume->xyColumnIgnores, column_len);
 
 }
+
+
+
+
+__global__ void colorFromNormvalKernel(Voxel* voxels, Int3 size) {
+    int x = blockIdx.x;
+    int y = threadIdx.x;
+    for (int z = 0; z < size.z; z++) {
+        int index = xyzToIndex2(Int3(x, y, z), size);
+        voxels[index].color = CudaColor(voxels[index].norm_val);
+    }
+}
+
+void Preprocessor::colorFromNormval(Volume* volume) {
+    Int3 size = volume->size;
+    colorFromNormvalKernel << < size.y, size.x >> > (volume->voxels, size);
+    cudaDeviceSynchronize();
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -191,10 +220,70 @@ void Preprocessor::speedTest() {
 
 
 
+__device__ inline bool isInVolume(Int3 coord, Int3 size) {
+    return coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z;
+}
+__device__ inline int xyzToIndex(Int3 coord, Int3 size) {
+    return coord.z * size.y * size.x + coord.y * size.x + coord.x;
+}
+__global__ void rotatingMaskFilterKernel(Voxel* voxels, float* normcopy, Int3 size) {
+    int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
+    int x = threadIdx.x;
+    
+    if (x < 2 || y < 2 || x > size.x - 3 || y > size.y - 3)
+        return;
 
+    // Initialize masks
+    CudaMask masks[27];
+    int i = 0; 
+    for (int zs = 0; zs < 3; zs++) {
+        for (int ys = 0; ys < 3; ys++) {
+            for (int xs = 0; xs < 3; xs++) {
+                masks[i] = CudaMask(xs, ys, zs);
+                i++;
+            }
+        }
+    }
+    
+    for (int z = 2; z < size.z-3; z++) {
+        Int3 coord = Int3(x, y, z);
+        float kernel[5 * 5 * 5];
+        int i = 0;
+        for (int z_ = z - 2; z_ <= z + 2; z_++) {
+            for (int y_ = y - 2; y_ <= y + 2; y_++) {
+                for (int x_ = x - 2; x_ <= x + 2; x_++) {
+                    kernel[i] = normcopy[xyzToIndex(Int3(x_, y_, z_), size)];
+                    i++;
+                }
+            }
+        }   
 
+        float best_mean = 0;
+        float lowest_var = 999999;
+        for (int i = 0; i < 27; i++) {
+            float var = masks[i].applyMask(kernel);
+            if (var < lowest_var && var != 0.) {
+                lowest_var = var;
+                best_mean = masks[i].mean;
+            }
+        }
+        voxels[xyzToIndex(coord, size)].norm_val = best_mean;  
+           
+    }
+}
 
+void Preprocessor::rmf(Volume* vol) {
+    auto start = chrono::high_resolution_clock::now();
 
+    float* normcopy = makeNormvalCopy(vol);
+    printf("Copy made in%d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+
+    rotatingMaskFilterKernel << <vol->size.y, vol->size.x >> > (vol->voxels, normcopy, vol->size);
+    cudaDeviceSynchronize();
+    cudaFree(normcopy);
+    printf("RMF applied in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+
+}
 
 
 

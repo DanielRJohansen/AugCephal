@@ -33,11 +33,11 @@ public:
 		Volume* volume = convertToVolume(scan, size);
 
 		// Algoritmic preprocessing
-		windowVolume(volume, -700, 800);
+		windowVolume(volume, -700, 800);		// Norm values are set here
+		rmf(volume);
 
 
-
-
+		colorFromNormval(volume);
 		setIgnoreBelow(volume, -600);
 		setColumnIgnores(volume);
 
@@ -54,7 +54,20 @@ private:
 	void insertImInVolume(cv::Mat img, int z);
 	Volume* convertToVolume(float* scan, Int3 size);
 	void setIgnoreBelow(Volume* vol, float below);
+	float* makeNormvalCopy(Volume* vol) {
+		Voxel* hostvoxels = new Voxel[vol->len];
+		cudaMemcpy(hostvoxels, vol->voxels, vol->len * sizeof(Voxel), cudaMemcpyDeviceToHost);
+		float* copy_host = new float[vol->len];
+		for (int i = 0; i < vol->len; i++)
+			copy_host[i] = hostvoxels[i].norm_val;
 
+		float* copynorms;
+		cudaMallocManaged(&copynorms, vol->len * sizeof(float));
+		cudaMemcpy(copynorms, copy_host, vol->len * sizeof(float), cudaMemcpyHostToDevice);
+		return copynorms;
+	}
+	void colorFromNormval(Volume* vol);
+	void rmf(Volume* vol);
 
 
 	void setColumnIgnores(Volume* vol);
