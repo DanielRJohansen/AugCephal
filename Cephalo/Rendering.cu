@@ -66,7 +66,9 @@ __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
     float x_z = cc.cos_yaw * x_y - cc.sin_yaw * y;
     float y_z = cc.sin_yaw * x_y + cc.cos_yaw * y;
 
-    return CudaFloat3(x_z, y_z, z_y);
+    CudaFloat3 vector = CudaFloat3(x_z, y_z, z_y);
+    vector.norm();
+    return vector;
 }
 
 
@@ -140,10 +142,10 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
     int prev_vol_index = -1;    // Impossible index
 
     //77
-    Int2 start_stop = smartStartStop(CudaFloat3(cc.origin.x, cc.origin.y, cc.origin.z), unit_vector* RAY_SS, vol_size);
+    Int2 start_stop = smartStartStop(CudaFloat3(cc.origin.x, cc.origin.y, cc.origin.z), cray.step_vector, vol_size);
     //81
 
-    for (int step = start_stop.x; step < start_stop.y; step++) {    //500
+    for (int step = start_stop.x; step < start_stop.y+1; step++) {    //500
         int x = cc.origin.x + cray.step_vector.x * step;
         int y = cc.origin.y + cray.step_vector.y * step;
         int z = cc.origin.z + cray.step_vector.z * step;
@@ -156,7 +158,10 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { // Only proceed if coordinate is within volume!
             int volume_index = xyzToIndex(pos, vol_size);
 
-
+            if (vol_z == 0) {
+                cray.color.b += 255 * (1 - cray.alpha);
+                break;
+            }
             int column_index = vol_y * vol_size.x + vol_x;
             int quad_index = CB.quadIndex(column_index);
             if (xyignores[quad_index] == 0)
@@ -169,6 +174,7 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
                 continue;
                 if (cached_voxel->ignore) { continue; }
             }
+            
             else {
                 prev_vol_index = volume_index;
                 if (voxels[volume_index].ignore) { continue; }

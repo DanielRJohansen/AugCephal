@@ -18,7 +18,7 @@ const int THREADS_PER_BLOCK = 256;
 
 // CAMERA SPECIFIC
 const float FOCAL_LEN = 1;	
-const int CAM_RADIUS = 1300;
+const int CAM_RADIUS = 800;
 const int CAM_RADIUS_INC = 100;
 const float CAM_ROTATION_STEP = 2 * 3.1415 / 20; // 20 clicks per rotation
 

@@ -3,7 +3,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <iostream>
-
+#include <math.h>
 using namespace std;
 
 struct Int2 {
@@ -46,6 +46,13 @@ struct CudaFloat3 {
 	__device__ inline CudaFloat3 operator*(float s) const { return CudaFloat3(x * s, y * s, z * s); }
 	__device__ inline CudaFloat3 operator+(CudaFloat3 s) const { return CudaFloat3(x + s.x, y + s.y, z + s.z); }
 
+	__device__ inline float len() { sqrt(x * x + y * y + z * z); }
+	__device__ void norm() {
+		float s = 1/len();
+		x *= s;
+		y *= s;
+		z *= s;
+	}
 	float x, y, z;
 };
 
@@ -107,7 +114,7 @@ struct Voxel{	//Lots of values
 	bool ignore = false;
 	float hu_val = 10;
 	int cluster_id = -1;
-	int alpha = 1;
+	float alpha = 1;
 	float norm_val = 0;
 	CudaColor color;
 
@@ -159,10 +166,16 @@ public:
 	TissueCluster* clusters;
 };
 
+const int OUTSIDEVOL = -9393;
+const int ISIGNORE = -9394;
 
 struct CudaMask {
-	__device__ CudaMask() {}
-	__device__ CudaMask(int x, int y, int z) {
+	__host__ __device__ CudaMask() {}
+	__host__ __device__ CudaMask(int uselessval) {
+		for (int i = 0; i < 125; i++)
+			mask[i] = 0;
+	}
+	__host__ __device__ CudaMask(int x, int y, int z) {
 		for (int i = 0; i < masksize; i++) {
 			mask[i] = 0;
 		}
@@ -173,37 +186,56 @@ struct CudaMask {
 				}
 			}
 		}
-		weight = 27;
-		
 	}
 	
 
-	__device__ float applyMask(float kernel[125]) {
+	__device__ float applyMask(float* kernel) {
 		mean = 0;
-		for (int i = 0; i < 125; i++) {
+		penalty = 1;
+		weight = 0;
+		for (int i = 0; i < 125; i++) {			
 			masked_kernel[i] = kernel[i] * mask[i];
-			mean += masked_kernel[i];
+
+			if (masked_kernel[i] == OUTSIDEVOL) {
+				return 9999;
+			}
+			else if (masked_kernel[i] == ISIGNORE) {
+				penalty += 0.5;
+			}
+			else {
+				mean += masked_kernel[i];
+				weight += mask[i];
+			}
+				
 		}
-		mean /= 27;
+
+		if (weight < 3)
+			return 9999;
+		
+			
+			
+		mean /= (weight);
 		return calcVar(mean);
 	};
 	__device__ float calcVar(float mean) {
 		float var = 0;
 		for (int i = 0; i < 125; i++) {
 			float dist = masked_kernel[i] - mean;
-			var += dist * dist;
+			var += abs(dist) *  mask[i];// *dist;
 		}
-		return var;
+		
+		return var / weight * penalty;
 	};
 
-	__device__ inline int xyzC(int x, int y, int z) { return z * 5 * 5 + y * 5 + x; }
+	__host__ __device__ inline int xyzC(int x, int y, int z) { return z * 5 * 5 + y * 5 + x; }
 	
 	// Constant
-	int weight = 1;
 	int masksize = 125;
 	float mask[125];
 
 	// Changed each step
+	float weight;
+	float penalty;
 	float mean;
 	float masked_kernel[125];
 };

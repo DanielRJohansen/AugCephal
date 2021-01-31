@@ -226,16 +226,8 @@ __device__ inline bool isInVolume(Int3 coord, Int3 size) {
 __device__ inline int xyzToIndex(Int3 coord, Int3 size) {
     return coord.z * size.y * size.x + coord.y * size.x + coord.x;
 }
-__global__ void rotatingMaskFilterKernel(Voxel* voxels, float* normcopy, Int3 size) {
-    int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
-    int x = threadIdx.x;
-    
-    if (x < 2 || y < 2 || x > size.x - 3 || y > size.y - 3)
-        return;
-
-    // Initialize masks
-    CudaMask masks[27];
-    int i = 0; 
+__host__ __device__ void makeMasks(CudaMask* masks) {
+    int i = 0;
     for (int zs = 0; zs < 3; zs++) {
         for (int ys = 0; ys < 3; ys++) {
             for (int xs = 0; xs < 3; xs++) {
@@ -245,42 +237,131 @@ __global__ void rotatingMaskFilterKernel(Voxel* voxels, float* normcopy, Int3 si
         }
     }
     
-    for (int z = 2; z < size.z-3; z++) {
-        Int3 coord = Int3(x, y, z);
-        float kernel[5 * 5 * 5];
-        int i = 0;
-        for (int z_ = z - 2; z_ <= z + 2; z_++) {
-            for (int y_ = y - 2; y_ <= y + 2; y_++) {
-                for (int x_ = x - 2; x_ <= x + 2; x_++) {
-                    kernel[i] = normcopy[xyzToIndex(Int3(x_, y_, z_), size)];
-                    i++;
-                }
-            }
-        }   
+    for (int i = 0; i < 3; i++) {
+        masks[i] = CudaMask();
+    }
+    i = 0;
+    for (int z = 0; z < 5; z++) {
+        for (int y = 0; y < 5; y++) {
+            for (int x = 0; x < 5; x++) {
+                //Flats
+                masks[27 + 0].mask[i] = (z == 2);
+                masks[27 + 1].mask[i] = (y == 2);
+                masks[27 + 2].mask[i] = (x == 2);
 
-        float best_mean = 0;
-        float lowest_var = 999999;
-        for (int i = 0; i < 27; i++) {
+                // Pillars
+                masks[27 + 3].mask[i] = (z == 2 && y == 2);
+                masks[27 + 4].mask[i] = (y == 2 && x == 2);
+                masks[27 + 5].mask[i] = (x == 2 && z == 2);
+
+                // Semi crooked pillars
+                masks[27 + 6].mask[i] = (z == 2 && x == y);
+                masks[27 + 7].mask[i] = (z == 2 && x == -y);
+                masks[27 + 8].mask[i] = (y == 2 && z == x);
+                masks[27 + 9].mask[i] = (y == 2 && z == -x);
+                masks[27 + 10].mask[i] = (x == 2 && z == y);
+                masks[27 + 11].mask[i] = (x == 2 && z == -y);
+
+                // Full crooked pillars
+                masks[27 + 12].mask[i] = (x == y && y == z);
+                masks[27 + 13].mask[i] = (x == y && y == -z);
+                masks[27 + 14].mask[i] = (-x == y && y == z);
+                masks[27 + 15].mask[i] = (-x == y && y == -z);
+                /*masks[27 + 3].mask[i] = (z == 0 && abs(x) - 1 <= 0 && abs(y) - 1 <= 0);
+                masks[27 + 4].mask[i] = (y == 0 && abs(x) - 1 <= 0 && abs(z) - 1 <= 0);
+                masks[27 + 5].mask[i] = (x == 0 && abs(y) - 1 <= 0 && abs(z) - 1 <= 0);*/
+
+                i++;
+            }
+        }
+    }
+}
+
+__device__ void fetchWindow(Voxel* voxelcopy, float* kernel, Int3 pos, Int3 size) {
+    int i = 0;
+    for (int z_ = pos.z - 2; z_ <= pos.z + 2; z_++) {
+        for (int y_ = pos.y - 2; y_ <= pos.y + 2; y_++) {
+            for (int x_ = pos.x - 2; x_ <= pos.x + 2; x_++) {
+                Int3 pos_ = Int3(x_, y_, z_);
+                if (pos.z > 0 && z_ < pos.z + 2)
+                    kernel[i] = kernel[i + 25];
+                else if (!isInVolume(pos_, size))
+                    kernel[i] = OUTSIDEVOL;
+                else
+                {
+                    if (voxelcopy[xyzToIndex(pos_, size)].ignore)
+                        kernel[i] = ISIGNORE;
+                    else
+                        kernel[i] = voxelcopy[xyzToIndex(pos_, size)].norm_val;
+                }
+                i++;
+            }
+        }
+    }
+}
+
+__global__ void rotatingMaskFilterKernel(Voxel* voxels, Voxel* voxelcopy, Int3 size, unsigned* ignores, CudaMask* globalmasks) {
+    int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
+    int x = threadIdx.x;
+    
+    CompactBool CB;
+    if (CB.getBit(ignores, y * size.x + x)) {
+        voxels[xyzToIndex(Int3(x, y, 0), size)].norm_val = 1;
+        return;
+    }
+
+    // Initialize masks
+    CudaMask masks_init[43];
+    CudaMask* masks = masks_init;
+    for (int i = 0; i < 43; i++)
+        masks[i] = globalmasks[i];
+
+    float kernel_[5 * 5 * 5];
+    float* kernel = kernel_;
+    for (int z = 0; z < size.z; z++) {
+        Int3 coord = Int3(x, y, z);
+        
+        fetchWindow(voxelcopy, kernel, coord, size);
+
+        if (voxels[xyzToIndex(coord, size)].ignore)
+            continue;
+
+        float best_mean = -1;// voxels[xyzToIndex(coord, size)].norm_val;
+        float lowest_var = 999;
+        for (int i = 0; i < 43; i++) {
             float var = masks[i].applyMask(kernel);
-            if (var < lowest_var && var != 0.) {
+            if (var < lowest_var) {
                 lowest_var = var;
                 best_mean = masks[i].mean;
             }
         }
-        voxels[xyzToIndex(coord, size)].norm_val = best_mean;  
-           
+        if (best_mean != -1)
+            voxels[xyzToIndex(coord, size)].norm_val = best_mean;  
     }
 }
 
 void Preprocessor::rmf(Volume* vol) {
     auto start = chrono::high_resolution_clock::now();
 
-    float* normcopy = makeNormvalCopy(vol);
+    //float* normcopy = makeNormvalCopy(vol);
+    Voxel* voxelcopy;
+    cudaMallocManaged(&voxelcopy, vol->len * sizeof(Voxel));
+    cudaMemcpy(voxelcopy, vol->voxels, vol->len * sizeof(Voxel), cudaMemcpyDeviceToDevice);
     printf("Copy made in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
-    rotatingMaskFilterKernel << <vol->size.y, vol->size.x >> > (vol->voxels, normcopy, vol->size);
+
+    CudaMask* masks = new CudaMask[43];
+    CudaMask* gpu_masks;
+    makeMasks(masks);
+    cudaMallocManaged(&gpu_masks, 43 * sizeof(CudaMask));
+    cudaMemcpy(gpu_masks, masks, 43 * sizeof(CudaMask), cudaMemcpyHostToDevice);
+
+    rotatingMaskFilterKernel << <vol->size.y, vol->size.x >> > (vol->voxels, voxelcopy, vol->size, vol->CB->compact_gpu, gpu_masks);
     cudaDeviceSynchronize();
-    cudaFree(normcopy);
+    
+    delete(masks);
+    cudaFree(voxelcopy);
+    cudaFree(gpu_masks);
     printf("RMF applied in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
 }

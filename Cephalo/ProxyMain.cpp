@@ -50,6 +50,8 @@ int main() {
 	printf("text %u\n", test[3]);
 	printf("text %d\n", h[3293]);
 	return 0;*/
+
+
 	//SliceMagic SliceM;
 	Preprocessor PP;
 	Volume* vol = PP.processScan("F:\\DumbLesion\\NIH_scans\\002701_04_03\\", Int3(512, 512, 191), 1. / 0.8164);

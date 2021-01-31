@@ -34,12 +34,13 @@ public:
 
 		// Algoritmic preprocessing
 		windowVolume(volume, -700, 800);		// Norm values are set here
-		rmf(volume);
-
-
-		colorFromNormval(volume);
 		setIgnoreBelow(volume, -600);
 		setColumnIgnores(volume);
+
+
+
+		rmf(volume);
+		colorFromNormval(volume);
 
 
 		printf("Preprocessing finished!\n\n");
