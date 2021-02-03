@@ -33,6 +33,10 @@ struct CudaColor {
 		if (b > 255) { b = 255; }
 	}
 
+	__device__ __host__ CudaColor getRandColor() { return CudaColor(rand() % 255, rand() % 255, rand() % 255); }
+
+
+
 	__device__ inline CudaColor operator*(float s) const { return CudaColor(r * s, g * s, b * s); }
 	float r = 0;
 	float g = 0;
@@ -240,6 +244,58 @@ struct CudaMask {
 	float masked_kernel[125];
 };
 
+class TestClass {
+public:
+	__host__ __device__ TestClass() {}
+	__host__ __device__ ~TestClass() {}
+	int id;
+	float val;
+};
+
+class CudaKCluster {
+public:
+	__host__ __device__ CudaKCluster() {}
+	__host__ __device__ CudaKCluster(int id): id(id) {}
+	__host__ __device__ ~CudaKCluster() {}
+
+	float calcCentroid() { 
+		float old = centroid;
+		if (num_members == 0)
+			num_members = 1;
+		centroid = (float)(accumulation / num_members); 
+		prev_members = num_members;
+		num_members = 0;
+		accumulation = 0;
+		printf("    K-Cluster %02d	centroid: %f    members: %d\n", id, centroid, prev_members);
+		return abs(old - centroid);
+	}
+	__device__ float inline belonging(float val) { return 1-abs(val - centroid); }
+	__device__ void assign(float val) { 
+		while (blocked) {}
+		blocked = true;
+		num_members+=1; 
+		accumulation += val; 
+		blocked = false;
+	}
+	void assignBatch(float acc, int cnt) {
+		accumulation += acc;
+		num_members += cnt;
+	}
+	void mergeBatch(CudaKCluster c) {
+		num_members += c.num_members;
+		accumulation += c.accumulation;
+	}
+
+	bool blocked = false;
+
+	int num_members = 0;
+	int prev_members= -1;
+	float accumulation = 0;
+
+	int id;
+	float centroid = -1;
+	CudaColor color = CudaColor().getRandColor();
+};
 /*
 struct CudaMask2 {
 	__device__ CudaMask2() {}

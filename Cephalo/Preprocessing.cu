@@ -89,6 +89,18 @@ void Preprocessor::setIgnoreBelow(Volume* volume, float below) {
     cudaDeviceSynchronize();
 }
 
+float* makeNormvalCopy(Volume* vol) {
+    Voxel* hostvoxels = new Voxel[vol->len];
+    cudaMemcpy(hostvoxels, vol->voxels, vol->len * sizeof(Voxel), cudaMemcpyDeviceToHost);
+    float* copy_host = new float[vol->len];
+    for (int i = 0; i < vol->len; i++)
+        copy_host[i] = hostvoxels[i].norm_val;
+
+    float* copynorms;
+    cudaMallocManaged(&copynorms, vol->len * sizeof(float));
+    cudaMemcpy(copynorms, copy_host, vol->len * sizeof(float), cudaMemcpyHostToDevice);
+    return copynorms;
+}
 
 __global__ void setColumnIgnoresKernel(Voxel* voxels, bool* xyColumnIgnores, Int3 size) {
     int x = blockIdx.x;
@@ -301,7 +313,7 @@ __device__ void fetchWindow(Voxel* voxelcopy, float* kernel, Int3 pos, Int3 size
 }
 
 __global__ void rotatingMaskFilterKernel(Voxel* voxels, Voxel* voxelcopy, Int3 size, unsigned* ignores, CudaMask* globalmasks) {
-    int y = blockIdx.x;  //This fucks shit up if RPD > 1024!!
+    int y = blockIdx.x;  
     int x = threadIdx.x;
     
     CompactBool CB;
@@ -328,7 +340,7 @@ __global__ void rotatingMaskFilterKernel(Voxel* voxels, Voxel* voxelcopy, Int3 s
 
         float best_mean = -1;// voxels[xyzToIndex(coord, size)].norm_val;
         float lowest_var = 999;
-        for (int i = 0; i < 43; i++) {
+        for (int i = 30; i < 43; i++) {
             float var = masks[i].applyMask(kernel);
             if (var < lowest_var) {
                 lowest_var = var;
@@ -365,6 +377,129 @@ void Preprocessor::rmf(Volume* vol) {
     printf("RMF applied in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//------------------------------------------------------------------------------------------------------------------K MEANS --------------------------------------------------------------------------------//
+
+__global__ void kMeansAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, CudaKCluster* kclusters_global, int k, Int3 size) {
+    int y = blockIdx.x;
+    int x = threadIdx.x;
+
+    extern __shared__ CudaKCluster block_clusters[];
+    __shared__ int total_block_members;
+    CudaKCluster* cluster_ptr = (CudaKCluster*)block_clusters;
+
+    if (x < k) {
+        cluster_ptr[x] = kclusters[x];
+    }
+    __syncthreads();
+
+    int i = 0; 
+    for (int z = 0; z < size.z; z++) {
+        Voxel voxel = voxels[xyzToIndex(Int3(x,y,z), size)];
+        if (!voxel.ignore) {
+            cluster_ptr[i % k].assign(voxel.norm_val);
+            i++;
+        }
+        else {
+            cluster_ptr[i % k].assign(0);
+            i++;
+        }
+
+    }
+
+    __syncthreads();
+
+    if (x < k) 
+        kclusters_global[y * k + x] = cluster_ptr[x];
+
+    __syncthreads();
+    
+}
+
+void updateKClusters(CudaKCluster* kclusters, CudaKCluster* kclusters_blocks, Int3 size, int k) {
+    CudaKCluster* kcb_host = new CudaKCluster[k*size.y];
+    CudaKCluster* kc_host = new CudaKCluster[k];
+    cudaMemcpy(kcb_host, kclusters_blocks, size.y * k * sizeof(CudaKCluster), cudaMemcpyDeviceToHost);      // Main data transfer
+    cudaMemcpy(kc_host, kclusters, k * sizeof(CudaKCluster), cudaMemcpyDeviceToHost);                       // Basically just copies the id
+    for (int i = 0; i < k*size.y; i++) { 
+        printf("%02d    %02d    %f\n", kcb_host[i].id, kcb_host[i].num_members, kcb_host[i].accumulation);
+        kc_host[i%k].mergeBatch(kcb_host[i]); 
+    }
+    for (int i = 0; i < k; i++) {
+        kc_host[i].calcCentroid();
+    }
+
+    cudaMemcpy(kclusters, kc_host, k * sizeof(CudaKCluster), cudaMemcpyHostToDevice);
+}
+
+CudaKCluster* initClusters(int k) {
+    CudaKCluster* kclusters_host = new CudaKCluster[k];
+    for (int i = 0; i < k; i++)
+        kclusters_host[i] = CudaKCluster(i);
+    CudaKCluster* kclusters_device;
+    cudaMallocManaged(&kclusters_device, k * sizeof(CudaKCluster));
+    cudaMemcpy(kclusters_device, kclusters_host, k * sizeof(CudaKCluster), cudaMemcpyHostToDevice);
+    return kclusters_device;
+}
+
+CudaKCluster* Preprocessor::kMeans(Volume* vol, int k) {
+    auto start = chrono::high_resolution_clock::now();
+
+    CudaKCluster* kclusters_device = initClusters(k);
+    CudaKCluster* kclusters_blocks;
+    cudaMallocManaged(&kclusters_blocks, vol->size.y * k * sizeof(CudaKCluster));   // K clusters for each BLOCK
+
+    int shared_mem_size = k * sizeof(CudaKCluster);
+    kMeansAssignmentKernel << <vol->size.y, vol->size.x, shared_mem_size >> > (vol->voxels, kclusters_device, kclusters_blocks, k, vol->size);
+    cudaDeviceSynchronize();
+    cudaError_t err = cudaGetLastError();        // Get error code
+    if (err != cudaSuccess)
+    {
+        printf("CUDA Error: %s\n", cudaGetErrorString(err));
+        exit(-1);
+    }
+    updateKClusters(kclusters_device, kclusters_blocks, vol->size, k);
+
+    printf("KCluster found in %d ms.\n\n\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    return kclusters_device;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -7,6 +7,13 @@
 #include <vector>
 #include <chrono>
 
+//Dunno which of these are necessary. Maybe none?
+#include <cuda.h>
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <device_functions.h>
+#include <cuda_runtime_api.h>
+
 #include "CudaContainers.cuh"
 //#include "CudaOps.cuh"
 using namespace std;
@@ -29,7 +36,7 @@ public:
 		scan = raw_scan;
 		size = s;
 
-		scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
+		//scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
 		Volume* volume = convertToVolume(scan, size);
 
 		// Algoritmic preprocessing
@@ -39,7 +46,8 @@ public:
 
 
 
-		rmf(volume);
+		//rmf(volume);
+		kMeans(volume, 12);
 		colorFromNormval(volume);
 
 
@@ -55,21 +63,13 @@ private:
 	void insertImInVolume(cv::Mat img, int z);
 	Volume* convertToVolume(float* scan, Int3 size);
 	void setIgnoreBelow(Volume* vol, float below);
-	float* makeNormvalCopy(Volume* vol) {
-		Voxel* hostvoxels = new Voxel[vol->len];
-		cudaMemcpy(hostvoxels, vol->voxels, vol->len * sizeof(Voxel), cudaMemcpyDeviceToHost);
-		float* copy_host = new float[vol->len];
-		for (int i = 0; i < vol->len; i++)
-			copy_host[i] = hostvoxels[i].norm_val;
-
-		float* copynorms;
-		cudaMallocManaged(&copynorms, vol->len * sizeof(float));
-		cudaMemcpy(copynorms, copy_host, vol->len * sizeof(float), cudaMemcpyHostToDevice);
-		return copynorms;
-	}
+	float* makeNormvalCopy(Volume* vol);
 	void colorFromNormval(Volume* vol);
-	void rmf(Volume* vol);
 
+
+
+	void rmf(Volume* vol);
+	CudaKCluster* kMeans(Volume* volume, int k);
 
 	void setColumnIgnores(Volume* vol);
 
