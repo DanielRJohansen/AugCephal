@@ -1,7 +1,15 @@
 #pragma once
 
+#include <cuda.h>
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#include <device_functions.h>
+#include <cuda_runtime_api.h>
+
+
+
+
+
 #include <iostream>
 #include <math.h>
 using namespace std;
@@ -255,10 +263,10 @@ public:
 class CudaKCluster {
 public:
 	__host__ __device__ CudaKCluster() {}
-	__host__ __device__ CudaKCluster(int id): id(id) {}
+	__host__ CudaKCluster(int id): id(id) { color = CudaColor().getRandColor(); }
 	__host__ __device__ ~CudaKCluster() {}
 
-	float calcCentroid() { 
+	__host__ __device__ float calcCentroid() {
 		float old = centroid;
 		if (num_members == 0)
 			num_members = 1;
@@ -266,35 +274,35 @@ public:
 		prev_members = num_members;
 		num_members = 0;
 		accumulation = 0;
-		printf("    K-Cluster %02d	centroid: %f    members: %d\n", id, centroid, prev_members);
+		//printf("    K-Cluster %02d	centroid: %f    members: %d\n", id, centroid, prev_members);
 		return abs(old - centroid);
 	}
 	__device__ float inline belonging(float val) { return 1-abs(val - centroid); }
-	__device__ void assign(float val) { 
-		while (blocked) {}
-		blocked = true;
-		num_members+=1; 
-		accumulation += val; 
-		blocked = false;
-	}
-	void assignBatch(float acc, int cnt) {
+	__device__ void assign(float val) {
+		//__threadfence();
+		num_members += 1;
+		accumulation += val;
+	};
+	__host__ __device__ void assignBatch(float acc, int cnt) {
 		accumulation += acc;
 		num_members += cnt;
 	}
-	void mergeBatch(CudaKCluster c) {
+	__host__ __device__ void mergeBatch(CudaKCluster c) {
 		num_members += c.num_members;
 		accumulation += c.accumulation;
 	}
 
 	bool blocked = false;
 
-	int num_members = 0;
-	int prev_members= -1;
-	float accumulation = 0;
+	// Must NOT be cached as it is accessed and CHANGED "simoultaneously" by different threads.
+	volatile int num_members = 0;
+	volatile float accumulation = 0;
 
+
+	int prev_members= -1;
 	int id;
 	float centroid = -1;
-	CudaColor color = CudaColor().getRandColor();
+	CudaColor color;
 };
 /*
 struct CudaMask2 {
