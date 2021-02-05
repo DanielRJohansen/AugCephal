@@ -251,13 +251,7 @@ struct CudaMask {
 	float masked_kernel[125];
 };
 
-class TestClass {
-public:
-	__host__ __device__ TestClass() {}
-	__host__ __device__ ~TestClass() {}
-	int id;
-	float val;
-};
+
 
 class CudaKCluster {
 public:
@@ -305,4 +299,22 @@ public:
 };
 
 
+class TissueCluster3D {
+public:
+	TissueCluster3D() {}
+	TissueCluster3D(int id) : id(id) { color = CudaColor().getRandColor(); }
+	
+	
+	int id = -1;
+	char k_cluster;
+	int* member_indexes;
+	int n_members;
+	float* mean;
+	CudaColor color;
 
+
+
+private:
+
+
+};

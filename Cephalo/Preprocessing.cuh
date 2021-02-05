@@ -70,12 +70,18 @@ private:
 
 
 	void rmf(Volume* vol);
-	
-	
 	void fuzzyClusterAssignment(Volume* volume, int k) {
 		FuzzyAssigner FA;
 		FA.doFuzzyAssignment(volume, k);
 	}
+
+	// Clustering
+	TissueCluster3D* cluster(Volume* vol, int* num_clusters);	//num_c is output aswell
+	TissueCluster3D* iniTissueCluster3D(Volume* vol, int num_clusters, Int3 size);
+	void propagateCluster(Volume* vol, int cluster_id, CudaColor color, float* acc_mean, int* n_members, int* member_indexes, Int3 pos);
+	
+	
+	
 	void setColumnIgnores(Volume* vol);
 
 
@@ -84,21 +90,9 @@ private:
 	void windowVolume(Volume* volume,  float min, float max);
 
 
-
-	
-
 	Int3 input_size;
 	float* raw_scan;
 	float* scan;
-
-
-
-
-
-
-
-
-
 
 
 

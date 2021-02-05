@@ -157,6 +157,7 @@ __global__ void fuzzyAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, fl
         int best_index = getBestBelongingIndex(belongings, k);
         voxel.color = kclusters[best_index].color;
         voxel.norm_val = kclusters[best_index].centroid;
+        voxel.cluster_id = best_index;
         if (neighbor_ignores > 7)
             voxel.ignore = true;
         voxels[xyzToIndex(Int3(x, y, z), size)] = voxel;

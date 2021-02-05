@@ -392,3 +392,108 @@ void Preprocessor::rmf(Volume* vol) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+//----------------------------------------------------------------------Clustering----------------------------------------------------------------------------------------------------\\
+
+TissueCluster3D* Preprocessor::cluster(Volume* vol, int* num_clusters) {
+    printf("Clustering initiated\n");
+
+    Int3 size = vol->size;
+    int id = 0;
+    CudaColor color = CudaColor().getRandColor();
+    float* acc_mean = new float(0);             // Accumulation of hu vals
+    int* n_members = new int(0);
+    int* member_indexes = new int[10000];
+    for (int z = 0; z < size.z; z++) {
+        for (int y = 0; y < size.y; y++) {
+            for (int x = 0; x < size.x; x++) {
+                Int3 pos(x, y, z);
+                int index = xyzToIndex(pos, size);
+
+                if (vol->voxels[index].cluster_id != -1)
+                        continue;
+                else
+                    propagateCluster(vol, id, color, acc_mean, n_members, member_indexes, Int3(x, y, z), );
+                }
+
+                // Do for all members in cluster
+                float cluster_mean = *acc_mean / (float)*n_members;
+                for (int i = 0; i < *n_members; i++) {
+                    image[member_indexes[i]].assignToCluster(id, color);
+                }
+                // Prepare for next cluster;
+                id++;
+                color = Color3().getRandColor();
+                *n_members = 0; // We dont need to overwrite the member list, as we only read untill n_mem, rest is overwritten
+                *acc_mean = 0;
+            }
+        }
+    }
+   
+    delete(acc_mean, n_members, member_indexes);
+    *num_clusters = id;
+    printf("Calculating cluster medians. ");
+    TissueCluster2D* clusters = initTissueCluster2D(image, *num_clusters, sizesq);
+    for (int i = 0; i < *num_clusters; i++) {
+        clusters[i].recalcCluster(image);
+    }
+    printf("%d clusters found \n", id);
+
+    return clusters;
+}
+
+int x_off[6] = { 0, 0, 0, 0, -1, 1 };
+int y_off[6] = { 0, 0, -1, 1, 0, 0 };
+int z_off[6] = { -1, 1, 0, 0, 0, 0 };
+void Preprocessor::propagateCluster(Volume* vol, int cluster_id, CudaColor color, float* acc_mean, int* n_members, int* member_indexes, Int3 pos) {
+    int index = xyzToIndex(pos, vol->size);
+    vol->voxels[index].cluster_id = cluster_id;
+
+    member_indexes[*n_members] = index;
+    *n_members += 1;
+    *acc_mean += vol->voxels[index].hu_val;
+
+    for (int i = 0; i < 6; i++) {
+        int x_ = pos.x + x_off[i];
+        int y_ = pos.y + y_off[i];
+        int z_ = pos.z + z_off[i];
+        Int3 pos_ = (x_, y_, z_);
+
+        if (!isInVolume(pos_, vol->size);
+            continue;
+
+        int index_ = xyzToIndex(pos_, vol->size);
+
+        if (!image[index_].isReserved() && image[index_].k_cluster == image[index].k_cluster)
+            propagateCluster(image, cluster_id, color, acc_mean, n_members, member_indexes, int2(x_, y_), type);
+        
+    }
+}
+
+
+TissueCluster3D* Preprocessor::initTissueCluster3D(Volume* vol, int num_clusters, Int3 size) {
+    TissueCluster2D* clusters = new TissueCluster2D[num_clusters];
+    for (int i = 0; i < num_clusters; i++) {
+        clusters[i] = TissueCluster2D(i, num_clusters);
+    }
+
+    for (int i = 0; i < sizesq; i++) {
+        Pixel p = image[i];
+        clusters[p.cluster_id].addToCluster(p, image);
+        image[i].assignToCluster(clusters[p.cluster_id].cluster_id, clusters[p.cluster_id].color);  // Mainly just to give the pixel the correct color.
+    }
+    return clusters;
+}
+
+
+
