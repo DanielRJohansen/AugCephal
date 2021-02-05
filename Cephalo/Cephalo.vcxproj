@@ -95,6 +95,7 @@
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="Preprocessing.cu" />
     <CudaCompile Include="Rendering.cu" />
+    <CudaCompile Include="Resizing.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
@@ -115,6 +116,7 @@
     <ClInclude Include="FuzzyAssignment.cuh" />
     <ClInclude Include="Preprocessing.cuh" />
     <ClInclude Include="Rendering.cuh" />
+    <ClInclude Include="Resizing.cuh" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Toolbox.h" />
     <ClInclude Include="Tools.h" />

@@ -16,13 +16,13 @@
 #include <cuda_runtime_api.h>
 
 #include "CudaContainers.cuh"
+#include "resizing.cuh"
 #include "FuzzyAssignment.cuh""
 using namespace std;
 
 typedef vector<string> stringvec;	// Used for reading directory
 
 
-float* Interpolate3D(float* raw_scan, Int3 size_from, Int3* size_to, float z_over_xy);	//Final arg refers to pixel spacing. Returns new size.
 
 
 class Preprocessor {
@@ -31,6 +31,7 @@ public:
 
 
 	Volume* processScan(string path, Int3 s, float z_over_xy) {
+		//return new Volume;
 		input_size = s;
 		raw_scan = new float[s.x*s.y*s.z];
 		loadScans(path);
