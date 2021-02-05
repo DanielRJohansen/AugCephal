@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <vector>
 #include <chrono>
+#include "math.h"
 
 //Dunno which of these are necessary. Maybe none?
 #include <cuda.h>
@@ -15,7 +16,7 @@
 #include <cuda_runtime_api.h>
 
 #include "CudaContainers.cuh"
-//#include "CudaOps.cuh"
+#include "FuzzyAssignment.cuh""
 using namespace std;
 
 typedef vector<string> stringvec;	// Used for reading directory
@@ -36,20 +37,20 @@ public:
 		scan = raw_scan;
 		size = s;
 
-		//scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
+		scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
 		Volume* volume = convertToVolume(scan, size);
 
 		// Algoritmic preprocessing
-		windowVolume(volume, -700, 800);		// Norm values are set here
+		windowVolume(volume, -600, 800);		// Norm values are set here
 		setIgnoreBelow(volume, -600);
 		setColumnIgnores(volume);
 
 
-
-		//rmf(volume);
-		kMeans(volume, 12);
-		colorFromNormval(volume);
-
+		int k = 8;
+		rmf(volume);
+		//CudaKCluster* kclusters = kMeans(volume, k, 60);			
+		//colorFromNormval(volume);
+		fuzzyClusterAssignment(volume, k);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 		printf("Preprocessing finished!\n\n");
 		return volume;
@@ -65,12 +66,16 @@ private:
 	void setIgnoreBelow(Volume* vol, float below);
 	float* makeNormvalCopy(Volume* vol);
 	void colorFromNormval(Volume* vol);
-
+	
 
 
 	void rmf(Volume* vol);
-	CudaKCluster* kMeans(Volume* volume, int k);
-
+	
+	
+	void fuzzyClusterAssignment(Volume* volume, int k) {
+		FuzzyAssigner FA;
+		FA.doFuzzyAssignment(volume, k);
+	}
 	void setColumnIgnores(Volume* vol);
 
 

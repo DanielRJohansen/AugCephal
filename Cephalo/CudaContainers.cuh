@@ -126,9 +126,9 @@ struct Voxel{	//Lots of values
 	bool ignore = false;
 	float hu_val = 10;
 	int cluster_id = -1;
-	float alpha = 1;
-	float norm_val = 0;
-	CudaColor color;
+	float alpha = 0.5;
+	float norm_val = 0;			// Becomes kcluster centroid during fuzzy assignment
+	CudaColor color;			// Set during fuzzy assignment
 
 	__device__ void norm(float min, float max) {
 		if (hu_val > max) { norm_val = 1; }
@@ -263,14 +263,14 @@ public:
 class CudaKCluster {
 public:
 	__host__ __device__ CudaKCluster() {}
-	__host__ CudaKCluster(int id): id(id) { color = CudaColor().getRandColor(); }
+	__host__ CudaKCluster(int id, int k) : id(id) { color = CudaColor().getRandColor(); centroid = ((float)id +0.5)/ (float)k; }
 	__host__ __device__ ~CudaKCluster() {}
 
 	__host__ __device__ float calcCentroid() {
 		float old = centroid;
 		if (num_members == 0)
 			num_members = 1;
-		centroid = (float)(accumulation / num_members); 
+		centroid = (float)(accumulation / (float)num_members);
 		prev_members = num_members;
 		num_members = 0;
 		accumulation = 0;
@@ -304,42 +304,6 @@ public:
 	float centroid = -1;
 	CudaColor color;
 };
-/*
-struct CudaMask2 {
-	__device__ CudaMask2() {}
-	__device__ CudaMask2(int a) {
-		for (int i = 0; i < 125; i++) {
-			mask[i] = 0;
-		}
-	}
-	__device__ CudaMask2(int x, int y, int z) {
-		for (int i = 0; i < masksize; i++) {
-			mask[i] = 0;
-		}
-		for (int z_ = z; z_ < z + 3; z_++) {
-			for (int y_ = y; y_ < y + 3; y_++) {
-				for (int x_ = x; x_ < x + 3; x_++) {
-					mask[xyzC(x_, y_, z_)] = 1;
-				}
-			}
-		}
-	}
-	float mask[125];
-	const int masksize = 125;
-	__device__ inline int xyzC(int x, int y, int z) { return z * 125 * 125 + y * 125 + x; }
-};
-	__device__ float applyMask(float kernel[125]) {
-		float mean = 0;
-		for (int i = 0; i < 125; i++) {
-			kernel[i] *= mask[i];
-			mean += kernel[i];
-		}
-		mean /= 27;
-		return mean;
-	};				// Returns mean
-		// Returns var
-	*/
-
 
 
 

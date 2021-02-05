@@ -91,6 +91,7 @@
     <CudaCompile Include="backup.cu" />
     <CudaCompile Include="CudaContainers.cu" />
     <CudaCompile Include="CudaOps.cu" />
+    <CudaCompile Include="FuzzyAssignment.cu" />
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="Preprocessing.cu" />
     <CudaCompile Include="Rendering.cu" />
@@ -111,6 +112,7 @@
     <ClInclude Include="CudaContainers.cuh" />
     <ClInclude Include="CudaOps.cuh" />
     <ClInclude Include="Environment.h" />
+    <ClInclude Include="FuzzyAssignment.cuh" />
     <ClInclude Include="Preprocessing.cuh" />
     <ClInclude Include="Rendering.cuh" />
     <ClInclude Include="resource.h" />

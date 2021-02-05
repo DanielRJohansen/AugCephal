@@ -158,10 +158,10 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
         if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { // Only proceed if coordinate is within volume!
             int volume_index = xyzToIndex(pos, vol_size);
 
-            if (vol_z == 0) {
+            /*if (vol_z == 0) {
                 cray.color.b += 255 * (1 - cray.alpha);
                 break;
-            }
+            }*/
             int column_index = vol_y * vol_size.x + vol_x;
             int quad_index = CB.quadIndex(column_index);
             if (xyignores[quad_index] == 0)

@@ -941,4 +941,110 @@ __device__ int circularWindow::step() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+__global__ void kMeansAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, CudaKCluster* global_clusters, int k, Int3 size) {
+    int y = blockIdx.x;
+    int x = threadIdx.x;
+
+    extern __shared__ CudaKCluster block_clusters[];
+    CudaKCluster* shared_clusters = (CudaKCluster*)block_clusters;
+    float* thread_accs = (float*)&shared_clusters[k];
+    short* thread_mems = (short*)&thread_accs[k*size.x];
+
+
+    updateGlobalClustersIntoShared(shared_clusters, kclusters, k);  // Load clusters into shared mem
+    resetAccumulations(thread_accs, thread_mems, k);                // Init thread mem
+
+    // Algo
+    int offset = x * k;
+    int count = 0;
+    for (int z = 0; z < size.z; z++) {
+        Voxel voxel = voxels[xyzToIndex(Int3(x,y,z), size)];
+        if (!voxel.ignore) {
+            thread_accs[offset + (count % k)] += voxel.norm_val;
+            thread_mems[offset + (count % k)] += 1;
+            count++;
+        }
+    }
+
+    updateSharedMemClusters(shared_clusters, thread_accs, thread_mems, k, size);
+    pushSharedMemClusterToGlobalBlockClusters(shared_clusters, global_clusters, k);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 */
