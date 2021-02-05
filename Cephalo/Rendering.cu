@@ -16,12 +16,8 @@ Ray* RenderEngine::initRays() {
     return rayptr_host;
 };
 
-__device__ __host__ int xyzToIndex(Int3 coord, Int3 size) {
-    return coord.z * size.y * size.x + coord.y * size.x + coord.x;
-}
-__device__ inline bool isInVolume(Int3 coord, Int3 size) {
-    return coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z;
-}
+
+
 
 
 __device__ float activationFunction(float counts) {
@@ -72,14 +68,14 @@ __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
 }
 
 
-__device__ bool isInVolume(CudaFloat3 relativeorigin, Int3 vol_size) {
+__device__ bool isInVolumeCF3(CudaFloat3 relativeorigin, Int3 vol_size) {
     float buf = 0.001;
     return relativeorigin.x + buf >= 0 && relativeorigin.y + buf >= 0 && relativeorigin.z + buf >= 0 && relativeorigin.x - buf <= vol_size.x && relativeorigin.y - buf <= vol_size.y && relativeorigin.z - buf <= vol_size.z;
 }
 
 __device__ float overwriteIfLowerAndIntersect(Int3 size, CudaFloat3 origin, CudaFloat3 vector, float old, float newval, float above) {
     if (newval < old && newval > above) {
-        if (isInVolume(origin+(vector*newval), size))
+        if (isInVolumeCF3(origin+(vector*newval), size))
             return newval;
     }
     return old;
@@ -111,7 +107,7 @@ __device__ Int2 smartStartStop(CudaFloat3 origin, CudaFloat3 vector, Int3 vol_si
     CudaFloat3 rel_origin = origin + (size * 0.5);
 
     float start, stop;
-    if (isInVolume(rel_origin, vol_size))
+    if (isInVolumeCF3(rel_origin, vol_size))
         start = 50;
     else
         start = firstIntersection(rel_origin, vector, vol_size, 0);

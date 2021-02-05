@@ -16,16 +16,11 @@
 
 
 
-__device__ __host__ int xyzToIndex2(Int3 coord, Int3 size) {
-    return coord.z * size.y * size.x + coord.y * size.x + coord.x;
-}
-
-
 void Preprocessor::insertImInVolume(cv::Mat img, int z) {
     for (int y = 0; y < input_size.y; y++) {
         for (int x = 0; x < input_size.x; x++) {
             float hu = img.at<uint16_t>(y, x) - 32768.; // Load as float here, as we do all further calcs on floats in GPU
-            raw_scan[xyzToIndex2(Int3(x,y,z), input_size)] = hu;
+            raw_scan[xyzToIndex(Int3(x,y,z), input_size)] = hu;
         }
     }
 }
@@ -58,7 +53,7 @@ __global__ void conversionKernel(Voxel* voxels, float* hu_vals, Int3 size) {
     int x = blockIdx.x;
     int y = threadIdx.x;
     for (int z = 0; z < size.z; z++) {
-        int index = xyzToIndex2(Int3(x, y, z), size);
+        int index = xyzToIndex(Int3(x, y, z), size);
         voxels[index].hu_val = 600;
     }
 }
@@ -94,7 +89,7 @@ __global__ void setIgnoreBelowKernel(Voxel* voxels, float below, Int3 size) {
     int x = blockIdx.x;
     int y = threadIdx.x;
     for (int z = 0; z < size.z; z++) {
-        int index = xyzToIndex2(Int3(x, y, z), size);
+        int index = xyzToIndex(Int3(x, y, z), size);
         if (voxels[index].hu_val < below)
             voxels[index].ignore = true;
     }
@@ -125,7 +120,7 @@ __global__ void setColumnIgnoresKernel(Voxel* voxels, bool* xyColumnIgnores, Int
     xyColumnIgnores[ignore_index] = 0;
     int counts = 0;
     for (int z = 0; z < size.z; z++) {
-        int index = xyzToIndex2(Int3(x, y, z), size);
+        int index = xyzToIndex(Int3(x, y, z), size);
         if (!voxels[index].ignore) {
             return;
         }            
@@ -161,7 +156,7 @@ __global__ void colorFromNormvalKernel(Voxel* voxels, Int3 size) {
     int x = blockIdx.x;
     int y = threadIdx.x;
     for (int z = 0; z < size.z; z++) {
-        int index = xyzToIndex2(Int3(x, y, z), size);
+        int index = xyzToIndex(Int3(x, y, z), size);
         voxels[index].color = CudaColor(voxels[index].norm_val);
     }
 }
@@ -189,7 +184,7 @@ __global__ void windowKernel(Voxel* voxels, float min, float max, Int3 size) {
     int x = blockIdx.x;
     int y = threadIdx.x;
     for (int z = 0; z < size.z; z++) {
-        int index = xyzToIndex2(Int3(x, y, z), size);
+        int index = xyzToIndex(Int3(x, y, z), size);
         //float a = voxels[index].norm_val;
         voxels[index].norm(min, max);
     }
@@ -248,12 +243,7 @@ void Preprocessor::speedTest() {
 
 
 
-__device__ inline bool isInVolume(Int3 coord, Int3 size) {
-    return coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z;
-}
-__device__ inline int xyzToIndex(Int3 coord, Int3 size) {
-    return coord.z * size.y * size.x + coord.y * size.x + coord.x;
-}
+
 __host__ __device__ void makeMasks(CudaMask* masks) {
     int i = 0;
     for (int zs = 0; zs < 3; zs++) {

@@ -13,6 +13,8 @@
 #include "Camera.h"
 
 
+#include "GeneralPurposeFunctions.cuh"
+
 
 __device__ const float RAY_SS = 0.4;
 __device__ const float e = 2.7182;

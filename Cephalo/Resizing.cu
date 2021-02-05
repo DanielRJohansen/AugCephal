@@ -2,12 +2,8 @@
 #include "Resizing.cuh"
 
 
-__device__ bool isLegal(Int3 coord, Int3 size) {
-    return (coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z);
-}
-__device__ __host__ int xyzToIndex3(Int3 coord, Int3 size) {
-    return coord.z * size.y * size.x + coord.y * size.x + coord.x;
-}
+
+
 
 // RESIZING
 
@@ -52,8 +48,8 @@ __device__ void getInterpolationKernel(float* raw_scans, float* kernel, int x, i
     for (int z_ = z_start; z_ < z + 4; z_++) {
         for (int y_ = y; y_ < y + 4; y_++) {
             for (int x_ = x; x_ < x + 4; x_++) {
-                if (isLegal(Int3(x_, y_, z_), size)) {
-                    float a = raw_scans[xyzToIndex3(Int3(x_, y_, z_), size)];
+                if (isInVolume(Int3(x_, y_, z_), size)) {
+                    float a = raw_scans[xyzToIndex(Int3(x_, y_, z_), size)];
                     kernel[i] = a;
                 }
                 else
@@ -85,17 +81,17 @@ __global__ void interpolationKernel(float* raw_scans, float* resized_scan, Int3 
 
             // No xy increase
             Int3 coord(x, y, z_new);
-            if (isLegal(coord, size_to)) {
+            if (isInVolume(coord, size_to)) {
                 float point_val = tricubicInterpolate(kernel_arr, 3 / 6., 3 / 6., rel_z);
-                int point_index = xyzToIndex3(coord, size_to);
+                int point_index = xyzToIndex(coord, size_to);
                 resized_scan[point_index] = point_val;
             }
             /*for (int yoff = 0; yoff < 2; yoff++) {
                 for (int xoff = 0; xoff < 2; xoff++) {
                     Int3 coord(x * 2 + xoff, y * 2 + yoff, z_new);
-                    if (isLegal(coord, size_to)) {
+                    if (isInVolume(coord, size_to)) {
                         float point_val = tricubicInterpolate(kernel_arr, 2 / 6. + xoff / 6., 2 / 6. + yoff / 6., rel_z);
-                        int point_index = xyzToIndex3(coord, size_to);
+                        int point_index = xyzToIndex(coord, size_to);
                         resized_scan[point_index] = point_val;
                     }
                 }

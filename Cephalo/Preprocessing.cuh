@@ -12,10 +12,11 @@
 #include <cuda.h>
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-#include <device_functions.h>
 #include <cuda_runtime_api.h>
 
 #include "CudaContainers.cuh"
+#include "GeneralPurposeFunctions.cuh"
+
 #include "resizing.cuh"
 #include "FuzzyAssignment.cuh""
 using namespace std;
@@ -47,10 +48,8 @@ public:
 		setColumnIgnores(volume);
 
 
-		int k = 8;
+		int k = 6;
 		rmf(volume);
-		//CudaKCluster* kclusters = kMeans(volume, k, 60);			
-		//colorFromNormval(volume);
 		fuzzyClusterAssignment(volume, k);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 		printf("Preprocessing finished!\n\n");

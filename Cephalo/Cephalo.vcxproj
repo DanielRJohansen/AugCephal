@@ -114,6 +114,7 @@
     <ClInclude Include="CudaOps.cuh" />
     <ClInclude Include="Environment.h" />
     <ClInclude Include="FuzzyAssignment.cuh" />
+    <ClInclude Include="GeneralPurposeFunctions.cuh" />
     <ClInclude Include="Preprocessing.cuh" />
     <ClInclude Include="Rendering.cuh" />
     <ClInclude Include="Resizing.cuh" />

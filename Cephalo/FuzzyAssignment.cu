@@ -6,12 +6,8 @@ __managed__ float kcluster_total_change = 99;
 
 //--------------------------KERNEL Helper functions----------------------//
 
-__device__ inline bool isInVolume(Int3 coord, Int3 size) {
-    return coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z;
-}
-__device__ inline int xyzToIndex(Int3 coord, Int3 size) {
-    return coord.z * size.y * size.x + coord.y * size.x + coord.x;
-}
+
+
 
 
 __device__ void updateGlobalClustersIntoShared(CudaKCluster* shared_clusters, CudaKCluster* kclusters, int k) {
@@ -54,32 +50,6 @@ __device__ void resetBelongings(float* belongings, int k) {
     for (int i = 0; i < k; i++) {
         belongings[i] = 0;
     }
-}
-
-float dist(Int3 o, Int3 p) {
-    float x_ = o.x - p.x;
-    float y_ = o.y - p.y;
-    float z_ = o.z - p.z;
-    return sqrt(x_ * x_ + y_ * y_ + z_ * z_);
-}
-
-float* makeGaussianKernel3D() {
-    float* kernel = new float[3 * 3 * 3];
-    Int3 o(0, 0, 0);
-    int index = 0;
-    for (int z = -1; z <= 1; z++) {
-        for (int y = -1; y <= 1; y++) {
-            for (int x = -1; x <= 1; x++) {
-                Int3 p(x, y, z);
-                kernel[index] = 1 / (1 + dist(o, p));
-            }
-        }
-    }
-    float* kernel_dev;
-    cudaMallocManaged(&kernel_dev, 3 * 3 * 3 * sizeof(float));
-    cudaMemcpy(kernel_dev, kernel, 3 * 3 * 3 * sizeof(float), cudaMemcpyHostToDevice);
-    delete(kernel);
-    return kernel_dev;
 }
 
 __device__ int getBestBelongingIndex(float* belongings, int k) {
@@ -170,11 +140,11 @@ __global__ void fuzzyAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, fl
             for (int y_ = y - 1; y_ <= y + 1; y_++) {
                 for (int x_ = x - 1; x_ <= x + 1; x_++) {
                     if (isInVolume(Int3(x_, y_, z_), size)) {
-                        int gauss_kernel_index = z * 9 + y * 3 + x;
+                        int gauss_kernel_index = (z_-z) * 9 + (y_-y) * 3 + (x_-x);
                         Voxel voxel = voxels[xyzToIndex(Int3(x_, y_, z_), size)];
                         if (!voxel.ignore) {
                             for (int i = 0; i < k; i++) {
-                                belongings[i] += kclusters[i].belonging(voxel.norm_val);// *gauss_kernel[gauss_kernel_index];
+                                belongings[i] += kclusters[i].belonging(voxel.norm_val) *gauss_kernel[gauss_kernel_index];
                             }
                         }
                         else
@@ -246,7 +216,35 @@ CudaKCluster* initClusters(int k) {
 
 
 
+float dist(Int3 o, Int3 p) {
+    float x_ = o.x - p.x;
+    float y_ = o.y - p.y;
+    float z_ = o.z - p.z;
+    return sqrt(x_ * x_ + y_ * y_ + z_ * z_);
+}
 
+float* makeGaussianKernel3D() {
+    float* kernel = new float[3 * 3 * 3];
+    Int3 o(0, 0, 0);
+    int index = 0;
+    for (int z = -1; z <= 1; z++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+                Int3 p(x, y, z);
+                kernel[index++] = 1 / (1 + dist(o, p));
+                //printf("%d  ", index % 9);
+                printf("%05f  ", kernel[index - 1]);
+                if (!(index % 9))
+                    printf("\n");
+            }
+        }
+    }
+    float* kernel_dev;
+    cudaMallocManaged(&kernel_dev, 3 * 3 * 3 * sizeof(float));
+    cudaMemcpy(kernel_dev, kernel, 3 * 3 * 3 * sizeof(float), cudaMemcpyHostToDevice);
+    delete(kernel);
+    return kernel_dev;
+}
 
 
 
