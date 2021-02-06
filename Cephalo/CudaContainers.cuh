@@ -41,7 +41,7 @@ struct CudaColor {
 	}
 
 	__device__ __host__ CudaColor getRandColor() { return CudaColor(rand() % 255, rand() % 255, rand() % 255); }
-
+	__device__ __host__ void assignRandomColor() {  r = (rand() % 255, g = rand() % 255, b = rand() % 255); }
 
 
 	__device__ inline CudaColor operator*(float s) const { return CudaColor(r * s, g * s, b * s); }
@@ -304,14 +304,17 @@ class TissueCluster3D {
 public:
 	TissueCluster3D() {}
 	TissueCluster3D(int id, int target_kcluster) : id(id), target_kcluster(target_kcluster) { 
-		color = CudaColor().getRandColor(); 
+		color.assignRandomColor();
 	}
 	
 	void addMember(int index) {
-		//member_indexes.push_back(index);
+		member_indexes.push_back(index);
 		n_members++;
 	}
-
+	void colorMembers(Voxel* voxels) {
+		for (int i = 0; i < n_members; i++)
+			voxels[member_indexes[i]].color = color;
+	}
 
 	//For initialization only
 	char target_kcluster;
@@ -319,7 +322,7 @@ public:
 
 
 	// General purpose variables
-	int id = -1;
+	int id;
 	char k_cluster;
 	int n_members = 0;
 	float* mean;

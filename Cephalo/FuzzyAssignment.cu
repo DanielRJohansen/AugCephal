@@ -155,16 +155,16 @@ __global__ void fuzzyAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, fl
                     }
                 }
             }
-        }
-        
-        int best_index = getBestBelongingIndex(belongings, k);
-        voxel.color = kclusters[best_index].color;
-        //voxel.norm_val = kclusters[best_index].centroid;
-        voxel.kcluster = best_index;
-        if (neighbor_ignores > 7)
-            voxel.ignore = true;
-        voxels[xyzToIndex(Int3(x, y, z), size)] = voxel;
 
+
+            int best_index = getBestBelongingIndex(belongings, k);
+            voxel.color = kclusters[best_index].color;
+            //voxel.norm_val = kclusters[best_index].centroid;
+            voxel.kcluster = best_index;
+            if (neighbor_ignores > 7)
+                voxel.ignore = true;
+            voxels[xyzToIndex(Int3(x, y, z), size)] = voxel;
+        }
     }
 }
 
@@ -248,7 +248,18 @@ float* makeGaussianKernel3D() {
 
 
 
+void checkFuzzyAssignment(Volume* vol, int k) {
+    Voxel* vh = new Voxel[vol->len];
+    cudaMemcpy(vh, vol->voxels, vol->len * sizeof(Voxel), cudaMemcpyDeviceToHost);
+    int* belongings = new int[k+1]();
+    for (int i = 0; i < vol->len; i++) {
+        belongings[vh[i].kcluster+1] += 1;
+    }
+    printf("Fuzzy assignment: \n");
+    for (int i = -1; i < k; i++)
+        printf("Kluster %d  members: %d\n", i, belongings[i+1]);
 
+}
 
 
 
@@ -298,7 +309,7 @@ void FuzzyAssigner::fuzzyClusterAssignment(Volume* vol, CudaKCluster* kclusters_
     fuzzyAssignmentKernel << <vol->size.y, vol->size.x, shared_mem_size >> > (vol->voxels, kclusters_dev, gauss_kernel_dev, k, vol->size);
     cudaDeviceSynchronize();
 
-
+    //checkFuzzyAssignment(vol, k);
 
     printf("Fuzzy assignment completed in %d ms.\n\n\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
