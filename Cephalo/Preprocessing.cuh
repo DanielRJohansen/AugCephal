@@ -14,6 +14,10 @@
 #include "device_launch_parameters.h"
 #include <cuda_runtime_api.h>
 
+// Threading
+#include <future>
+#include <thread>
+
 #include "CudaContainers.cuh"
 #include "GeneralPurposeFunctions.cuh"
 
@@ -39,7 +43,7 @@ public:
 		scan = raw_scan;
 		size = s;
 
-		scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
+		//scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
 		Volume* volume = convertToVolume(scan, size);
 
 		// Algoritmic preprocessing
@@ -50,7 +54,11 @@ public:
 
 		int k = 6;
 		rmf(volume);
-		fuzzyClusterAssignment(volume, k);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		fuzzyClusterAssignment(volume, k, 4);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+
+		int num_clusters;
+		clusterAsync(volume, &num_clusters, k);
+		//clusterSync(volume, &num_clusters);
 
 		printf("Preprocessing finished!\n\n");
 		return volume;
@@ -70,15 +78,16 @@ private:
 
 
 	void rmf(Volume* vol);
-	void fuzzyClusterAssignment(Volume* volume, int k) {
+	void fuzzyClusterAssignment(Volume* volume, int k, int max_iterations) {
 		FuzzyAssigner FA;
-		FA.doFuzzyAssignment(volume, k);
+		FA.doFuzzyAssignment(volume, k, max_iterations);
 	}
 
 	// Clustering
-	TissueCluster3D* cluster(Volume* vol, int* num_clusters);	//num_c is output aswell
+	TissueCluster3D* clusterAsync(Volume* vol, int* num_clusters, int k);
+	TissueCluster3D* clusterSync(Volume* vol, int* num_clusters);
+
 	TissueCluster3D* iniTissueCluster3D(Volume* vol, int num_clusters, Int3 size);
-	void propagateCluster(Volume* vol, int cluster_id, CudaColor color, float* acc_mean, int* n_members, int* member_indexes, Int3 pos);
 	
 	
 	

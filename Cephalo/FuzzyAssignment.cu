@@ -136,28 +136,31 @@ __global__ void fuzzyAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, fl
     for (int z = 0; z < size.z; z++) {
         resetBelongings(belongings, k);
         int neighbor_ignores = 0;
-        for (int z_ = z - 1; z_ <= z + 1; z_++) {
-            for (int y_ = y - 1; y_ <= y + 1; y_++) {
-                for (int x_ = x - 1; x_ <= x + 1; x_++) {
-                    if (isInVolume(Int3(x_, y_, z_), size)) {
-                        int gauss_kernel_index = (z_-z) * 9 + (y_-y) * 3 + (x_-x);
-                        Voxel voxel = voxels[xyzToIndex(Int3(x_, y_, z_), size)];
-                        if (!voxel.ignore) {
-                            for (int i = 0; i < k; i++) {
-                                belongings[i] += kclusters[i].belonging(voxel.norm_val) *gauss_kernel[gauss_kernel_index];
+        Voxel voxel = voxels[xyzToIndex(Int3(x, y, z), size)];
+        if (!voxel.ignore) {
+            for (int z_ = z - 1; z_ <= z + 1; z_++) {
+                for (int y_ = y - 1; y_ <= y + 1; y_++) {
+                    for (int x_ = x - 1; x_ <= x + 1; x_++) {
+                        if (isInVolume(Int3(x_, y_, z_), size)) {
+                            int gauss_kernel_index = (z_ - z) * 9 + (y_ - y) * 3 + (x_ - x);
+                            Voxel voxel_ = voxels[xyzToIndex(Int3(x_, y_, z_), size)];
+                            if (!voxel_.ignore) {
+                                for (int i = 0; i < k; i++) {
+                                    belongings[i] += kclusters[i].belonging(voxel_.norm_val) * gauss_kernel[gauss_kernel_index];
+                                }
                             }
+                            else
+                                neighbor_ignores++;
                         }
-                        else
-                            neighbor_ignores++;
                     }
                 }
             }
         }
-        Voxel voxel = voxels[xyzToIndex(Int3(x, y, z), size)];
+        
         int best_index = getBestBelongingIndex(belongings, k);
         voxel.color = kclusters[best_index].color;
-        voxel.norm_val = kclusters[best_index].centroid;
-        voxel.cluster_id = best_index;
+        //voxel.norm_val = kclusters[best_index].centroid;
+        voxel.kcluster = best_index;
         if (neighbor_ignores > 7)
             voxel.ignore = true;
         voxels[xyzToIndex(Int3(x, y, z), size)] = voxel;
@@ -198,7 +201,7 @@ void printKmeansStuff(CudaKCluster* cluster_dev, int k) {
     printf("\n");
     for (int i = 0; i < k; i++) {
         CudaKCluster kc = kc_host[i];
-        printf("    K-Cluster %02d	centroid: %05d    members: %d\n", kc.id, normvalToHuval(kc.centroid), kc.prev_members);
+        printf("    K-Cluster %02d	centroid: %05d    members: %d       color: %03d %03d %03d\n", kc.id, normvalToHuval(kc.centroid), kc.prev_members), kc.color.r, kc.color.g, kc.color.b;
     }
     printf("\n");
 }
@@ -233,10 +236,6 @@ float* makeGaussianKernel3D() {
             for (int x = -1; x <= 1; x++) {
                 Int3 p(x, y, z);
                 kernel[index++] = 1 / (1 + dist(o, p));
-                //printf("%d  ", index % 9);
-                printf("%05f  ", kernel[index - 1]);
-                if (!(index % 9))
-                    printf("\n");
             }
         }
     }

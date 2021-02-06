@@ -43,6 +43,8 @@ int pointerPLay() {
 
 
 int main() {
+
+
 	/*unsigned h[10000];
 	
 	unsigned test[4];

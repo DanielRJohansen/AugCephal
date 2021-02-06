@@ -21,8 +21,8 @@ class FuzzyAssigner {
 
 
 public:
-	void doFuzzyAssignment(Volume* volume, int k) {
-		CudaKCluster* kclusters = kMeans(volume, k, 60);			
+	void doFuzzyAssignment(Volume* volume, int k, int max_iterations) {
+		CudaKCluster* kclusters = kMeans(volume, k, max_iterations);			
 		fuzzyClusterAssignment(volume, kclusters, k);
 	}
 

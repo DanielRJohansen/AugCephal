@@ -4,7 +4,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda_runtime_api.h>
-
+#include <vector>
 
 
 
@@ -125,6 +125,7 @@ struct Voxel{	//Lots of values
 	bool ignore = false;
 	float hu_val = 10;
 	int cluster_id = -1;
+	int kcluster = -1;
 	float alpha = 0.5;
 	float norm_val = 0;			// Becomes kcluster centroid during fuzzy assignment
 	CudaColor color;			// Set during fuzzy assignment
@@ -302,19 +303,31 @@ public:
 class TissueCluster3D {
 public:
 	TissueCluster3D() {}
-	TissueCluster3D(int id) : id(id) { color = CudaColor().getRandColor(); }
+	TissueCluster3D(int id, int target_kcluster) : id(id), target_kcluster(target_kcluster) { 
+		color = CudaColor().getRandColor(); 
+	}
 	
-	
+	void addMember(int index) {
+		//member_indexes.push_back(index);
+		n_members++;
+	}
+
+
+	//For initialization only
+	char target_kcluster;
+
+
+
+	// General purpose variables
 	int id = -1;
 	char k_cluster;
-	int* member_indexes;
-	int n_members;
+	int n_members = 0;
 	float* mean;
 	CudaColor color;
 
 
 
 private:
-
+	vector<int> member_indexes;
 
 };
