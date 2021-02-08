@@ -17,13 +17,11 @@ public:
 			treesize++;
 		}			
 	}
-	void deleteVal(int key) {
+	void deleteVal(int key) {				// ONLY CALL ON VALUES THAT DOES EXIST IN TREE!!!!!!!
 		if (root != NULL) {
-			if (root->leaf)
-				root->deleteNode(key);
-			else {
-				delete(root);
-				root = NULL;
+			if (root->deleteNode(key)) {
+			delete(root);
+			root = NULL;
 			}
 		}
 		treesize--;							// Can NOT track wheter the value is ACTUALLY found.
@@ -123,11 +121,10 @@ private:
 		}
 
 		int findReplacement() {
-			if (left != NULL) 
+			if (left != NULL)		//Only called on non-leafs
 				return left->max();
 			else
 				return right->min();
-			
 		}
 
 		int min() {

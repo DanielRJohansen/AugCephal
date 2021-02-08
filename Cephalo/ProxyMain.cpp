@@ -51,20 +51,6 @@ int main() {
 
 
 
-	UnorderedIntTree tree;
-	tree.addVal(9);
-	tree.addVal(121);
-	tree.addVal(1201);
-	tree.addVal(46);
-	tree.deleteVal(121);
-	int* aa = tree.fetch();
-	for (int i = 0; i < tree.size(); i++)
-		printf("%d  ", aa[i]);
-		
-
-
-	printf("\n\nSize: %d", tree.size());
-	return 1;
 
 	//SliceMagic SliceM;
 	Preprocessor PP;

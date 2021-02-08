@@ -201,7 +201,7 @@ void printKmeansStuff(CudaKCluster* cluster_dev, int k) {
     printf("\n");
     for (int i = 0; i < k; i++) {
         CudaKCluster kc = kc_host[i];
-        printf("    K-Cluster %02d	centroid: %05d    members: %d       color: %03f %03f %03f\n", kc.id, normvalToHuval(kc.centroid), kc.prev_members), kc.color.r, kc.color.g, kc.color.b;
+        printf("    K-Cluster %02d	centroid: %05d    members: %d  \n", kc.id, normvalToHuval(kc.centroid), kc.prev_members);
     }
     printf("\n");
 }

@@ -408,25 +408,7 @@ void Preprocessor::rmf(Volume* vol) {
 
 
 
-TissueCluster3D* clusterTask(Volume* vol, int* num_clusters, int target_kcluster);
 
-
-TissueCluster3D* Preprocessor::clusterAsync(Volume* vol, int* num_clusters, int k) {
-    printf("Clustering initiated\n");
-    TissueCluster3D** nested_clusters = new TissueCluster3D * [k];
-
-    async(launch::async, clusterTask, vol, num_clusters, 0);
-    async(launch::async, clusterTask, vol, num_clusters, 1);
-    async(launch::async, clusterTask, vol, num_clusters, 2);
-    async(launch::async, clusterTask, vol, num_clusters, 3);
-
-
-    for (int i = 0; i < k; i++)
-        async(launch::async, clusterTask, vol, num_clusters, i);
-        //future<TissueCluster3D**> nested_clusters[i] = async(launch::async, clusterTask, vol, num_clusters, i);
-
-    return new TissueCluster3D;
-}
 
 
 const int x_off[6] = { 0, 0, 0, 0, -1, 1 };
@@ -457,61 +439,6 @@ void propagateCluster(Volume* vol, TissueCluster3D* cluster, Int3 pos, int depth
         }
     }
 }
-
-TissueCluster3D* clusterTask(Volume* vol, int* num_clusters, int target_kcluster) {
-    printf("Clustering initiated\n");
-
-    auto start = chrono::high_resolution_clock::now();
-
-    Int3 size = vol->size;
-    int id = 0;
-    CudaColor color = CudaColor().getRandColor();
-
-    vector<TissueCluster3D> clusters;
-
-    for (int z = 0; z < size.z; z++) {
-        printf("Z: %d\r", z);
-        for (int y = 0; y < size.y; y++) {
-            for (int x = 0; x < size.x; x++) {
-                Int3 pos(x, y, z);
-                int index = xyzToIndex(pos, size);
-                Voxel voxel = vol->voxels[index];
-                if (voxel.cluster_id == -1 && voxel.kcluster == target_kcluster) {  // Second boolean handles ignoring ignores ;)
-                    TissueCluster3D cluster(id, target_kcluster);
-                    propagateCluster(vol, &cluster, Int3(x, y, z), 0);
-                    clusters.push_back(cluster);
-                    id++;
-                }
-            }
-        }
-    }
-    *num_clusters = id;
-
-    printf("\n              %d clusters found in %d ms \n", id, chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
-
-    return new TissueCluster3D;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 vector<TissueCluster3D> Preprocessor::clusterSync(Volume* vol, int* num_clusters) {
@@ -547,7 +474,6 @@ vector<TissueCluster3D> Preprocessor::clusterSync(Volume* vol, int* num_clusters
 
     unsigned int edge_voxels = 0;
     for (int i = 0; i < clusters.size(); i++) {
-        printf("%d       %d\n", i, clusters[i].n_members);
         clusters[i].colorMembers(vol->voxels);
         edge_voxels += clusters[i].determineEdges(vol);
     }

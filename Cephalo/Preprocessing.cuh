@@ -43,7 +43,7 @@ public:
 		scan = raw_scan;
 		size = s;
 
-		scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
+		//scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
 		Volume* volume = convertToVolume(scan, size);
 
 		// Algoritmic preprocessing
@@ -54,7 +54,7 @@ public:
 
 		int k = 10;
 		rmf(volume);
-		fuzzyClusterAssignment(volume, k, 4);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		fuzzyClusterAssignment(volume, k, 40);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 		int num_clusters;
 		vector<TissueCluster3D> clusters = clusterSync(volume, &num_clusters);

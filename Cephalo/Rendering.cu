@@ -166,14 +166,13 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
                 continue;
 
 
-            if (volume_index == prev_vol_index) {
+            if (volume_index == prev_vol_index) {   // Dont render same block twice
                 continue;
-                if (cached_voxel->ignore) { continue; }
             }
             
             else {
                 prev_vol_index = volume_index;
-                if (voxels[volume_index].ignore) { continue; }
+                if (voxels[volume_index].ignore || !voxels[volume_index].isEdge) { continue; }
                 else { cached_voxel = &voxels[volume_index]; }
                 
                 

@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <math.h>
+#include "TreeClasses.h"
 using namespace std;
 
 struct Int2 {
@@ -127,8 +128,8 @@ struct Voxel{	//Lots of values
 	float hu_val = 10;
 	int cluster_id = -1;
 	signed char kcluster = -1;
-	bool isEdge = true;			// Is eventually changed after initial tissueclustering
-	float alpha = 0.5;
+	bool isEdge = false;			// Is eventually changed after initial tissueclustering
+	float alpha = 0.33;
 	float norm_val = 0;			// Becomes kcluster centroid during fuzzy assignment
 	CudaColor color;			// Set during fuzzy assignment
 
@@ -136,13 +137,13 @@ struct Voxel{	//Lots of values
 		if (hu_val > max) { norm_val = 1; }
 		else if (hu_val < min) { norm_val = 0; }
 		else norm_val = (hu_val - min) / (max - min);
-		color = CudaColor(norm_val);									// TEMPORARY!
+		//color = CudaColor(norm_val);									// TEMPORARY!
 	}
 	void normCPU(float min, float max) {
 		if (hu_val > max) { norm_val = 1; }
 		else if (hu_val < min) { norm_val = 0; }
 		else norm_val = (hu_val - min) / (max - min);
-		color = CudaColor(norm_val);									// TEMPORARY!
+		//color = CudaColor(norm_val);									// TEMPORARY!
 	}
 };
 
@@ -327,15 +328,17 @@ public:
 		for (int i = 0; i < n_members; i++) {
 			Voxel voxel = vol->voxels[i];
 			mean += voxel.hu_val/n_members;
+			int member_index = member_indexes[i];
 
-			Int3 origin = indexToXYZ(member_indexes[i], vol->size);
+			Int3 origin = indexToXYZ(member_index, vol->size);
 
 			if (isEdge(vol, origin, voxel)) {				// Also adds potential neighbors to list
-				edge_member_indexes.push_back(member_indexes[i]);
+				edge_member_indexes.push_back(member_index);
 				n_edge_members++;
+				vol->voxels[member_index].isEdge = true;
 			}
 		}
-		printf("%d neighbors\n\n", n_neighbors);
+		n_neighbors = neighbor_ids.size();
 		return n_edge_members;
 	}
 
@@ -376,8 +379,8 @@ public:
 private:
 	vector<int> member_indexes;
 	vector<int> edge_member_indexes;
-	vector<int> neighbor_ids;
-
+	//vector<int> neighbor_ids;
+	UnorderedIntTree neighbor_ids;
 
 
 	const int x_off[6] = { 0, 0, 0, 0, -1, 1 };
@@ -401,20 +404,13 @@ private:
 					is_edge = true;
 					addNeighbor(neighbor->cluster_id);
 				}
-			}
-			
-			
-			
+				//addNeighbor(neighbor->cluster_id);
+			}			
 		}
 		return is_edge;
 	}
 	void addNeighbor(int neighbor_id) {
-		for (int i = 0; i < neighbor_ids.size(); i++) {
-			if (neighbor_ids[i] == neighbor_id)
-				return;
-		}
-		neighbor_ids.push_back(neighbor_id);
-		n_neighbors++;
+		neighbor_ids.addVal(neighbor_id);
 	}
 
 
