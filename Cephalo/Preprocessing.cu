@@ -339,7 +339,7 @@ __global__ void rotatingMaskFilterKernel(Voxel* voxels, Voxel* voxelcopy, Int3 s
     for (int z = 0; z < size.z; z++) {
         Int3 coord = Int3(x, y, z);
         
-        fetchWindow(voxelcopy, kernel, coord, size);
+        fetchWindow(voxelcopy, kernel, coord, size);        // ALSO DO; EVEN IF WE IGNORE CURRENT VOXEL
 
         if (voxels[xyzToIndex(coord, size)].ignore)
             continue;
@@ -477,7 +477,7 @@ vector<TissueCluster3D> Preprocessor::clusterSync(Volume* vol, int* num_clusters
         clusters[i].colorMembers(vol->voxels);
         edge_voxels += clusters[i].determineEdges(vol);
     }
-    printf("\n Clusters initialized in %d ms. Num edges: %d \n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1), edge_voxels);
+    printf("\n Clusters initialized in %d ms. Nonedges found: %d \n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1), edge_voxels);
 
 
     return clusters;

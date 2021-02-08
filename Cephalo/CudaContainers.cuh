@@ -137,13 +137,11 @@ struct Voxel{	//Lots of values
 		if (hu_val > max) { norm_val = 1; }
 		else if (hu_val < min) { norm_val = 0; }
 		else norm_val = (hu_val - min) / (max - min);
-		//color = CudaColor(norm_val);									// TEMPORARY!
 	}
 	void normCPU(float min, float max) {
 		if (hu_val > max) { norm_val = 1; }
 		else if (hu_val < min) { norm_val = 0; }
 		else norm_val = (hu_val - min) / (max - min);
-		//color = CudaColor(norm_val);									// TEMPORARY!
 	}
 };
 
@@ -311,9 +309,7 @@ public:
 class TissueCluster3D {
 public:
 	TissueCluster3D() {}
-	TissueCluster3D(int id, int target_kcluster) : id(id), target_kcluster(target_kcluster) { 
-		color.assignRandomColor();
-	}
+	TissueCluster3D(int id, int target_kcluster) : id(id), target_kcluster(target_kcluster) { color.assignRandomColor();}
 	
 	void addMember(int index) {
 		member_indexes.push_back(index);
@@ -324,46 +320,30 @@ public:
 			voxels[member_indexes[i]].color = color;
 	}
 
-	unsigned int determineEdges(Volume* vol) {
-		for (int i = 0; i < n_members; i++) {
-			Voxel voxel = vol->voxels[i];
-			mean += voxel.hu_val/n_members;
-			int member_index = member_indexes[i];
+	unsigned int determineEdges(Volume* vol);
 
-			Int3 origin = indexToXYZ(member_index, vol->size);
 
-			if (isEdge(vol, origin, voxel)) {				// Also adds potential neighbors to list
-				edge_member_indexes.push_back(member_index);
-				n_edge_members++;
-				vol->voxels[member_index].isEdge = true;
-			}
-		}
-		n_neighbors = neighbor_ids.size();
-		return n_edge_members;
+	void mergeClusters(Voxel* voxels, TissueCluster3D* orphan);
+
+
+
+
+
+
+
+	int getParentID(TissueCluster3D* clusters) {
+		if (dead)
+			return clusters[parent_id].getParentID(clusters);
+		return id;
 	}
-
-	
-
-
-
-
-
-
-	void mergeClusters(TissueCluster3D* orphan) {	// you know, because it has no parent yet
-
-	}
-
-
-
-
-
-
-
 
 	//For initialization only
 	char target_kcluster;
 
-
+	// For merging
+	bool dead = false;
+	int parent_id;
+	double max_difference = 0.2;
 
 	// General purpose variables
 	int id;
@@ -371,18 +351,18 @@ public:
 	unsigned int n_members = 0;
 	unsigned int n_edge_members = 0;
 	unsigned int n_neighbors = 0;
-	float mean = 0;
+	double mean = 0;
 	CudaColor color;
 
 
-
-private:
+	// Large structures
 	vector<int> member_indexes;
-	vector<int> edge_member_indexes;
+	//vector<int> edge_member_indexes;
 	//vector<int> neighbor_ids;
+	UnorderedIntTree edge_member_indexes;
 	UnorderedIntTree neighbor_ids;
 
-
+private:
 	const int x_off[6] = { 0, 0, 0, 0, -1, 1 };
 	const int y_off[6] = { 0, 0, -1, 1, 0, 0 };
 	const int z_off[6] = { -1, 1, 0, 0, 0, 0 };
@@ -390,33 +370,27 @@ private:
 		Int3 pos_ = Int3(x_off[i], y_off[i], z_off[i]);
 		return pos + pos_;
 	}
-	bool isEdge(Volume* vol, Int3 origin, Voxel v0) {
-		bool is_edge = false;
+	bool isEdge(Volume* vol, Int3 origin, Voxel v0);
 
-		for (int i = 0; i < 6; i++) {
-			Int3 pos = getImmediateNeighbor(origin, i);
-			if (isInVolume(pos, vol->size)) {						// Edges can on purpose not be volume-border voxels
-				int neighbor_index = xyzToIndex(pos, vol->size);
-				Voxel* neighbor = &vol->voxels[neighbor_index];
-				if (neighbor->ignore) 
-					is_edge = true;
-				else if (neighbor->cluster_id != v0.cluster_id) {
-					is_edge = true;
-					addNeighbor(neighbor->cluster_id);
-				}
-				//addNeighbor(neighbor->cluster_id);
-			}			
-		}
-		return is_edge;
-	}
 	void addNeighbor(int neighbor_id) {
 		neighbor_ids.addVal(neighbor_id);
 	}
 
 
 
-
+	// Merging - parent
+	void mergeCluster(Voxel* voxels, TissueCluster3D* orphan);
+	bool isMergeable(TissueCluster3D* orphan);
+	void updateEdges();
+	void refactorEdges();
+	void transferMembers(TissueCluster3D* orphan);
 	
+	//Merging - orphan
+	void reassignMembers(Voxel* voxels, int new_id) {
+		for (int i = 0; i < n_members; i++) {
+			voxels[member_indexes[i]].cluster_id = new_id;
+		}
+	}
 
 
 

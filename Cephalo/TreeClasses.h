@@ -38,6 +38,13 @@ public:
 		delete(index);
 		return arr;
 	}
+	void clear() {
+		if (root != NULL)
+			root->clear();
+		delete(root);
+		root = NULL;
+	}
+
 
 	int size() { return treesize; }
 
@@ -105,6 +112,19 @@ private:
 				}
 			}
 			return false;
+		}
+
+		void clear() {
+			if (left != NULL) {
+				left->clear();
+				delete(left);
+				left = NULL;
+			}
+			if (right != NULL) {
+				right->clear();
+				delete(right);
+				right = NULL;
+			}
 		}
 
 		Node* getBranchPlaceholder(int key) {

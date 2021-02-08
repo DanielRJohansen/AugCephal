@@ -65,6 +65,30 @@ __device__ int getBestBelongingIndex(float* belongings, int k) {
 }
 
 
+__device__ void fetchWindow3x3(Voxel* voxelcopy, float* kernel, Int3 pos, Int3 size) {
+    int i = 0;
+    for (int z_ = pos.z - 1; z_ <= pos.z + 1; z_++) {
+        for (int y_ = pos.y - 1; y_ <= pos.y + 1; y_++) {
+            for (int x_ = pos.x - 1; x_ <= pos.x + 1; x_++) {
+                Int3 pos_ = Int3(x_, y_, z_);
+                if (pos.z > 0 && z_ < pos.z + 1 && false)
+                    kernel[i] = kernel[i + 9];
+                else if (!isInVolume(pos_, size))
+                    kernel[i] = OUTSIDEVOL;
+                else
+                {
+                    if (voxelcopy[xyzToIndex(pos_, size)].ignore)
+                        kernel[i] = ISIGNORE;
+                    else
+                        kernel[i] = voxelcopy[xyzToIndex(pos_, size)].norm_val;
+                }
+                i++;
+            }
+        }
+    }
+}
+
+
 //--------------------------Kernels----------------------//
 __global__ void kMeansRunKernel(Voxel* voxels, CudaKCluster* kclusters, CudaKCluster* global_clusters, int k, Int3 size) {
     int y = blockIdx.x;
@@ -124,6 +148,9 @@ __global__ void updateGlobalClustersKernel(CudaKCluster* kclusters, CudaKCluster
     }
 }
 
+
+
+
 __global__ void fuzzyAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, float* gauss_kernel, int k, Int3 size) {
     int y = blockIdx.x;
     int x = threadIdx.x;
@@ -133,11 +160,20 @@ __global__ void fuzzyAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, fl
     float* belongings = (float*)&block_belongings[thread_offset];
 
 
+    float window[27];
+
     for (int z = 0; z < size.z; z++) {
         resetBelongings(belongings, k);
         int neighbor_ignores = 0;
-        Voxel voxel = voxels[xyzToIndex(Int3(x, y, z), size)];
+        Int3 pos(x, y, z);
+
+        Voxel voxel = voxels[xyzToIndex(pos, size)];
+
+        //fetchWindow3x3(voxels, window, pos, size);  // ALWAYS DO OR THIS SHIT DONT WORK
+
+
         if (!voxel.ignore) {
+         
             for (int z_ = z - 1; z_ <= z + 1; z_++) {
                 for (int y_ = y - 1; y_ <= y + 1; y_++) {
                     for (int x_ = x - 1; x_ <= x + 1; x_++) {
@@ -161,7 +197,7 @@ __global__ void fuzzyAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, fl
             voxel.color = kclusters[best_index].color;
             //voxel.norm_val = kclusters[best_index].centroid;
             voxel.kcluster = best_index;
-            if (neighbor_ignores > 7)
+            if (neighbor_ignores > 20)
                 voxel.ignore = true;
             voxels[xyzToIndex(Int3(x, y, z), size)] = voxel;
         }
