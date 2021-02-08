@@ -52,13 +52,12 @@ public:
 		setColumnIgnores(volume);
 
 
-		int k = 12;
+		int k = 10;
 		rmf(volume);
-		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		fuzzyClusterAssignment(volume, k, 4);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 		int num_clusters;
-		//clusterAsync(volume, &num_clusters, k);
-		clusterSync(volume, &num_clusters);
+		vector<TissueCluster3D> clusters = clusterSync(volume, &num_clusters);
 
 		printf("Preprocessing finished!\n\n");
 		return volume;
@@ -85,7 +84,7 @@ private:
 
 	// Clustering
 	TissueCluster3D* clusterAsync(Volume* vol, int* num_clusters, int k);
-	TissueCluster3D* clusterSync(Volume* vol, int* num_clusters);
+	vector<TissueCluster3D> clusterSync(Volume* vol, int* num_clusters);
 
 	TissueCluster3D* iniTissueCluster3D(Volume* vol, int num_clusters, Int3 size);
 	

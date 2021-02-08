@@ -7,7 +7,7 @@
 #include <vector>
 
 
-
+//#include "GeneralPurposeFunctions.cuh"		// Breaks alot of shit ://////
 
 #include <iostream>
 #include <math.h>
@@ -25,6 +25,7 @@ struct Int3 {
 	__device__ __host__ Int3() {}
 	__device__ Int3(CudaFloat3 s);
 	__device__ __host__ Int3(int x, int y, int z) : x(x), y(y), z(z) {}
+	__device__ __host__ Int3 operator+(Int3 s) const { return Int3(x + s.x, y + s.y, z + s.z); }
 
 	int x, y, z;
 };
@@ -41,7 +42,7 @@ struct CudaColor {
 	}
 
 	__device__ __host__ CudaColor getRandColor() { return CudaColor(rand() % 255, rand() % 255, rand() % 255); }
-	__device__ __host__ void assignRandomColor() {  r = (rand() % 255, g = rand() % 255, b = rand() % 255); }
+	__device__ __host__ void assignRandomColor() {  r = rand() % 255, g = rand() % 255, b = rand() % 255; }
 
 
 	__device__ inline CudaColor operator*(float s) const { return CudaColor(r * s, g * s, b * s); }
@@ -125,7 +126,8 @@ struct Voxel{	//Lots of values
 	bool ignore = false;
 	float hu_val = 10;
 	int cluster_id = -1;
-	int kcluster = -1;
+	signed char kcluster = -1;
+	bool isEdge = true;			// Is eventually changed after initial tissueclustering
 	float alpha = 0.5;
 	float norm_val = 0;			// Becomes kcluster centroid during fuzzy assignment
 	CudaColor color;			// Set during fuzzy assignment
@@ -300,6 +302,11 @@ public:
 };
 
 
+
+
+
+
+
 class TissueCluster3D {
 public:
 	TissueCluster3D() {}
@@ -316,6 +323,40 @@ public:
 			voxels[member_indexes[i]].color = color;
 	}
 
+	unsigned int determineEdges(Volume* vol) {
+		for (int i = 0; i < n_members; i++) {
+			Voxel voxel = vol->voxels[i];
+			mean += voxel.hu_val/n_members;
+
+			Int3 origin = indexToXYZ(member_indexes[i], vol->size);
+
+			if (isEdge(vol, origin, voxel)) {				// Also adds potential neighbors to list
+				edge_member_indexes.push_back(member_indexes[i]);
+				n_edge_members++;
+			}
+		}
+		printf("%d neighbors\n\n", n_neighbors);
+		return n_edge_members;
+	}
+
+	
+
+
+
+
+
+
+	void mergeClusters(TissueCluster3D* orphan) {	// you know, because it has no parent yet
+
+	}
+
+
+
+
+
+
+
+
 	//For initialization only
 	char target_kcluster;
 
@@ -323,14 +364,79 @@ public:
 
 	// General purpose variables
 	int id;
-	char k_cluster;
-	int n_members = 0;
-	float* mean;
+	unsigned char k_cluster;
+	unsigned int n_members = 0;
+	unsigned int n_edge_members = 0;
+	unsigned int n_neighbors = 0;
+	float mean = 0;
 	CudaColor color;
 
 
 
 private:
 	vector<int> member_indexes;
+	vector<int> edge_member_indexes;
+	vector<int> neighbor_ids;
 
+
+
+	const int x_off[6] = { 0, 0, 0, 0, -1, 1 };
+	const int y_off[6] = { 0, 0, -1, 1, 0, 0 };
+	const int z_off[6] = { -1, 1, 0, 0, 0, 0 };
+	Int3 getImmediateNeighbor(Int3 pos, int i) {
+		Int3 pos_ = Int3(x_off[i], y_off[i], z_off[i]);
+		return pos + pos_;
+	}
+	bool isEdge(Volume* vol, Int3 origin, Voxel v0) {
+		bool is_edge = false;
+
+		for (int i = 0; i < 6; i++) {
+			Int3 pos = getImmediateNeighbor(origin, i);
+			if (isInVolume(pos, vol->size)) {						// Edges can on purpose not be volume-border voxels
+				int neighbor_index = xyzToIndex(pos, vol->size);
+				Voxel* neighbor = &vol->voxels[neighbor_index];
+				if (neighbor->ignore) 
+					is_edge = true;
+				else if (neighbor->cluster_id != v0.cluster_id) {
+					is_edge = true;
+					addNeighbor(neighbor->cluster_id);
+				}
+			}
+			
+			
+			
+		}
+		return is_edge;
+	}
+	void addNeighbor(int neighbor_id) {
+		for (int i = 0; i < neighbor_ids.size(); i++) {
+			if (neighbor_ids[i] == neighbor_id)
+				return;
+		}
+		neighbor_ids.push_back(neighbor_id);
+		n_neighbors++;
+	}
+
+
+
+
+	
+
+
+
+	// Class specific helper functions that SHOULD be global, but its a dependency issue right now :(
+	Int3 indexToXYZ(int index, Int3 size) {
+		int z = index / (size.y * size.y);
+		index -= z * size.y * size.x;
+		int y = index / size.x;
+		int x = index % size.x;
+		return Int3(x, y, z);
+	}
+	__device__ __host__ inline int xyzToIndex(Int3 coord, Int3 size) {
+		return coord.z * size.y * size.x + coord.y * size.x + coord.x;
+	}
+
+	__device__ __host__ inline bool isInVolume(Int3 coord, Int3 size) {
+		return coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z;
+	}
 };

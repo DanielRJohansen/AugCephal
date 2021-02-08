@@ -429,9 +429,9 @@ TissueCluster3D* Preprocessor::clusterAsync(Volume* vol, int* num_clusters, int 
 }
 
 
-int x_off[6] = { 0, 0, 0, 0, -1, 1 };
-int y_off[6] = { 0, 0, -1, 1, 0, 0 };
-int z_off[6] = { -1, 1, 0, 0, 0, 0 };
+const int x_off[6] = { 0, 0, 0, 0, -1, 1 };
+const int y_off[6] = { 0, 0, -1, 1, 0, 0 };
+const int z_off[6] = { -1, 1, 0, 0, 0, 0 };
 
 void propagateCluster(Volume* vol, TissueCluster3D* cluster, Int3 pos, int depth) {
     //if (!(depth%1000)) printf("depth: %d\r", depth);
@@ -514,7 +514,7 @@ TissueCluster3D* clusterTask(Volume* vol, int* num_clusters, int target_kcluster
 
 
 
-TissueCluster3D* Preprocessor::clusterSync(Volume* vol, int* num_clusters) {
+vector<TissueCluster3D> Preprocessor::clusterSync(Volume* vol, int* num_clusters) {
     printf("Clustering initiated\n");
     auto start = chrono::high_resolution_clock::now();
 
@@ -541,12 +541,23 @@ TissueCluster3D* Preprocessor::clusterSync(Volume* vol, int* num_clusters) {
     }
     *num_clusters = id;
 
-    printf("\n              %d clusters found in %d ms \n", id, chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
-    for (int i = 0; i < clusters.size(); i++)
+    auto t1 = chrono::high_resolution_clock::now();
+    printf("\n              %d clusters found in %d ms \n", id, chrono::duration_cast<chrono::milliseconds>(t1 - start));
+
+
+    unsigned int edge_voxels = 0;
+    for (int i = 0; i < clusters.size(); i++) {
+        printf("%d       %d\n", i, clusters[i].n_members);
         clusters[i].colorMembers(vol->voxels);
-    printf("Color time: %d ms \n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
-    return new TissueCluster3D;
+        edge_voxels += clusters[i].determineEdges(vol);
+    }
+    printf("\n Clusters initialized in %d ms. Num edges: %d \n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1), edge_voxels);
+
+
+    return clusters;
 }
+
+
 
 
 
