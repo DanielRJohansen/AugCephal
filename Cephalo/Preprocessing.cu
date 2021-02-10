@@ -441,34 +441,28 @@ void propagateCluster(Volume* vol, TissueCluster3D* cluster, Int3 pos, int depth
 }
 
 
-void clusterInitializationTask(TissueCluster3D* cluster, Volume* vol, bool* available_threads, char thread_index) {
-    cluster->determineEdges(vol);
-    available_threads[thread_index] = 1;
+void clusterInitializationTask(TissueCluster3D* cluster, Volume* vol) {
+    cluster->initialize(vol);
+
 }
 
-void clusterInitScheduler(vector<TissueCluster3D> clusters, Volume* vol) {
-    bool* available_threads = new bool[8];
-    for (int i = 0; i < 8; i++)
-        available_threads[i] = 1;
-
+void clusterInitScheduler(ClusterCollection* collection, Volume* vol) {
     vector<thread> workers;
     unsigned int edge_voxels = 0;
-    for (int i = 0; i < clusters.size(); i++) {
-        if (!(i % 100))
-            printf("Cluster: %d\r", i);
+    for (int i = 0; i < collection->len; i++) {
         char index = 0;
-        if (clusters[i].n_members < 50000) {
-            clusters[i].determineEdges(vol);
+        if (collection->clusters[i].n_members < 1000000) {
+            collection->clusters[i].initialize(vol);
         }
         else {
-            thread worker(clusterInitializationTask, &clusters[i], vol, available_threads, index);
+            continue;
+            thread worker(clusterInitializationTask, &collection->clusters[i], vol);
             workers.push_back(move(worker));
         }
     }
     printf("\n");
     for (int i = 0; i < workers.size(); i++) {
         printf("\rWaiting to join threads (%02d/%02d) ", i+1, workers.size());
-
         workers[i].join();
     }
 }
@@ -480,15 +474,17 @@ void testTask(bool* available_threads, char thread_index) {
 }
 
 
-vector<TissueCluster3D> Preprocessor::clusterSync(Volume* vol, int* num_clusters) {
+ClusterCollection* Preprocessor::clusterSync(Volume* vol) {
     printf("Clustering initiated\n");
     auto start = chrono::high_resolution_clock::now();
 
     Int3 size = vol->size;
     int id = 0;
     CudaColor color = CudaColor().getRandColor();
-    vector<TissueCluster3D> clusters;
+    //vector<TissueCluster3D> clusters_vector;
 
+    TissueCluster3D* FUCK = new TissueCluster3D[30000000];
+    int FUCKINDEX = 0;
     for (int z = 0; z < size.z; z++) {
         printf("Z: %d\r", z);
         for (int y = 0; y < size.y; y++) {
@@ -497,30 +493,68 @@ vector<TissueCluster3D> Preprocessor::clusterSync(Volume* vol, int* num_clusters
                 int index = xyzToIndex(pos, size);
                 Voxel voxel = vol->voxels[index];
                 if (voxel.cluster_id == -1 && !voxel.ignore) {
-                    TissueCluster3D cluster(id, voxel.kcluster);
-                    propagateCluster(vol, &cluster, Int3(x, y, z), 0);
-                    clusters.push_back(cluster);
+                    //FUCK[FUCKINDEX] = TissueCluster3D(id, voxel.kcluster);
+                    //propagateCluster(vol, &cluster, Int3(x, y, z), 0);
+                    FUCK[id].start(id, voxel.kcluster);
+                    propagateCluster(vol, &FUCK[FUCKINDEX], Int3(x, y, z), 0);
+                    //FUCK[FUCKINDEX] = cluster;
+                    //clusters_vector.push_back(cluster);
                     id++;
                 }
             }
         }
     }
-    *num_clusters = id;
+
+    int num_clusters = id;
+    TissueCluster3D* clusters = new TissueCluster3D[id];
+    
+    
+    
+    //TissueCluster3D c = clusters_vector[102];
+    for (int i = 0; i < num_clusters; i++) {
+        //clusters[i] = FUCK[i];
+    }
+    //copy(clusters_vector.begin(), clusters_vector.end(), clusters);
+    //clusters_vector.clear();
+    ClusterCollection* collection = new ClusterCollection(FUCK, num_clusters);
 
     auto t1 = chrono::high_resolution_clock::now();
-    printf("\n                              %d clusters found in %d ms \n\n", id, chrono::duration_cast<chrono::milliseconds>(t1 - start));
+    printf("\n%d clusters found in %d ms \n", id, chrono::duration_cast<chrono::milliseconds>(t1 - start));
 
 
-    clusterInitScheduler(clusters, vol);
-    printf("\nClusters initialized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
+    clusterInitScheduler(collection, vol);
+    printf("Clusters initialized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
+    return collection;
+}
+void Preprocessor::mergeClusters(Volume* vol, ClusterCollection* clusters) {
+    auto start = chrono::high_resolution_clock::now();
+    for (int i = 0; i < clusters->len; i++) {
+        printf("Mergin cluster %d\r", i);
+        clusters->clusters[i].mergeClusters(vol, clusters->clusters);
+    }
 
-
-
-    return clusters;
+    printf("\nMerging completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 }
 
+void Preprocessor::finalizeClusters(Volume* vol, ClusterCollection* clusters) {
+    auto start = chrono::high_resolution_clock::now();
+    for (int i = 0; i < clusters->len; i++) {
+        clusters->clusters[i].finalize(vol);
+    }
 
+    printf("\nClusters finalized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+}
 
+int Preprocessor::countAliveClusters(ClusterCollection* clusters, int from) {
+    int num_dead = 0;
+    for (int i = 0; i < clusters->len; i++) {
+        if (clusters->clusters[i].dead)
+            num_dead++;
+    }
+    int reduced = from - (clusters->len-num_dead);
+    printf("Num clusters reduced by %d          %d->%d", reduced, from, clusters->len - num_dead);
+    return from - reduced;
+}
 
 
 

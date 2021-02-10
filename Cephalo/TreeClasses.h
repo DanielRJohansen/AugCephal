@@ -18,13 +18,18 @@ public:
 		}			
 	}
 	void deleteVal(int key) {				// ONLY CALL ON VALUES THAT DOES EXIST IN TREE!!!!!!!
-		if (root != NULL) {
-			if (root->deleteNode(key)) {
-			delete(root);
-			root = NULL;
+		if (root == NULL)
+			printf("ILLEGAL DELETION: root is NULL.\n");
+		else {
+			if (root->find(key)) {				// Track whether the value is ACTUALLY found.
+				if (root->deleteNode(key)) {	// return true only when root is value and root!
+					delete(root);
+					root = NULL;
+				}
+				treesize--;
 			}
+			printf("ILLEGAL DELETION: key not found.\n");
 		}
-		treesize--;							// Can NOT track wheter the value is ACTUALLY found.
 	}
 
 	int* fetch() {
@@ -82,6 +87,16 @@ private:
 				right->fetch(arr, index);
 		}
 		
+		bool find(int key) {
+			if (key == value)
+				return true;
+			else if (key > value && right != NULL)
+				return right->find(key);
+			else if (key < value && left != NULL)
+				return left->find(key);
+			return false;
+		}
+
 		bool deleteNode(int key) {	
 			if (key == value) {
 				if (!leaf) {

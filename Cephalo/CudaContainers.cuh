@@ -306,12 +306,23 @@ public:
 
 
 
+class TissueCluster3D;
+
+struct ClusterCollection {
+	ClusterCollection() {};
+	ClusterCollection(TissueCluster3D* c, int l) { clusters = c; len = l; }
+	TissueCluster3D* clusters;
+	int len;
+};
 
 class TissueCluster3D {
 public:
 	TissueCluster3D() {}
 	TissueCluster3D(int id, int target_kcluster) : id(id), target_kcluster(target_kcluster) { color.assignRandomColor();}
 	
+	void start(int i, int t) { id = i; target_kcluster = t; color.assignRandomColor(); }
+
+
 	void addMember(int index) {
 		member_indexes.push_back(index);
 		n_members++;
@@ -321,12 +332,16 @@ public:
 			voxels[member_indexes[i]].color = color;
 	}
 
-	unsigned int determineEdges(Volume* vol);
+	//unsigned int determineEdges(Volume* vol);
 
+	// Maybe be called by preprocessing
+	void initialize(Volume* vol) { findNeighborsAndMean(vol); }
 
-	void mergeClusters(Voxel* voxels, TissueCluster3D* orphan);
+	void mergeClusters(Volume* vol, TissueCluster3D* all_clusters);
+	void finalize(Volume* vol) {findEdges(vol);	}	// Handles coloring and setting voxel.isEdge
 
-
+	// MAY be called by another cluster trying to merge, but smaller
+	void mergeCluster(Voxel* voxels, TissueCluster3D* orphan);
 
 
 
@@ -358,12 +373,33 @@ public:
 
 	// Large structures
 	vector<int> member_indexes;
-	//vector<int> edge_member_indexes;
-	//vector<int> neighbor_ids;
-	UnorderedIntTree edge_member_indexes;
+	vector<int> edge_member_indexes;
 	UnorderedIntTree neighbor_ids;
 
 private:
+	
+	bool isEdge(Volume* vol, Int3 origin, Voxel* v0);
+	bool isEdge2(Volume* vol, Int3 origin, Voxel v0);
+
+
+	// Initialization
+	void findNeighborsAndMean(Volume* vol);
+
+	// Merging - parent
+	bool isMergeable(TissueCluster3D* orphan);
+	void updateEdges();
+	void findEdges(Volume* vol);
+	void transferMembers(TissueCluster3D* orphan);	//Deletes orphans large data structures
+	
+	//Merging - orphan
+	void reassignMembersClusterID(Voxel* voxels, int new_id) {
+		for (int i = 0; i < n_members; i++) {
+			voxels[member_indexes[i]].cluster_id = new_id;
+		}
+	}
+	void kill(int parent_id);
+
+
 	const int x_off[6] = { 0, 0, 0, 0, -1, 1 };
 	const int y_off[6] = { 0, 0, -1, 1, 0, 0 };
 	const int z_off[6] = { -1, 1, 0, 0, 0, 0 };
@@ -371,29 +407,6 @@ private:
 		Int3 pos_ = Int3(x_off[i], y_off[i], z_off[i]);
 		return pos + pos_;
 	}
-	bool isEdge(Volume* vol, Int3 origin, Voxel v0);
-
-	void addNeighbor(int neighbor_id) {
-		neighbor_ids.addVal(neighbor_id);
-	}
-
-
-
-	// Merging - parent
-	void mergeCluster(Voxel* voxels, TissueCluster3D* orphan);
-	bool isMergeable(TissueCluster3D* orphan);
-	void updateEdges();
-	void refactorEdges();
-	void transferMembers(TissueCluster3D* orphan);
-	
-	//Merging - orphan
-	void reassignMembers(Voxel* voxels, int new_id) {
-		for (int i = 0; i < n_members; i++) {
-			voxels[member_indexes[i]].cluster_id = new_id;
-		}
-	}
-
-
 
 	// Class specific helper functions that SHOULD be global, but its a dependency issue right now :(
 	Int3 indexToXYZ(int index, Int3 size) {
