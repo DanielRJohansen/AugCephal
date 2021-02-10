@@ -21,9 +21,9 @@ unsigned int TissueCluster3D::determineEdges(Volume* vol) {
 		}
 	}
 	n_neighbors = neighbor_ids.size();
+	colorMembers(vol->voxels);																					// TEMPORARY
 	return n_members - n_edge_members;
 }
-
 
 
 
@@ -56,6 +56,14 @@ bool TissueCluster3D::isMergeable(TissueCluster3D* orphan) {
 	if (abs(orphan->mean - mean) < max_difference) {
 
 	}
+	return true;
+}
+void TissueCluster3D::updateEdges() {
+
+}
+
+void TissueCluster3D::refactorEdges() {
+
 }
 
 void TissueCluster3D::transferMembers(TissueCluster3D* orphan) {

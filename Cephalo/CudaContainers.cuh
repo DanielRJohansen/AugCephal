@@ -8,6 +8,7 @@
 
 
 //#include "GeneralPurposeFunctions.cuh"		// Breaks alot of shit ://////
+#include <thread>
 
 #include <iostream>
 #include <math.h>

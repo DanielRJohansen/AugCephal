@@ -441,6 +441,45 @@ void propagateCluster(Volume* vol, TissueCluster3D* cluster, Int3 pos, int depth
 }
 
 
+void clusterInitializationTask(TissueCluster3D* cluster, Volume* vol, bool* available_threads, char thread_index) {
+    cluster->determineEdges(vol);
+    available_threads[thread_index] = 1;
+}
+
+void clusterInitScheduler(vector<TissueCluster3D> clusters, Volume* vol) {
+    bool* available_threads = new bool[8];
+    for (int i = 0; i < 8; i++)
+        available_threads[i] = 1;
+
+    vector<thread> workers;
+    unsigned int edge_voxels = 0;
+    for (int i = 0; i < clusters.size(); i++) {
+        if (!(i % 100))
+            printf("Cluster: %d\r", i);
+        char index = 0;
+        if (clusters[i].n_members < 50000) {
+            clusters[i].determineEdges(vol);
+        }
+        else {
+            thread worker(clusterInitializationTask, &clusters[i], vol, available_threads, index);
+            workers.push_back(move(worker));
+        }
+    }
+    printf("\n");
+    for (int i = 0; i < workers.size(); i++) {
+        printf("\rWaiting to join threads (%02d/%02d) ", i+1, workers.size());
+
+        workers[i].join();
+    }
+}
+
+void testTask(bool* available_threads, char thread_index) {
+    int a = 0;
+    available_threads[thread_index] = 1;
+
+}
+
+
 vector<TissueCluster3D> Preprocessor::clusterSync(Volume* vol, int* num_clusters) {
     printf("Clustering initiated\n");
     auto start = chrono::high_resolution_clock::now();
@@ -469,15 +508,12 @@ vector<TissueCluster3D> Preprocessor::clusterSync(Volume* vol, int* num_clusters
     *num_clusters = id;
 
     auto t1 = chrono::high_resolution_clock::now();
-    printf("\n              %d clusters found in %d ms \n", id, chrono::duration_cast<chrono::milliseconds>(t1 - start));
+    printf("\n                              %d clusters found in %d ms \n\n", id, chrono::duration_cast<chrono::milliseconds>(t1 - start));
 
 
-    unsigned int edge_voxels = 0;
-    for (int i = 0; i < clusters.size(); i++) {
-        clusters[i].colorMembers(vol->voxels);
-        edge_voxels += clusters[i].determineEdges(vol);
-    }
-    printf("\n Clusters initialized in %d ms. Nonedges found: %d \n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1), edge_voxels);
+    clusterInitScheduler(clusters, vol);
+    printf("\nClusters initialized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
+
 
 
     return clusters;

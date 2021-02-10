@@ -17,7 +17,8 @@
 // Threading
 #include <future>
 #include <thread>
-
+#include <Windows.h>
+#include <cstdlib>
 #include "CudaContainers.cuh"
 #include "GeneralPurposeFunctions.cuh"
 
