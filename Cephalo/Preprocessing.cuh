@@ -43,7 +43,7 @@ public:
 		loadScans(path);
 		scan = raw_scan;
 		size = s;
-
+		printf("Size of TC3: %d\n", sizeof(TissueCluster3D));
 		//scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
 		Volume* volume = convertToVolume(scan, size);
 
@@ -54,15 +54,15 @@ public:
 
 
 		int k = 6;
-		rmf(volume);
+		//rmf(volume);
 		fuzzyClusterAssignment(volume, k, 6);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 
 		// Move voxels to HOST here, get speedup?
 		
-		ClusterCollection* clusters = clusterSync(volume);
-		//mergeClusters(volume, clusters);
-		int remaining_clusters = countAliveClusters(clusters, clusters->len);
+		vector<TissueCluster3D*> clusters = clusterSync(volume);
+		mergeClusters(volume, clusters);
+		int remaining_clusters = countAliveClusters(clusters, clusters.size());
 		finalizeClusters(volume, clusters);
 
 		printf("Preprocessing finished!\n\n");
@@ -93,10 +93,10 @@ private:
 	// Clustering
 	
 	TissueCluster3D* clusterAsync(Volume* vol, int* num_clusters, int k);
-	ClusterCollection* clusterSync(Volume* vol);			// Sets num_clusters
-	void mergeClusters(Volume* vol, ClusterCollection* clusters);
-	void finalizeClusters(Volume* vol, ClusterCollection* clusters);
-	int countAliveClusters(ClusterCollection* clusters, int from);
+	vector<TissueCluster3D*> clusterSync(Volume* vol);			// Sets num_clusters
+	void mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters);
+	void finalizeClusters(Volume* vol, vector<TissueCluster3D*> clusters);
+	int countAliveClusters(vector<TissueCluster3D*> clusters, int from);
 
 	
 	

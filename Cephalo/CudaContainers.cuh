@@ -308,12 +308,7 @@ public:
 
 class TissueCluster3D;
 
-struct ClusterCollection {
-	ClusterCollection() {};
-	ClusterCollection(TissueCluster3D* c, int l) { clusters = c; len = l; }
-	TissueCluster3D* clusters;
-	int len;
-};
+
 
 class TissueCluster3D {
 public:
@@ -336,8 +331,8 @@ public:
 
 	// Maybe be called by preprocessing
 	void initialize(Volume* vol) { findNeighborsAndMean(vol); }
-
-	void mergeClusters(Volume* vol, TissueCluster3D* all_clusters);
+	void donothing(Volume* vol, vector<TissueCluster3D*>* alls) { return; }
+	void mergeClusters(Volume* vol, vector<TissueCluster3D*>* all_clusters);
 	void finalize(Volume* vol) {findEdges(vol);	}	// Handles coloring and setting voxel.isEdge
 
 	// MAY be called by another cluster trying to merge, but smaller

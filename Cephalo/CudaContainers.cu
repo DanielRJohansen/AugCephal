@@ -7,20 +7,20 @@ Int3::Int3(CudaFloat3 s) { x = s.x; y = s.y; z = s.z; }
 
 
 
-void TissueCluster3D::mergeClusters(Volume* vol, TissueCluster3D* all_clusters) {	// you know, because it has no parent yet
-	return;
+void TissueCluster3D::mergeClusters(Volume* vol, vector<TissueCluster3D*> *all_clusters) {	// you know, because it has no parent yet
+	
 
 	int* ids = neighbor_ids.fetch();
 	for (int i = 0; i < neighbor_ids.size(); i++) {
-
-		TissueCluster3D* neighbor = &all_clusters[ids[i]];
-
+		int neighbor_id = ids[i];
+		TissueCluster3D* neighbor = all_clusters[0][neighbor_id];
+		return;
 		if (isMergeable(neighbor)) {
 			if (member_indexes.size() > neighbor->member_indexes.size()) {
 				mergeCluster(vol->voxels, neighbor);
 			}
 			else {
-				neighbor->mergeCluster(vol->voxels, &all_clusters[id]);
+				//neighbor->mergeCluster(vol->voxels, all_clusters[id]);
 				neighbor->mergeClusters(vol, all_clusters);		// Continue merging on the new parent, who now owns all of this clusters' neighbors
 				delete(ids);
 				return;												// Cannot continue as new parent have deleted everything if this cluster.
