@@ -451,7 +451,7 @@ void clusterInitScheduler(vector<TissueCluster3D*> clusters, Volume* vol) {
     unsigned int edge_voxels = 0;
     for (int i = 0; i < clusters.size(); i++) {
         char index = 0;
-        if (clusters[i]->n_members < 1000000) {
+        if (clusters[i]->member_indexes.size() < 1000000) {
             clusters[i]->initialize(vol);
         }
         else {
@@ -494,11 +494,8 @@ vector<TissueCluster3D*> Preprocessor::clusterSync(Volume* vol) {
                 Voxel voxel = vol->voxels[index];
                 if (voxel.cluster_id == -1 && !voxel.ignore) {
                     TissueCluster3D* cluster = new TissueCluster3D(id, voxel.kcluster);
-                    //FUCK[FUCKINDEX] = TissueCluster3D(id, voxel.kcluster);
                     propagateCluster(vol, cluster, Int3(x, y, z), 0);
-                    //FUCK[id].start(id, voxel.kcluster);
-                    //propagateCluster(vol, &FUCK[FUCKINDEX], Int3(x, y, z), 0);
-                    //FUCK[FUCKINDEX] = cluster;
+
                     clusters.push_back(cluster);
                     id++;
                 }

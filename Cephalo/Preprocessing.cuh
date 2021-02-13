@@ -55,7 +55,7 @@ public:
 
 		int k = 6;
 		//rmf(volume);
-		fuzzyClusterAssignment(volume, k, 6);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		fuzzyClusterAssignment(volume, k, 2);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 
 		// Move voxels to HOST here, get speedup?

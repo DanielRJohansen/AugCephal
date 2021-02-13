@@ -6,10 +6,17 @@
 using namespace std;
 
 
+
 class UnorderedIntTree {
+	struct Node;
 public:	
 	UnorderedIntTree() {}
 	void addVal(int key) {
+		if (key < 0) {
+			printf("Inserting illegal key: %d\n\n",key);
+			exit(-2);
+		}
+			
 		if (root != NULL)
 			treesize += root->addVal(key);
 		else {
@@ -25,16 +32,19 @@ public:
 				if (root->deleteNode(key)) {	// return true only when root is value and root!
 					delete(root);
 					root = NULL;
+					printf("Deleting root!\n");
 				}
 				treesize--;
 			}
-			printf("ILLEGAL DELETION: key not found.\n");
+			else
+				printf("ILLEGAL DELETION: key not found.\n");
 		}
 	}
 
 	int* fetch() {
-		if (root == NULL)		// Illegal fetch
-			return new int(-1);
+		if (root == NULL) {		// Illegal fetch
+			return new int(-11);
+		}
 		int* index = new int(0);
 		//*index = 0;
 		int* arr = new int[treesize];
@@ -53,7 +63,8 @@ public:
 
 	int size() { return treesize; }
 
-	
+	Node* root = NULL;
+	int treesize = 0;
 private:
 	struct Node {
 		Node() {}
@@ -73,6 +84,7 @@ private:
 			if (branch != NULL)
 				return branch->addVal(key);			
 			
+			// Else
 			branch = new Node(key);
 			leaf = false;
 			storeBranch(key, branch);	// assigns the object to correct left or right
@@ -101,31 +113,30 @@ private:
 			if (key == value) {
 				if (!leaf) {
 					int replacement = findReplacement();
+					printf("Replacement: %d\n", replacement);
 					deleteNode(replacement);	// Delete that val first, then set this element to that val. Called on this, beucase only a parent can delete a child!!!
 					value = replacement;
 				}
 				else
-					return true;			// Only case where the parent will delete
+					return true;									// In this case the parent will simply delete
 			}
-
-			if (key > value) {
+			else if (key > value) {
 				if (right != NULL) {
-					if (right->deleteNode(key)) {
+					if (right->deleteNode(key)) {					// Check if right is key==val and leaf
 						delete(right);
 						right = NULL;
-						if (left == NULL && right == NULL) leaf = true;
 					}
-				}						// No need for else case, the value does not exist in the tree
+				}													// No need for else case, the value does not exist in the tree
 			}
 			else if (key < value) {
 				if (left != NULL) {
 					if (left->deleteNode(key)) {
 						delete(left);
-						left = NULL;
-						if (left == NULL && right == NULL) leaf = true;
+						left = NULL;					
 					}
 				}
 			}
+			if (left == NULL && right == NULL) leaf = true;			// Update leaf status
 			return false;
 		}
 
@@ -173,8 +184,4 @@ private:
 			return value;
 		}
 	};
-
-
-	Node* root = NULL;
-	unsigned int treesize = 0;
 };

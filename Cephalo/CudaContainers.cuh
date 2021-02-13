@@ -320,10 +320,9 @@ public:
 
 	void addMember(int index) {
 		member_indexes.push_back(index);
-		n_members++;
 	}
 	void colorMembers(Voxel* voxels) {
-		for (int i = 0; i < n_members; i++)
+		for (int i = 0; i < member_indexes.size(); i++)
 			voxels[member_indexes[i]].color = color;
 	}
 
@@ -354,14 +353,11 @@ public:
 	// For merging
 	bool dead = false;
 	int parent_id;
-	double max_difference = 0.2;
+	double max_difference = 20;
 
 	// General purpose variables
 	int id;
 	unsigned char k_cluster;
-	unsigned int n_members = 0;
-	unsigned int n_edge_members = 0;
-	unsigned int n_neighbors = 0;
 	double mean = 0;
 	CudaColor color;
 
@@ -388,7 +384,7 @@ private:
 	
 	//Merging - orphan
 	void reassignMembersClusterID(Voxel* voxels, int new_id) {
-		for (int i = 0; i < n_members; i++) {
+		for (int i = 0; i < member_indexes.size(); i++) {
 			voxels[member_indexes[i]].cluster_id = new_id;
 		}
 	}
