@@ -24,6 +24,7 @@
 
 #include "resizing.cuh"
 #include "FuzzyAssignment.cuh""
+#include "ColorMaker.h"
 using namespace std;
 
 typedef vector<string> stringvec;	// Used for reading directory
@@ -43,7 +44,8 @@ public:
 		loadScans(path);
 		scan = raw_scan;
 		size = s;
-		printf("Size of TC3: %d\n", sizeof(TissueCluster3D));
+		
+
 		//scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
 		Volume* volume = convertToVolume(scan, size);
 
@@ -53,9 +55,10 @@ public:
 		setColumnIgnores(volume);
 
 
-		int k = 6;
-		//rmf(volume);
-		fuzzyClusterAssignment(volume, k, 2);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		int k = 20;
+		rmf(volume);
+		rmf(volume);
+		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 
 		// Move voxels to HOST here, get speedup?
@@ -65,7 +68,7 @@ public:
 		int remaining_clusters = countAliveClusters(clusters, clusters.size());
 		finalizeClusters(volume, clusters);
 
-		printf("Preprocessing finished!\n\n");
+		printf("\n\nPreprocessing finished!\n\n\n\n");
 		return volume;
 	}
 
@@ -97,7 +100,7 @@ private:
 	void mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters);
 	void finalizeClusters(Volume* vol, vector<TissueCluster3D*> clusters);
 	int countAliveClusters(vector<TissueCluster3D*> clusters, int from);
-
+	
 	
 	
 	

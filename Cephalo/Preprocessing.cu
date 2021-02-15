@@ -475,7 +475,7 @@ void testTask(bool* available_threads, char thread_index) {
 
 
 vector<TissueCluster3D*> Preprocessor::clusterSync(Volume* vol) {
-    printf("Clustering initiated\n");
+    printf("Clustering initiated...");
     auto start = chrono::high_resolution_clock::now();
 
     Int3 size = vol->size;
@@ -483,10 +483,8 @@ vector<TissueCluster3D*> Preprocessor::clusterSync(Volume* vol) {
     CudaColor color = CudaColor().getRandColor();
     vector<TissueCluster3D*> clusters;
     
-    //TissueCluster3D* FUCK = new TissueCluster3D[30000000];
-    //int FUCKINDEX = 0;
+
     for (int z = 0; z < size.z; z++) {
-        printf("Z: %d\r", z);
         for (int y = 0; y < size.y; y++) {
             for (int x = 0; x < size.x; x++) {
                 Int3 pos(x, y, z);
@@ -506,20 +504,57 @@ vector<TissueCluster3D*> Preprocessor::clusterSync(Volume* vol) {
 
 
     auto t1 = chrono::high_resolution_clock::now();
-    printf("\n%d clusters found in %d ms \n", id, chrono::duration_cast<chrono::milliseconds>(t1 - start));
+    printf("  %d clusters found in %d ms \n", id, chrono::duration_cast<chrono::milliseconds>(t1 - start));
 
 
     clusterInitScheduler(clusters, vol);
-    printf("Clusters initialized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
+    printf("Clusters initialized in %d ms!\n\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
     return clusters;
+}
+
+int* bucketSort(int* sizes, int num) {	// Fucks up on size 0 or less!
+    int* ordered_indexes = new int[num];
+    int head = num - 1;
+
+    int bucket_start = 0;
+    int bucket_end = 4;
+    while (true) {
+        for (int i = 0; i < num; i++) {
+            int sizei = sizes[i];
+            if (sizei >= bucket_start && sizei < bucket_end) {
+                ordered_indexes[head] = i;
+                head--;
+                if (head == -1)
+                    return ordered_indexes;
+            }
+        }
+        bucket_start = bucket_end;
+        bucket_end *= 2;
+        if (bucket_end == 0) {
+            printf("SOMETHING WENT WRONG");
+            break;
+        }
+
+    }
+}
+int* orderClustersBySize(vector<TissueCluster3D*> clusters) {
+    int* sizes = new int[clusters.size()];
+    for (int i = 0; i < clusters.size(); i++) {
+        sizes[i] = clusters[i]->getSize();
+    }
+    int* ordered_indexes = bucketSort(sizes, clusters.size());
+    delete(sizes);
+    return ordered_indexes;
 }
 void Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
     auto start = chrono::high_resolution_clock::now();
+
+    int* ordered_index = orderClustersBySize(clusters);
+
     for (int i = 0; i < clusters.size(); i++) {
-        if (i % 100 == 0)
+        if (i % 1000 == 0)
             printf("Merging cluster %d\r", i);
-        clusters[i]->mergeClusters(vol, &clusters);
-        //clusters[i]->donothing(vol, &clusters);
+        clusters[ordered_index[i]]->mergeClusters(vol, &clusters);
     }
 
     printf("\nMerging completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
@@ -527,8 +562,9 @@ void Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters)
 
 void Preprocessor::finalizeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
     auto start = chrono::high_resolution_clock::now();
+    ColorMaker CM;
     for (int i = 0; i < clusters.size(); i++) {
-        clusters[i]->finalize(vol);
+        clusters[i]->finalize(vol, &CM);
     }
 
     printf("\nClusters finalized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));

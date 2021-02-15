@@ -25,19 +25,19 @@ public:
 		}			
 	}
 	void deleteVal(int key) {				// ONLY CALL ON VALUES THAT DOES EXIST IN TREE!!!!!!!
-		if (root == NULL)
-			printf("ILLEGAL DELETION: root is NULL.\n");
+		if (root == NULL) {
+			//printf("ILLEGAL DELETION: root is NULL.\n");
+		}
 		else {
 			if (root->find(key)) {				// Track whether the value is ACTUALLY found.
 				if (root->deleteNode(key)) {	// return true only when root is value and root!
 					delete(root);
 					root = NULL;
-					printf("Deleting root!\n");
 				}
 				treesize--;
 			}
-			else
-				printf("ILLEGAL DELETION: key not found.\n");
+			//else
+				//printf("ILLEGAL DELETION: key not found.\n");
 		}
 	}
 
@@ -46,7 +46,6 @@ public:
 			return new int(-11);
 		}
 		int* index = new int(0);
-		//*index = 0;
 		int* arr = new int[treesize];
 		root->fetch(arr, index);
 
@@ -113,7 +112,6 @@ private:
 			if (key == value) {
 				if (!leaf) {
 					int replacement = findReplacement();
-					printf("Replacement: %d\n", replacement);
 					deleteNode(replacement);	// Delete that val first, then set this element to that val. Called on this, beucase only a parent can delete a child!!!
 					value = replacement;
 				}

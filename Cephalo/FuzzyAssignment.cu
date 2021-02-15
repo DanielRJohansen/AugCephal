@@ -6,10 +6,6 @@ __managed__ float kcluster_total_change = 99;
 
 //--------------------------KERNEL Helper functions----------------------//
 
-
-
-
-
 __device__ void updateGlobalClustersIntoShared(CudaKCluster* shared_clusters, CudaKCluster* kclusters, int k) {
     int x = threadIdx.x;
 
@@ -27,11 +23,11 @@ __device__ void resetAccumulations(float* thread_accs, short* thread_mems, int k
     }
 }
 
-__device__ void updateSharedMemClusters(CudaKCluster* shared_clusters, float* thread_accs, short* thread_mems, int k, Int3 size) {      // Here it is vital we sync, both before and after updating!
+__device__ void updateSharedMemClusters(CudaKCluster* shared_clusters, float* thread_accs, short* thread_mems, int k, int threads_per_block) {      // Here it is vital we sync, both before and after updating!
     int x = threadIdx.x;
     __syncthreads();
     if (x < k) {
-        for (int i = 0; i < size.x; i++) {
+        for (int i = 0; i < threads_per_block; i++) {
             int index = x + i * k;
             shared_clusters[x].assignBatch(thread_accs[index], thread_mems[index]);
         }
@@ -90,7 +86,48 @@ __device__ void fetchWindow3x3(Voxel* voxelcopy, float* kernel, Int3 pos, Int3 s
 
 
 //--------------------------Kernels----------------------//
-__global__ void kMeansRunKernel(Voxel* voxels, CudaKCluster* kclusters, CudaKCluster* global_clusters, int k, Int3 size) {
+__global__ void kMeansRunKernel(Voxel* voxels, CudaKCluster* kclusters, CudaKCluster* global_clusters, int k, Int3 size, int threads_per_block) {
+    int index = blockIdx.x *threads_per_block + threadIdx.x;
+    int y = index / size.x;
+    int x = index % size.x;
+    if (y >= size.y || x >= size.x)     // May happen in the very last block
+        return;
+
+    extern __shared__ CudaKCluster block_clusters[];
+    CudaKCluster* shared_clusters = (CudaKCluster*)block_clusters;      // k per block
+    float* thread_accs = (float*)&shared_clusters[k];                   // k * num_threads per block
+    short* thread_mems = (short*)&thread_accs[k * threads_per_block];
+
+    updateGlobalClustersIntoShared(shared_clusters, kclusters, k);  // Load clusters into shared mem  
+    resetAccumulations(thread_accs, thread_mems, k);                // Init thread mem
+    __syncthreads();
+
+    // Algo
+    int thread_offset = threadIdx.x * k;
+    for (int z = 0; z < size.z; z++) {
+        Voxel voxel = voxels[xyzToIndex(Int3(x, y, z), size)];
+        if (!voxel.ignore) {
+            float highest_belonging = 0;
+            int best_index = 0;
+
+            for (int i = 0; i < k; i++) {
+                float belonging = shared_clusters[i].belonging(voxel.norm_val);
+                if (belonging > highest_belonging) {
+                    highest_belonging = belonging;
+                    best_index = i;
+                }
+            }
+            int thread_k_index = thread_offset + best_index;
+            thread_accs[thread_k_index] += voxel.norm_val;
+            thread_mems[thread_k_index] += 1;
+        }
+    }
+
+    updateSharedMemClusters(shared_clusters, thread_accs, thread_mems, k, threads_per_block);
+    pushSharedMemClusterToGlobalBlockClusters(shared_clusters, global_clusters, k);
+}
+/*
+__global__ void kMeansRunKernel2(Voxel* voxels, CudaKCluster* kclusters, CudaKCluster* global_clusters, int k, Int3 size) {
     int y = blockIdx.x;
     int x = threadIdx.x;
 
@@ -126,9 +163,10 @@ __global__ void kMeansRunKernel(Voxel* voxels, CudaKCluster* kclusters, CudaKClu
     updateSharedMemClusters(shared_clusters, thread_accs, thread_mems, k, size);
     pushSharedMemClusterToGlobalBlockClusters(shared_clusters, global_clusters, k);
 }
-
-__global__ void updateGlobalClustersKernel(CudaKCluster* kclusters, CudaKCluster* block_clusters, int k, Int3 size) { // block_clusters are in global memory
-    int x = threadIdx.x;
+*/
+/*
+__global__ void updateGlobalClustersKernel2(CudaKCluster* kclusters, CudaKCluster* block_clusters, int k, Int3 size) { // block_clusters are in global memory
+    int x = threadIdx.x;                                        // Which k to handle
 
     extern __shared__ float change_arr[];
     float* shared_change = (float*)change_arr;
@@ -147,7 +185,28 @@ __global__ void updateGlobalClustersKernel(CudaKCluster* kclusters, CudaKCluster
             kcluster_total_change += shared_change[i];
     }
 }
+*/
 
+__global__ void updateGlobalClustersKernel(CudaKCluster* kclusters, CudaKCluster* block_clusters, int k, int num_blocks) { // block_clusters are in global memory
+    int x = threadIdx.x;
+
+    extern __shared__ float change_arr[];
+    float* shared_change = (float*)change_arr;
+
+    for (int i = 0; i < num_blocks; i++) {
+        kclusters[x].mergeBatch(block_clusters[i * k + x]);
+    }
+
+    shared_change[x] = kclusters[x].calcCentroid();;
+
+    __syncthreads();
+
+    if (x == 0) {
+        kcluster_total_change = 0;
+        for (int i = 0; i < k; i++)
+            kcluster_total_change += shared_change[i];
+    }
+}
 
 
 
@@ -211,13 +270,6 @@ __global__ void fuzzyAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, fl
 
 
 
-
-
-
-
-
-
-
 //------------------------------------------------------HOST Helper functions--------------------------------------------------------------------------------------//
 void checkCudaError() {
     cudaError_t err = cudaGetLastError();        // Get error code
@@ -242,7 +294,6 @@ void printKmeansStuff(CudaKCluster* cluster_dev, int k) {
     printf("\n");
 }
 
-
 CudaKCluster* initClusters(int k) {
     CudaKCluster* kclusters_host = new CudaKCluster[k];
     for (int i = 0; i < k; i++)
@@ -252,9 +303,6 @@ CudaKCluster* initClusters(int k) {
     cudaMemcpy(kclusters_device, kclusters_host, k * sizeof(CudaKCluster), cudaMemcpyHostToDevice);
     return kclusters_device;
 }
-
-
-
 
 float dist(Int3 o, Int3 p) {
     float x_ = o.x - p.x;
@@ -282,8 +330,6 @@ float* makeGaussianKernel3D() {
     return kernel_dev;
 }
 
-
-
 void checkFuzzyAssignment(Volume* vol, int k) {
     Voxel* vh = new Voxel[vol->len];
     cudaMemcpy(vh, vol->voxels, vol->len * sizeof(Voxel), cudaMemcpyDeviceToHost);
@@ -298,9 +344,6 @@ void checkFuzzyAssignment(Volume* vol, int k) {
 }
 
 
-
-
-
 //---------------------------------------------KERNEL launchers -----------------------------------------------------------------------------------------------------------------//
 
 
@@ -308,22 +351,30 @@ void checkFuzzyAssignment(Volume* vol, int k) {
 CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {                                    // We must launch separate kernels to update clusters. Only 100% safe way to sync threadblocks!
     auto start = chrono::high_resolution_clock::now();
 
+
+    int threads_per_block = 128;
+    int num_blocks = (vol->size.x * vol->size.y) / threads_per_block;
+
+
     CudaKCluster* kclusters_device = initClusters(k);
     CudaKCluster* kclusters_blocks;
-    cudaMallocManaged(&kclusters_blocks, vol->size.y * k * sizeof(CudaKCluster));   // K clusters for each BLOCK
+    cudaMallocManaged(&kclusters_blocks, num_blocks * k * sizeof(CudaKCluster));   // K clusters for each BLOCK
 
-    int shared_mem_size = k * sizeof(CudaKCluster) + k * vol->size.x * sizeof(float) + k * vol->size.x * sizeof(short);
-    printf("\n\nExecuting kMeans with %d clusters.\nAllocating %d Kb of memory per threadblock\n", k, shared_mem_size / 1000);
+    int shared_mem_size = k * sizeof(CudaKCluster) + k * threads_per_block * sizeof(float) + k * threads_per_block * sizeof(short);
+    printf("\n\nExecuting kMeans with %d clusters.\nAllocating %d Kb of memory on %d threadblocks\n", k, shared_mem_size / 1000, num_blocks);
+
 
 
 
     int iterations = 0;
     while (kcluster_total_change > 0.002 && iterations < max_iterations) {
-        kMeansRunKernel << <vol->size.y, vol->size.x, shared_mem_size >> > (vol->voxels, kclusters_device, kclusters_blocks, k, vol->size);
-        checkCudaError();
+        
+        kMeansRunKernel << <num_blocks, threads_per_block, shared_mem_size >> > (vol->voxels, kclusters_device, kclusters_blocks, k, vol->size, threads_per_block);
         cudaDeviceSynchronize();
-
-        updateGlobalClustersKernel << <1, k, k * sizeof(float) >> > (kclusters_device, kclusters_blocks, k, vol->size);
+        checkCudaError();
+        
+        updateGlobalClustersKernel << <1, k, k * sizeof(float) >> > (kclusters_device, kclusters_blocks, k, num_blocks);
+        checkCudaError();
         cudaDeviceSynchronize();
 
         printf("Total change for kclusters: %f    iterations: %02d\r", kcluster_total_change, iterations++);

@@ -73,7 +73,6 @@ A* tre() {
 
 int main() {
 
-
 	//SliceMagic SliceM;
 	Preprocessor PP;
 	Volume* vol = PP.processScan("F:\\DumbLesion\\NIH_scans\\002701_04_03\\", Int3(512, 512, 191), 1. / 0.8164);
