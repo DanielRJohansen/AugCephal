@@ -12,17 +12,15 @@ void TissueCluster3D::findNeighborsAndMean(Volume* vol) {
 		int member_index = member_indexes[i];
 		Voxel* cur_voxel = &vol->voxels[member_index];			// No ignores are added to a cluster
 		mean += (double)cur_voxel->hu_val / (double)member_indexes.size();
-
-
 		Int3 origin = indexToXYZ(member_index, vol->size);
-
-
-		for (int i = 0; i < 6; i++) {							// search each neighbor-voxel for neighbor cluster
-			Int3 pos = getImmediateNeighbor(origin, i);
+		for (int j = 0; j < 6; j++) {							// search each neighbor-voxel for neighbor cluster
+			Int3 pos = getImmediateNeighbor(origin, j);
 			if (isInVolume(pos, vol->size)) {
 				Voxel* neighbor = &vol->voxels[xyzToIndex(pos, vol->size)];
-				if (!neighbor->ignore && neighbor->cluster_id != cur_voxel->cluster_id) {
-					neighbor_ids.addVal(neighbor->cluster_id);
+				if (!neighbor->ignore) {
+					if ( neighbor->cluster_id != cur_voxel->cluster_id) {
+						neighbor_ids.addVal(neighbor->cluster_id);
+					}
 				}
 			}
 		}
@@ -44,9 +42,9 @@ void TissueCluster3D::mergeClusters(Volume* vol, vector<TissueCluster3D*>* all_c
 
 	int num_merges = 0;
 
-
 	int* ids = neighbor_ids.fetch();
 	int num_neighbors = neighbor_ids.size();					// Cache here, as size increases during function!!
+
 	for (int i = 0; i < num_neighbors; i++) {
 		int neighbor_id = ids[i];
 
@@ -56,7 +54,7 @@ void TissueCluster3D::mergeClusters(Volume* vol, vector<TissueCluster3D*>* all_c
 			neighbor = all_clusters[0][neighbor->getParentID(all_clusters)];
 		}
 		if (neighbor->id == id) {
-			//printf("Same id!\n");
+			neighbor_ids.deleteVal(neighbor_id);				// Should only come from clusters eaten by another cluster eaten by parent :)
 			continue;
 		}
 			
@@ -66,7 +64,6 @@ void TissueCluster3D::mergeClusters(Volume* vol, vector<TissueCluster3D*>* all_c
 				mergeCluster(vol->voxels, all_clusters, neighbor);
 			}
 			else {
-				//printf("Swapping parent\n");
 				neighbor->mergeCluster(vol->voxels, all_clusters, all_clusters[0][id]);
 				neighbor->mergeClusters(vol, all_clusters);		// Continue merging on the new parent, who now owns all of this clusters' neighbors
 				delete(ids);
@@ -74,13 +71,16 @@ void TissueCluster3D::mergeClusters(Volume* vol, vector<TissueCluster3D*>* all_c
 			}
 		}
 		else {
-			//neighbor_ids
+			neighbor_ids.deleteVal(neighbor_id);				// SO YEAH, THIS PROBABLY ISN'T IDEAL, but maybe it's not a problem.
 		}
 	}
 	delete(ids);
 
-	//if (num_merges > 0)
-		//mergeClusters(vol, all_clusters);
+	/*if (num_merges > 0) {
+		printf("%d merges!\n", num_merges);
+		mergeClusters(vol, all_clusters);
+	}*/
+		
 }
 
 
@@ -111,8 +111,8 @@ bool TissueCluster3D::isMergeable(TissueCluster3D* orphan) {
 
 
 void TissueCluster3D::transferMembers( TissueCluster3D* orphan) {
-	//member_indexes.insert(member_indexes.end(), orphan->member_indexes.begin(), orphan->member_indexes.end());
-	//orphan->member_indexes.clear();
+	member_indexes.insert(member_indexes.end(), orphan->member_indexes.begin(), orphan->member_indexes.end());
+	orphan->member_indexes.clear();
 
 
 	int* orphan_neighbors = orphan->neighbor_ids.fetch();
@@ -140,6 +140,7 @@ void TissueCluster3D::verifyNeighborAliveness(vector<TissueCluster3D*>* all_clus
 			neighbor_ids.deleteVal(id);
 		}
 	}
+	delete(neighbors);
 }
 
 void TissueCluster3D::kill(int pa) {
@@ -153,16 +154,17 @@ void TissueCluster3D::kill(int pa) {
 //-------------------------------------------------------------- FINALIZATION ---------------------------------------------------------------------------------------------\\
 
 void TissueCluster3D::finalize(Volume* vol, ColorMaker* CM) {
+	if (dead)
+		return;
 	Color temp_color = CM->colorFromHu(mean);  
-	color = CudaColor(temp_color);
+	//color = CudaColor(temp_color);
+	color = color.getRandColor();
 	findEdges(vol); 
 }
 
 
 
 void TissueCluster3D::findEdges(Volume* vol) {
-	if (dead)
-		return;
 	for (int i = 0; i < member_indexes.size(); i++) {
 		int member_index = member_indexes[i];
 		Voxel* cur_voxel = &vol->voxels[member_index];

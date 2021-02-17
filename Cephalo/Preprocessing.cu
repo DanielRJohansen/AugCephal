@@ -185,7 +185,6 @@ __global__ void windowKernel(Voxel* voxels, float min, float max, Int3 size) {
     int y = threadIdx.x;
     for (int z = 0; z < size.z; z++) {
         int index = xyzToIndex(Int3(x, y, z), size);
-        //float a = voxels[index].norm_val;
         voxels[index].norm(min, max);
     }
 }
@@ -193,7 +192,6 @@ __global__ void windowKernel(Voxel* voxels, float min, float max, Int3 size) {
 void Preprocessor::windowVolume(Volume* volume, float min, float max) {
     auto start = chrono::high_resolution_clock::now();
     Int3 size = volume->size;
-    //windowKernel <<< size.y, size.x >>> (gpu_voxels, min, max, size);
     windowKernel << < size.y, size.x >> > (volume->voxels, min, max, size);
 
     cudaError_t err = cudaGetLastError();        // Get error code
@@ -214,22 +212,6 @@ void Preprocessor::windowVolume(Volume* volume, float min, float max) {
 
 
 
-
-
-void Preprocessor::speedTest() {
-    int len = 6000000000;
-    char* host = new char[len];
-    char* device;    
-    cudaMallocManaged(&device, len * sizeof(char));
-    auto t1 = chrono::high_resolution_clock::now();
-    cudaMemcpy(device, host, len * sizeof(char), cudaMemcpyHostToDevice);
-    printf("Sent in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
-
-    auto t2 = chrono::high_resolution_clock::now();
-    cudaMemcpy(host, device, len * sizeof(char), cudaMemcpyDeviceToHost);
-    printf("Received in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t2));
-
-}
 
 
 
@@ -455,16 +437,16 @@ void clusterInitScheduler(vector<TissueCluster3D*> clusters, Volume* vol) {
             clusters[i]->initialize(vol);
         }
         else {
-            continue;
             thread worker(clusterInitializationTask, clusters[i], vol);
             workers.push_back(move(worker));
         }
     }
     printf("\n");
     for (int i = 0; i < workers.size(); i++) {
-        printf("\rWaiting to join threads (%02d/%02d) ", i+1, workers.size());
+        printf("\rWaiting to join threads (%02d/%02d)  ", i+1, workers.size());
         workers[i].join();
     }
+    printf("\n");
 }
 
 void testTask(bool* available_threads, char thread_index) {
@@ -557,6 +539,7 @@ void Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters)
         clusters[ordered_index[i]]->mergeClusters(vol, &clusters);
     }
 
+    delete(ordered_index);
     printf("\nMerging completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 }
 

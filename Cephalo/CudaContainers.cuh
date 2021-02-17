@@ -31,6 +31,7 @@ struct Int3 {
 	__device__ __host__ Int3(int x, int y, int z) : x(x), y(y), z(z) {}
 	__device__ __host__ Int3 operator+(Int3 s) const { return Int3(x + s.x, y + s.y, z + s.z); }
 
+	void print() { cout << "(" << x << ", " << y << ", " << z << ")" << endl;}
 	int x, y, z;
 };
 
@@ -146,16 +147,6 @@ struct Voxel{	//Lots of values
 		if (hu_val > max) { norm_val = 1; }
 		else if (hu_val < min) { norm_val = 0; }
 		else norm_val = (hu_val - min) / (max - min);
-	}
-};
-
-struct TestCUDA {
-	TestCUDA() {};
-
-	float a = 0;
-
-	__device__ void dothing() {
-		a = 5;
 	}
 };
 
@@ -390,9 +381,28 @@ private:
 	void findEdges(Volume* vol);
 	
 
+
+
+
+	void remove(Volume* vol) {
+		//printf("Removing id: %d\n\n", id);
+		for (int i = 0; i < member_indexes.size(); i++) {
+			vol->voxels[member_indexes[i]].ignore = true;
+		}
+	}
+	void colorMembers(Volume* vol, CudaColor(c)) {
+		for (int i = 0; i < member_indexes.size(); i++) {
+			vol->voxels[member_indexes[i]].isEdge = true;
+			vol->voxels[member_indexes[i]].color = c;
+		}
+	}
+
+
+
 	const int x_off[6] = { 0, 0, 0, 0, -1, 1 };
 	const int y_off[6] = { 0, 0, -1, 1, 0, 0 };
 	const int z_off[6] = { -1, 1, 0, 0, 0, 0 };
+
 	Int3 getImmediateNeighbor(Int3 pos, int i) {
 		Int3 pos_ = Int3(x_off[i], y_off[i], z_off[i]);
 		return pos + pos_;
