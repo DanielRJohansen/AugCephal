@@ -20,6 +20,7 @@ void TissueCluster3D::findNeighborsAndMean(Volume* vol) {
 				if (!neighbor->ignore) {
 					if ( neighbor->cluster_id != cur_voxel->cluster_id) {
 						neighbor_ids.addVal(neighbor->cluster_id);
+						viable_neighbor_ids.addVal(neighbor->cluster_id);
 					}
 				}
 			}
@@ -40,12 +41,15 @@ void TissueCluster3D::mergeClusters(vector<TissueCluster3D*>* all_clusters) {
 	if (dead)
 		return;
 
-	verifyNeighborAliveness(all_clusters);
+	verifyViableNeighborAliveness(all_clusters);
 
 	int num_merges = 0;
 
-	int* ids = neighbor_ids.fetch();
-	int num_neighbors = neighbor_ids.size();					// Cache here, as size increases during function!!
+	
+	int* ids = viable_neighbor_ids.fetch();
+	int num_neighbors = viable_neighbor_ids.size();					// Cache here, as size increases during function!!
+	//int* ids = neighbor_ids.fetch();
+	//int num_neighbors = neighbor_ids.size();					// Cache here, as size increases during function!!
 	for (int i = 0; i < num_neighbors; i++) {
 		int neighbor_id = ids[i];
 
@@ -58,7 +62,8 @@ void TissueCluster3D::mergeClusters(vector<TissueCluster3D*>* all_clusters) {
 			neighbor = all_clusters[0][parent_id];
 		}
 		if (neighbor->id == id) {
-			neighbor_ids.deleteVal(neighbor_id);				// Case only arises from clusters eaten by another cluster eaten by parent :)
+			neighbor_ids.deleteVal(neighbor_id);
+			viable_neighbor_ids.deleteVal(neighbor_id);				// Case only arises from clusters eaten by another cluster eaten by parent :)
 			continue;
 		}
 			
@@ -75,13 +80,13 @@ void TissueCluster3D::mergeClusters(vector<TissueCluster3D*>* all_clusters) {
 			}
 		}
 		else {
-			neighbor_ids.deleteVal(neighbor_id);				// SO YEAH, THIS PROBABLY ISN'T IDEAL, but maybe it's not a problem.
+			viable_neighbor_ids.deleteVal(neighbor_id);				// SO YEAH, THIS PROBABLY ISN'T IDEAL, but maybe it's not a problem.
 		}
 	}
 	delete(ids);
 
 	if (num_merges > 0) {
-		//mergeClusters(all_clusters);
+		mergeClusters(all_clusters);
 	}
 		
 }
@@ -93,10 +98,11 @@ void TissueCluster3D::mergeClusters(vector<TissueCluster3D*>* all_clusters) {
 
 void TissueCluster3D::mergeCluster(vector<TissueCluster3D*>* all_clusters, TissueCluster3D* orphan) {	// you know, because it has no parent yet
 	mean = (mean * member_indexes.size() + orphan->mean * orphan->member_indexes.size()) / (member_indexes.size() + orphan->member_indexes.size());
-	orphan->verifyNeighborAliveness(all_clusters);
+	orphan->verifyViableNeighborAliveness(all_clusters);
 	transferMembers(orphan);				// Deletes large structures
 	
 	neighbor_ids.deleteVal(orphan->id);
+	viable_neighbor_ids.deleteVal(orphan->id);
 	orphan->kill(id);						// Alters orphans ID.
 }
 
@@ -147,14 +153,17 @@ void TissueCluster3D::transferMembers(TissueCluster3D* orphan) {
 	member_indexes.insert(member_indexes.end(), orphan->member_indexes.begin(), orphan->member_indexes.end());
 	orphan->member_indexes.clear();
 
-	int* orphan_neighbors = orphan->neighbor_ids.fetch();
-	for (int i = 0; i < orphan->neighbor_ids.size(); i++) {
+	int* orphan_neighbors = orphan->viable_neighbor_ids.fetch();
+	for (int i = 0; i < orphan->viable_neighbor_ids.size(); i++) {
 		if (orphan_neighbors[i] != id) {
-			neighbor_ids.addVal(orphan_neighbors[i]);
+			if (neighbor_ids.addVal(orphan_neighbors[i])) {
+				viable_neighbor_ids.addVal(orphan_neighbors[i]);
+			}
 		}
-	}
-
+	}	
 	orphan->neighbor_ids.clear();
+	orphan->viable_neighbor_ids.clear();
+
 	delete(orphan_neighbors);
 }
 
@@ -171,6 +180,7 @@ void TissueCluster3D::annihilate(Volume* vol) {
 		vol->voxels[member_indexes[i]].ignore = true;
 	}
 	neighbor_ids.clear();
+	viable_neighbor_ids.clear();
 	member_indexes.clear();
 }
 
@@ -202,7 +212,7 @@ void TissueCluster3D::findEdges(Volume* vol) {
 	}
 }
 bool TissueCluster3D::isEdge(Volume* vol, Int3 origin, Voxel* v0) {
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < 27; i++) {
 		Int3 pos = getImmediateNeighbor(origin, i);
 		if (isInVolume(pos, vol->size)) {						// Edges can on purpose not be volume-border voxels
 			int neighbor_index = xyzToIndex(pos, vol->size);
@@ -222,16 +232,35 @@ bool TissueCluster3D::isEdge(Volume* vol, Int3 origin, Voxel* v0) {
 
 //-------------------------------------------------------------- MERGING - GENERAL ---------------------------------------------------------------------------------------------\\
 
-void TissueCluster3D::verifyNeighborAliveness(vector<TissueCluster3D*>* all_clusters) {
-	int* neighbors = neighbor_ids.fetch();
-	int num = neighbor_ids.size();
+void TissueCluster3D::verifyAllNeighborAliveness(vector<TissueCluster3D*>* all_clusters) {
+int* neighbors = neighbor_ids.fetch();
+int num = neighbor_ids.size();
+for (int i = 0; i < num; i++) {
+	int n_id = neighbors[i];
+	if (all_clusters[0][n_id]->dead) {
+		int parent_id = all_clusters[0][n_id]->getParentID(all_clusters);
+		if (parent_id != id && parent_id != -1)	// -1 is annihilated case.
+			neighbor_ids.addVal(parent_id);
+		neighbor_ids.deleteVal(n_id);
+	}
+}
+delete(neighbors);
+}
+
+void TissueCluster3D::verifyViableNeighborAliveness(vector<TissueCluster3D*>* all_clusters) {
+	int* neighbors = viable_neighbor_ids.fetch();
+	int num = viable_neighbor_ids.size();
 	for (int i = 0; i < num; i++) {
 		int n_id = neighbors[i];
 		if (all_clusters[0][n_id]->dead) {
 			int parent_id = all_clusters[0][n_id]->getParentID(all_clusters);
-			if (parent_id != id && parent_id != -1)	// -1 is annihilated case.
-				neighbor_ids.addVal(parent_id);
+			if (parent_id != id && parent_id != -1) {	// -1 is annihilated case.
+				if (neighbor_ids.addVal(parent_id)) {
+					viable_neighbor_ids.addVal(parent_id);
+				}
+			}
 			neighbor_ids.deleteVal(n_id);
+			viable_neighbor_ids.deleteVal(n_id);
 		}
 	}
 	delete(neighbors);
@@ -242,7 +271,7 @@ void TissueCluster3D::eliminateVesicle(Volume* vol, vector<TissueCluster3D*>* al
 		return;
 
 	//printf("ID: %d\n", id);
-	verifyNeighborAliveness(all_clusters);
+	verifyAllNeighborAliveness(all_clusters);
 	//printf("verified\n");
 	int num_merges = 0;
 

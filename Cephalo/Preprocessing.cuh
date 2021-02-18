@@ -56,7 +56,7 @@ public:
 		setColumnIgnores(volume);
 
 
-		int k = 16;
+		int k = 20;
 		rmf(volume);
 		rmf(volume);
 		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
@@ -82,7 +82,7 @@ private:
 	void insertImInVolume(cv::Mat img, int z);
 	Volume* convertToVolume(float* scan, Int3 size);
 	void setIgnoreBelow(Volume* vol, float below);
-	float* makeNormvalCopy(Volume* vol);
+	//float* makeNormvalCopy(Volume* vol);
 	void colorFromNormval(Volume* vol);
 	
 

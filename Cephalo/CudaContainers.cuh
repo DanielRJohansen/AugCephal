@@ -346,7 +346,9 @@ public:
 	// Large structures
 	vector<int> member_indexes;
 	vector<int> edge_member_indexes;
+
 	UnorderedIntTree neighbor_ids;
+	UnorderedIntTree viable_neighbor_ids;	// Smaller than that one ^^^^
 
 private:
 	
@@ -357,7 +359,9 @@ private:
 	void findNeighborsAndMean(Volume* vol);
 
 	// Merging - general
-	void verifyNeighborAliveness(vector<TissueCluster3D*>* all_clusters);	// removes eventual deads, insert dead's parent
+	void verifyAllNeighborAliveness(vector<TissueCluster3D*>* all_clusters);	// removes eventual deads, insert dead's parent
+	void verifyViableNeighborAliveness(vector<TissueCluster3D*>* all_clusters);	// removes eventual deads, insert dead's parent
+
 	TissueCluster3D* replaceIfDead(TissueCluster3D* query, vector<TissueCluster3D*>* all_clusters);
 
 	// Merging - parent

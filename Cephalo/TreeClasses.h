@@ -11,18 +11,24 @@ class UnorderedIntTree {
 	struct Node;
 public:	
 	UnorderedIntTree() {}
-	void addVal(int key) {
+	bool addVal(int key) {
 		if (key < 0) {
 			printf("Inserting illegal key: %d\n\n",key);
 			exit(-2);
 		}
 			
-		if (root != NULL)
-			treesize += root->addVal(key);
+		if (root != NULL) {
+			if (root->addVal(key)) {
+				treesize++;
+				return true;
+			}
+		}
 		else {
 			root = new Node(key);
 			treesize++;
+			return true;
 		}			
+		return false;
 	}
 	void deleteVal(int key) {				// ONLY CALL ON VALUES THAT DOES EXIST IN TREE!!!!!!!
 		if (root == NULL) {
