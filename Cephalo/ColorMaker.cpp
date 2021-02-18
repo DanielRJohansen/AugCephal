@@ -50,7 +50,7 @@ void ColorMaker::makeLUT() {
 			float x = hu_val;
 			float exponential = - (x - cat.center) * (x - cat.center) / (2 * sd * sd);
 			//printf("%f         %f\n", exponential, expf(exponential));
-			float belonging_score = 1 / (sd * sqrt(2 * pi)) * expf(exponential);
+			float belonging_score = 1 / (sd * sqrt(2 * 3.1415)) * expf(exponential);
 
 			if (belonging_score > highest_belonging) {
 				cat_lut[i] = cat_i;
@@ -65,10 +65,8 @@ void ColorMaker::makeLUT() {
 
 		
 		if (total_belonging < 0.00000001) { cat_lut[i] = UNKNOWN_CAT; }
-		//cout << total_belonging << endl;
 		float blutscore = total_belonging * BELONGING_COEFFICIENT;
-		//if (hu_val < 200)
-		//	printf("%d     %f\n", hu_val, blutscore);
+
 		if (blutscore > 1) { blutscore = 1; }
 		belonging_lut[i] = blutscore;
 	}

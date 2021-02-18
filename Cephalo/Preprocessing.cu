@@ -185,7 +185,6 @@ __global__ void windowKernel(Voxel* voxels, float min, float max, Int3 size) {
     int y = threadIdx.x;
     for (int z = 0; z < size.z; z++) {
         int index = xyzToIndex(Int3(x, y, z), size);
-        //float a = voxels[index].norm_val;
         voxels[index].norm(min, max);
     }
 }
@@ -193,7 +192,6 @@ __global__ void windowKernel(Voxel* voxels, float min, float max, Int3 size) {
 void Preprocessor::windowVolume(Volume* volume, float min, float max) {
     auto start = chrono::high_resolution_clock::now();
     Int3 size = volume->size;
-    //windowKernel <<< size.y, size.x >>> (gpu_voxels, min, max, size);
     windowKernel << < size.y, size.x >> > (volume->voxels, min, max, size);
 
     cudaError_t err = cudaGetLastError();        // Get error code
@@ -214,22 +212,6 @@ void Preprocessor::windowVolume(Volume* volume, float min, float max) {
 
 
 
-
-
-void Preprocessor::speedTest() {
-    int len = 6000000000;
-    char* host = new char[len];
-    char* device;    
-    cudaMallocManaged(&device, len * sizeof(char));
-    auto t1 = chrono::high_resolution_clock::now();
-    cudaMemcpy(device, host, len * sizeof(char), cudaMemcpyHostToDevice);
-    printf("Sent in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
-
-    auto t2 = chrono::high_resolution_clock::now();
-    cudaMemcpy(host, device, len * sizeof(char), cudaMemcpyDeviceToHost);
-    printf("Received in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t2));
-
-}
 
 
 
@@ -441,36 +423,30 @@ void propagateCluster(Volume* vol, TissueCluster3D* cluster, Int3 pos, int depth
 }
 
 
-void clusterInitializationTask(TissueCluster3D* cluster, Volume* vol, bool* available_threads, char thread_index) {
-    cluster->determineEdges(vol);
-    available_threads[thread_index] = 1;
+void clusterInitializationTask(TissueCluster3D* cluster, Volume* vol) {
+    cluster->initialize(vol);
+
 }
 
-void clusterInitScheduler(vector<TissueCluster3D> clusters, Volume* vol) {
-    bool* available_threads = new bool[8];
-    for (int i = 0; i < 8; i++)
-        available_threads[i] = 1;
-
+void clusterInitScheduler(vector<TissueCluster3D*> clusters, Volume* vol) {
     vector<thread> workers;
     unsigned int edge_voxels = 0;
     for (int i = 0; i < clusters.size(); i++) {
-        if (!(i % 100))
-            printf("Cluster: %d\r", i);
         char index = 0;
-        if (clusters[i].n_members < 50000) {
-            clusters[i].determineEdges(vol);
+        if (clusters[i]->member_indexes.size() < 1000000) {
+            clusters[i]->initialize(vol);
         }
         else {
-            thread worker(clusterInitializationTask, &clusters[i], vol, available_threads, index);
+            thread worker(clusterInitializationTask, clusters[i], vol);
             workers.push_back(move(worker));
         }
     }
     printf("\n");
     for (int i = 0; i < workers.size(); i++) {
-        printf("\rWaiting to join threads (%02d/%02d) ", i+1, workers.size());
-
+        printf("\rWaiting to join threads (%02d/%02d)  ", i+1, workers.size());
         workers[i].join();
     }
+    printf("\n");
 }
 
 void testTask(bool* available_threads, char thread_index) {
@@ -480,47 +456,126 @@ void testTask(bool* available_threads, char thread_index) {
 }
 
 
-vector<TissueCluster3D> Preprocessor::clusterSync(Volume* vol, int* num_clusters) {
-    printf("Clustering initiated\n");
+vector<TissueCluster3D*> Preprocessor::clusterSync(Volume* vol) {
+    printf("Clustering initiated...");
     auto start = chrono::high_resolution_clock::now();
 
     Int3 size = vol->size;
     int id = 0;
     CudaColor color = CudaColor().getRandColor();
-    vector<TissueCluster3D> clusters;
+    vector<TissueCluster3D*> clusters;
+    
 
     for (int z = 0; z < size.z; z++) {
-        printf("Z: %d\r", z);
         for (int y = 0; y < size.y; y++) {
             for (int x = 0; x < size.x; x++) {
                 Int3 pos(x, y, z);
                 int index = xyzToIndex(pos, size);
                 Voxel voxel = vol->voxels[index];
                 if (voxel.cluster_id == -1 && !voxel.ignore) {
-                    TissueCluster3D cluster(id, voxel.kcluster);
-                    propagateCluster(vol, &cluster, Int3(x, y, z), 0);
+                    TissueCluster3D* cluster = new TissueCluster3D(id, voxel.kcluster);
+                    propagateCluster(vol, cluster, Int3(x, y, z), 0);
+
                     clusters.push_back(cluster);
                     id++;
                 }
             }
         }
     }
-    *num_clusters = id;
+
+
 
     auto t1 = chrono::high_resolution_clock::now();
-    printf("\n                              %d clusters found in %d ms \n\n", id, chrono::duration_cast<chrono::milliseconds>(t1 - start));
+    printf("  %d clusters found in %d ms \n", id, chrono::duration_cast<chrono::milliseconds>(t1 - start));
 
 
     clusterInitScheduler(clusters, vol);
-    printf("\nClusters initialized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
-
-
-
+    printf("Clusters initialized in %d ms!\n\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - t1));
     return clusters;
 }
 
+int* bucketSort(int* sizes, int num) {	// Fucks up on size 0 or less!
+    int* ordered_indexes = new int[num];
+    int head = num - 1;
+
+    int bucket_start = 0;
+    int bucket_end = 4;
+    while (true) {
+        for (int i = 0; i < num; i++) {
+            int sizei = sizes[i];
+            if (sizei >= bucket_start && sizei < bucket_end) {
+                ordered_indexes[head] = i;
+                head--;
+                if (head == -1)
+                    return ordered_indexes;
+            }
+        }
+        bucket_start = bucket_end;
+        bucket_end *= 2;
+        if (bucket_end == 0) {
+            printf("SOMETHING WENT WRONG");
+            break;
+        }
+
+    }
+}
+int* orderClustersBySize(vector<TissueCluster3D*> clusters) {
+    int* sizes = new int[clusters.size()];
+    for (int i = 0; i < clusters.size(); i++) {
+        sizes[i] = clusters[i]->getSize();
+    }
+    int* ordered_indexes = bucketSort(sizes, clusters.size());
+    delete(sizes);
+    return ordered_indexes;
+}
 
 
+void Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
+    auto start = chrono::high_resolution_clock::now();
+
+    int* ordered_index = orderClustersBySize(clusters);
+    for (int i = 0; i < clusters.size(); i++) {
+        if (i % 1000 == 0)
+            printf("Merging cluster %d\r", i);
+        clusters[ordered_index[i]]->mergeClusters(&clusters);
+    }
+    delete(ordered_index);
+
+    printf("\nMerging completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+}
+
+void Preprocessor::eliminateVesicles(Volume* vol, vector<TissueCluster3D*> clusters, int threshold_size) {
+    auto start = chrono::high_resolution_clock::now();
+    printf("Removing vesicles...");
+
+    for (int i = 0; i < clusters.size(); i++) {
+        clusters[i]->eliminateVesicle(vol, &clusters, threshold_size);
+    }
+
+    printf("    completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+}
+
+
+void Preprocessor::finalizeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
+    auto start = chrono::high_resolution_clock::now();
+    ColorMaker CM;
+    for (int i = 0; i < clusters.size(); i++) {
+        clusters[i]->finalize(vol, &CM);
+    }
+
+    printf("Clusters finalized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+}
+
+int Preprocessor::countAliveClusters(vector<TissueCluster3D*> clusters, int from) {
+    int num_dead = 0;
+    for (int i = 0; i < clusters.size(); i++) {
+        if (clusters[i]->dead)
+            num_dead++;
+    }
+    int reduced = from - (clusters.size()-num_dead);
+    printf("Num clusters reduced by %d          %d->%d\n", reduced, from, clusters.size() - num_dead);
+    return from - reduced;
+}
 
 
 

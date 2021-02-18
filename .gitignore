@@ -173,5 +173,5 @@ dmypy.json
 *.vs
 *.idb
 *.pdb
-*.ilk
-*.tlog
+*.ilk*
+*.tlog*

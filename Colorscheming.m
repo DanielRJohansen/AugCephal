@@ -75,3 +75,12 @@ bar(x, mean)
 
 
 
+
+%% HU sensitivity
+
+
+x = -700:0.5:800;
+y = 1./x.^2;
+plot(x,y)
+
+

@@ -13,6 +13,8 @@
 #include <iostream>
 #include <math.h>
 #include "TreeClasses.h"
+#include "ColorMaker.h"
+
 using namespace std;
 
 struct Int2 {
@@ -29,11 +31,13 @@ struct Int3 {
 	__device__ __host__ Int3(int x, int y, int z) : x(x), y(y), z(z) {}
 	__device__ __host__ Int3 operator+(Int3 s) const { return Int3(x + s.x, y + s.y, z + s.z); }
 
+	void print() { cout << "(" << x << ", " << y << ", " << z << ")" << endl;}
 	int x, y, z;
 };
 
 struct CudaColor {
 	__device__ __host__ CudaColor() {};
+	__host__ CudaColor(Color c) { r = c.r; g = c.g; b = c.b; }
 	__device__ __host__ CudaColor(float v) { r = v * 255; g = v * 255; b = v * 255; };
 	__device__ __host__ CudaColor(float r, float g, float b) : r(r), g(g), b(b) {};
 	__device__ inline void add(CudaColor c) { r += c.r; g += c.g; b += c.b; };
@@ -143,16 +147,6 @@ struct Voxel{	//Lots of values
 		if (hu_val > max) { norm_val = 1; }
 		else if (hu_val < min) { norm_val = 0; }
 		else norm_val = (hu_val - min) / (max - min);
-	}
-};
-
-struct TestCUDA {
-	TestCUDA() {};
-
-	float a = 0;
-
-	__device__ void dothing() {
-		a = 5;
 	}
 };
 
@@ -307,63 +301,97 @@ public:
 
 
 
+
+
+
 class TissueCluster3D {
 public:
 	TissueCluster3D() {}
 	TissueCluster3D(int id, int target_kcluster) : id(id), target_kcluster(target_kcluster) { color.assignRandomColor();}
 	
-	void addMember(int index) {
-		member_indexes.push_back(index);
-		n_members++;
-	}
-	void colorMembers(Voxel* voxels) {
-		for (int i = 0; i < n_members; i++)
-			voxels[member_indexes[i]].color = color;
-	}
+	//void start(int i, int t) { id = i; target_kcluster = t; color.assignRandomColor(); }
 
-	unsigned int determineEdges(Volume* vol);
+	// Called during cluster-propagation only!
+	void addMember(int index) { member_indexes.push_back(index); }
 
 
-	void mergeClusters(Voxel* voxels, TissueCluster3D* orphan);
+	// Maybe be called by preprocessing
+	void initialize(Volume* vol) { findNeighborsAndMean(vol); }
+	void mergeClusters(vector<TissueCluster3D*>* all_clusters);
+	void eliminateVesicle(Volume* vol, vector<TissueCluster3D*>* all_clusters, int threshold_size);
+	void finalize(Volume* vol, ColorMaker* CM);	// Handles coloring and setting voxel.isEdge
 
 
-
-
+	// MAY be called by another cluster trying to merge, but smaller
+	void mergeCluster(vector<TissueCluster3D*>* all_clusters, TissueCluster3D* orphan);
 
 
 
-	int getParentID(TissueCluster3D* clusters) {
-		if (dead)
-			return clusters[parent_id].getParentID(clusters);
-		return id;
-	}
+
+	// Functions called by other clusters
+	int getParentID(vector<TissueCluster3D*>* clusters); // Returns id -1 if clusters is annihinated	- CAREFUL!	  
+	int getSize() { return member_indexes.size(); }
+
+
 
 	//For initialization only
 	char target_kcluster;
-
 	// For merging
 	bool dead = false;
-	int parent_id;
-	double max_difference = 0.2;
-
+	double max_difference = 30;
 	// General purpose variables
 	int id;
 	unsigned char k_cluster;
-	unsigned int n_members = 0;
-	unsigned int n_edge_members = 0;
-	unsigned int n_neighbors = 0;
 	double mean = 0;
 	CudaColor color;
-
-
 	// Large structures
 	vector<int> member_indexes;
-	//vector<int> edge_member_indexes;
-	//vector<int> neighbor_ids;
-	UnorderedIntTree edge_member_indexes;
+	vector<int> edge_member_indexes;
 	UnorderedIntTree neighbor_ids;
 
 private:
+	
+	bool isEdge(Volume* vol, Int3 origin, Voxel* v0);
+
+
+	// Initialization
+	void findNeighborsAndMean(Volume* vol);
+
+	// Merging - general
+	void verifyNeighborAliveness(vector<TissueCluster3D*>* all_clusters);	// removes eventual deads, insert dead's parent
+	TissueCluster3D* replaceIfDead(TissueCluster3D* query, vector<TissueCluster3D*>* all_clusters);
+
+	// Merging - parent
+	float mergeCost(TissueCluster3D* orphan);
+	bool isMergeable(TissueCluster3D* orphan);
+	void transferMembers(TissueCluster3D* orphan);	//Deletes orphans large data structures
+
+	// Merging - orphan
+	void reassignMembersClusterID(Voxel* voxels, int new_id) {
+		for (int i = 0; i < member_indexes.size(); i++) {
+			voxels[member_indexes[i]].cluster_id = new_id;
+		}
+	}
+	void kill(int parent_id);	// voxels are reassigned
+	void annihilate(Volume* vol);			// voxels are ignored now. Sets id to -1
+
+	// Finalization
+	void findEdges(Volume* vol);
+	
+
+
+
+
+	void remove(Volume* vol) {
+		//printf("Removing id: %d\n\n", id);
+		for (int i = 0; i < member_indexes.size(); i++) {
+			vol->voxels[member_indexes[i]].ignore = true;
+		}
+	}
+	void colorMembers(Volume* vol, CudaColor(c));
+
+
+
 	const int x_off[6] = { 0, 0, 0, 0, -1, 1 };
 	const int y_off[6] = { 0, 0, -1, 1, 0, 0 };
 	const int z_off[6] = { -1, 1, 0, 0, 0, 0 };
@@ -371,29 +399,6 @@ private:
 		Int3 pos_ = Int3(x_off[i], y_off[i], z_off[i]);
 		return pos + pos_;
 	}
-	bool isEdge(Volume* vol, Int3 origin, Voxel v0);
-
-	void addNeighbor(int neighbor_id) {
-		neighbor_ids.addVal(neighbor_id);
-	}
-
-
-
-	// Merging - parent
-	void mergeCluster(Voxel* voxels, TissueCluster3D* orphan);
-	bool isMergeable(TissueCluster3D* orphan);
-	void updateEdges();
-	void refactorEdges();
-	void transferMembers(TissueCluster3D* orphan);
-	
-	//Merging - orphan
-	void reassignMembers(Voxel* voxels, int new_id) {
-		for (int i = 0; i < n_members; i++) {
-			voxels[member_indexes[i]].cluster_id = new_id;
-		}
-	}
-
-
 
 	// Class specific helper functions that SHOULD be global, but its a dependency issue right now :(
 	Int3 indexToXYZ(int index, Int3 size) {
