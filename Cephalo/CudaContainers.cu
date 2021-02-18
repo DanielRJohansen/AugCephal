@@ -13,7 +13,7 @@ void TissueCluster3D::findNeighborsAndMean(Volume* vol) {
 		Voxel* cur_voxel = &vol->voxels[member_index];			// No ignores are added to a cluster
 		mean += (double)cur_voxel->hu_val / (double)member_indexes.size();
 		Int3 origin = indexToXYZ(member_index, vol->size);
-		for (int j = 0; j < 6; j++) {							// search each neighbor-voxel for neighbor cluster
+		for (int j = 0; j < 27; j++) {							// search each neighbor-voxel for neighbor cluster
 			Int3 pos = getImmediateNeighbor(origin, j);
 			if (isInVolume(pos, vol->size)) {
 				Voxel* neighbor = &vol->voxels[xyzToIndex(pos, vol->size)];
@@ -91,7 +91,6 @@ void TissueCluster3D::mergeClusters(vector<TissueCluster3D*>* all_clusters) {
 
 
 
-
 void TissueCluster3D::mergeCluster(vector<TissueCluster3D*>* all_clusters, TissueCluster3D* orphan) {	// you know, because it has no parent yet
 	mean = (mean * member_indexes.size() + orphan->mean * orphan->member_indexes.size()) / (member_indexes.size() + orphan->member_indexes.size());
 	orphan->verifyNeighborAliveness(all_clusters);
@@ -105,12 +104,40 @@ inline float TissueCluster3D::mergeCost(TissueCluster3D* orphan) {
 	return abs(orphan->mean - mean);
 }
 
+float distContribFunc(float humean, float hucenter, float huwidth, float size, float sizecenter, float sizewidth, float maxcontrib) {
+	size = log2(size);
+	//printf("Size: %f\n", size);
+	float temphu = ((humean - hucenter) * (humean - hucenter)) / (huwidth * huwidth);
+	float tempsize = ((size - sizecenter) * (size - sizecenter)) / (sizewidth * sizewidth);
+	return maxcontrib * exp(-(temphu + tempsize));
+}
+
+float maxMergeDist(float hu_mean, float size) {
+	float huwidth, sizewidth, hucenter, sizecenter, maxcontribution, dist;
+	float temphu, tempsize;
+	dist = 30; // min range;
+
+	// Lung Tissue
+	huwidth = 200; sizewidth = 8000; hucenter = -600; sizecenter = 0, maxcontribution = 80;
+	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
+
+	// Bone Tissue
+	huwidth = 600; sizewidth = 19; hucenter = 1000; sizecenter = 23, maxcontribution = 100;
+	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
+
+	// Noise probably
+	huwidth = 10000; sizewidth = 2; hucenter = 0; sizecenter = 0, maxcontribution = 100;
+	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
+
+	return dist;
+}
+
 bool TissueCluster3D::isMergeable(TissueCluster3D* orphan) {
 	int scalar = 1;
 	if (member_indexes.size() < 20 || orphan->mean < -100)
 		scalar = 3;
 	
-	if (mergeCost(orphan) < max_difference*scalar) {
+	if (mergeCost(orphan) < maxMergeDist(mean, member_indexes.size())) {
 		return true;
 	}
 	return false;

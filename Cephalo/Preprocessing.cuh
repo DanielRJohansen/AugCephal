@@ -45,17 +45,18 @@ public:
 		scan = raw_scan;
 		size = s;
 		
-
 		//scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
 		Volume* volume = convertToVolume(scan, size);
+		delete(scan, raw_scan);
+
 
 		// Algoritmic preprocessing
-		windowVolume(volume, -700, 800);		// Norm values are set here
-		setIgnoreBelow(volume, -700);
+		windowVolume(volume, -600, 800);		// Norm values are set here
+		setIgnoreBelow(volume, -600);
 		setColumnIgnores(volume);
 
 
-		int k = 20;
+		int k = 16;
 		rmf(volume);
 		rmf(volume);
 		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread

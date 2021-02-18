@@ -338,7 +338,6 @@ public:
 	char target_kcluster;
 	// For merging
 	bool dead = false;
-	double max_difference = 30;
 	// General purpose variables
 	int id;
 	unsigned char k_cluster;
@@ -395,8 +394,14 @@ private:
 	const int x_off[6] = { 0, 0, 0, 0, -1, 1 };
 	const int y_off[6] = { 0, 0, -1, 1, 0, 0 };
 	const int z_off[6] = { -1, 1, 0, 0, 0, 0 };
+
+	const int xo[3] = { -1, 0, 1 };
+	const int yo[3] = { -1, 0, 1 };
+	const int zo[3] = { -1, 0, 1 };
 	Int3 getImmediateNeighbor(Int3 pos, int i) {
-		Int3 pos_ = Int3(x_off[i], y_off[i], z_off[i]);
+		Int3 rel = indexToXYZ(i, Int3(3, 3, 3));
+		Int3 pos_ = Int3(xo[rel.x], yo[rel.y], zo[rel.z]);
+		//Int3 pos_ = Int3(x_off[i], y_off[i], z_off[i]);
 		return pos + pos_;
 	}
 

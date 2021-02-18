@@ -343,7 +343,6 @@ __global__ void rotatingMaskFilterKernel(Voxel* voxels, Voxel* voxelcopy, Int3 s
 void Preprocessor::rmf(Volume* vol) {
     auto start = chrono::high_resolution_clock::now();
 
-    //float* normcopy = makeNormvalCopy(vol);
     Voxel* voxelcopy;
     cudaMallocManaged(&voxelcopy, vol->len * sizeof(Voxel));
     cudaMemcpy(voxelcopy, vol->voxels, vol->len * sizeof(Voxel), cudaMemcpyDeviceToDevice);
