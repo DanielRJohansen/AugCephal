@@ -528,20 +528,33 @@ int* orderClustersBySize(vector<TissueCluster3D*> clusters) {
     delete(sizes);
     return ordered_indexes;
 }
+
+
 void Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
     auto start = chrono::high_resolution_clock::now();
 
     int* ordered_index = orderClustersBySize(clusters);
-
     for (int i = 0; i < clusters.size(); i++) {
         if (i % 1000 == 0)
             printf("Merging cluster %d\r", i);
-        clusters[ordered_index[i]]->mergeClusters(vol, &clusters);
+        clusters[ordered_index[i]]->mergeClusters(&clusters);
     }
-
     delete(ordered_index);
+
     printf("\nMerging completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 }
+
+void Preprocessor::eliminateVesicles(Volume* vol, vector<TissueCluster3D*> clusters, int threshold_size) {
+    auto start = chrono::high_resolution_clock::now();
+    printf("Removing vesicles...");
+
+    for (int i = 0; i < clusters.size(); i++) {
+        clusters[i]->eliminateVesicle(vol, &clusters, threshold_size);
+    }
+
+    printf("    completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+}
+
 
 void Preprocessor::finalizeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
     auto start = chrono::high_resolution_clock::now();
@@ -550,7 +563,7 @@ void Preprocessor::finalizeClusters(Volume* vol, vector<TissueCluster3D*> cluste
         clusters[i]->finalize(vol, &CM);
     }
 
-    printf("\nClusters finalized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    printf("Clusters finalized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 }
 
 int Preprocessor::countAliveClusters(vector<TissueCluster3D*> clusters, int from) {
@@ -560,7 +573,7 @@ int Preprocessor::countAliveClusters(vector<TissueCluster3D*> clusters, int from
             num_dead++;
     }
     int reduced = from - (clusters.size()-num_dead);
-    printf("Num clusters reduced by %d          %d->%d", reduced, from, clusters.size() - num_dead);
+    printf("Num clusters reduced by %d          %d->%d\n", reduced, from, clusters.size() - num_dead);
     return from - reduced;
 }
 
