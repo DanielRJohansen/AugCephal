@@ -140,7 +140,7 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
     //77
     Int2 start_stop = smartStartStop(CudaFloat3(cc.origin.x, cc.origin.y, cc.origin.z), cray.step_vector, vol_size);
     //81
-
+    int prev_cluster_id = -1;
     for (int step = start_stop.x; step < start_stop.y+1; step++) {    //500
         int x = cc.origin.x + cray.step_vector.x * step;
         int y = cc.origin.y + cray.step_vector.y * step;
@@ -177,6 +177,9 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
                 
                 
             }
+            if (cached_voxel->cluster_id == prev_cluster_id)
+                continue;
+            prev_cluster_id = cached_voxel->cluster_id;
 
 
             CudaColor block_color = cached_voxel->color;// CudaColor(cached_voxel->color.r, cached_voxel->color.g, cached_voxel->color.b);

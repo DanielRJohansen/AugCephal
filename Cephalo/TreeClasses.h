@@ -63,6 +63,16 @@ public:
 			root->clear();
 		delete(root);
 		root = NULL;
+		treesize = 0;
+	}
+
+	void copy(UnorderedIntTree tree) {
+		clear();
+		int* values = tree.fetch();
+		for (int i = 0; i < tree.size(); i++) {
+			addVal(values[i]);
+		}
+		delete(values);
 	}
 
 
@@ -96,10 +106,10 @@ private:
 			return 1;			
 		}
 		void fetch(int* arr, int* index) {
-			if (left != NULL)
-				left->fetch(arr, index);
 			arr[*index] = value;
 			*index += 1;
+			if (left != NULL)
+				left->fetch(arr, index);
 			if (right != NULL)
 				right->fetch(arr, index);
 		}

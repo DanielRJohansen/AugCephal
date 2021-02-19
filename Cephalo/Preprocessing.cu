@@ -532,10 +532,14 @@ int* orderClustersBySize(vector<TissueCluster3D*> clusters) {
 void Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
     auto start = chrono::high_resolution_clock::now();
 
+
+    for (int i = 0; i < clusters.size(); i++) {
+        clusters[i]->viable_neighbor_ids.copy(clusters[i]->neighbor_ids);
+    }
+
+
     int* ordered_index = orderClustersBySize(clusters);
     for (int i = 0; i < clusters.size(); i++) {
-        if (i % 1000 == 0)
-            printf("Merging cluster %d\r", i);
         clusters[ordered_index[i]]->mergeClusters(&clusters);
     }
     delete(ordered_index);

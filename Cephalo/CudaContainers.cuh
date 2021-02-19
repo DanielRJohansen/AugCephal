@@ -134,7 +134,7 @@ struct Voxel{	//Lots of values
 	int cluster_id = -1;
 	signed char kcluster = -1;
 	bool isEdge = false;			// Is eventually changed after initial tissueclustering
-	float alpha = 0.33;
+	float alpha = 0.5;
 	float norm_val = 0;			// Becomes kcluster centroid during fuzzy assignment
 	CudaColor color;			// Set during fuzzy assignment
 
