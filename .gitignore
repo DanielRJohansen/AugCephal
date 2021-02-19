@@ -175,3 +175,4 @@ dmypy.json
 *.pdb
 *.ilk*
 *.tlog*
+*/Debug/*
