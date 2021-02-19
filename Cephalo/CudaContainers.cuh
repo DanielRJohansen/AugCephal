@@ -134,7 +134,7 @@ struct Voxel{	//Lots of values
 	int cluster_id = -1;
 	signed char kcluster = -1;
 	bool isEdge = false;			// Is eventually changed after initial tissueclustering
-	float alpha = 1;
+	float alpha = 0.33;
 	float norm_val = 0;			// Becomes kcluster centroid during fuzzy assignment
 	CudaColor color;			// Set during fuzzy assignment
 
@@ -318,7 +318,7 @@ public:
 	// Maybe be called by preprocessing
 	void initialize(Volume* vol) { findNeighborsAndMean(vol); }
 	void mergeClusters(vector<TissueCluster3D*>* all_clusters);
-	void eliminateVesicle(Volume* vol, vector<TissueCluster3D*>* all_clusters, int threshold_size, int lowest_hu_val);
+	void eliminateVesicle(Volume* vol, vector<TissueCluster3D*>* all_clusters, int threshold_size);
 	void finalize(Volume* vol, ColorMaker* CM);	// Handles coloring and setting voxel.isEdge
 
 

@@ -48,6 +48,8 @@ void TissueCluster3D::mergeClusters(vector<TissueCluster3D*>* all_clusters) {
 	
 	int* ids = viable_neighbor_ids.fetch();
 	int num_neighbors = viable_neighbor_ids.size();					// Cache here, as size increases during function!!
+	//int* ids = neighbor_ids.fetch();
+	//int num_neighbors = neighbor_ids.size();					// Cache here, as size increases during function!!
 	for (int i = 0; i < num_neighbors; i++) {
 		int neighbor_id = ids[i];
 
@@ -129,9 +131,9 @@ float maxMergeDist(float hu_mean, float size) {
 	huwidth = 600; sizewidth = 19; hucenter = 1000; sizecenter = 23, maxcontribution = 100;
 	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
 
-	// Noise probably - not necessary, we got vesicleromoval
-	//huwidth = 10000; sizewidth = 2; hucenter = 0; sizecenter = 0, maxcontribution = 100;
-	//dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
+	// Noise probably
+	huwidth = 10000; sizewidth = 2; hucenter = 0; sizecenter = 0, maxcontribution = 100;
+	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
 
 	return dist;
 }
@@ -264,7 +266,7 @@ void TissueCluster3D::verifyViableNeighborAliveness(vector<TissueCluster3D*>* al
 	delete(neighbors);
 }
 
-void TissueCluster3D::eliminateVesicle(Volume* vol, vector<TissueCluster3D*>* all_clusters, int threshold_size, int lowest_hu_val) {
+void TissueCluster3D::eliminateVesicle(Volume* vol, vector<TissueCluster3D*>* all_clusters, int threshold_size) {
 	if (dead || member_indexes.size() > threshold_size)
 		return;
 
@@ -276,7 +278,7 @@ void TissueCluster3D::eliminateVesicle(Volume* vol, vector<TissueCluster3D*>* al
 	int* ids = neighbor_ids.fetch();
 	int num_neighbors = neighbor_ids.size();
 	
-	int least_dif = abs(mean - lowest_hu_val);								// Base case is, clsuter should be ignore, unless better match is found
+	int least_dif = 9999;
 	int best_neighbor_index = NULL;
 
 	for (int i = 0; i < num_neighbors; i++) {

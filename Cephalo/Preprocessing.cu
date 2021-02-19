@@ -532,12 +532,6 @@ int* orderClustersBySize(vector<TissueCluster3D*> clusters) {
 void Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
     auto start = chrono::high_resolution_clock::now();
 
-
-    // First revamp all viable neighbors to be all current neighbors!
-    for (int i = 0; i < clusters.size(); i++) {
-        clusters[i]->viable_neighbor_ids.copy(clusters[i]->neighbor_ids);
-    }
-
     int* ordered_index = orderClustersBySize(clusters);
     for (int i = 0; i < clusters.size(); i++) {
         if (i % 1000 == 0)
@@ -553,10 +547,8 @@ void Preprocessor::eliminateVesicles(Volume* vol, vector<TissueCluster3D*> clust
     auto start = chrono::high_resolution_clock::now();
     printf("Removing vesicles...");
 
-    
-
     for (int i = 0; i < clusters.size(); i++) {
-        clusters[i]->eliminateVesicle(vol, &clusters, threshold_size, lowest_hu_val);
+        clusters[i]->eliminateVesicle(vol, &clusters, threshold_size);
     }
 
     printf("    completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));

@@ -51,26 +51,23 @@ public:
 
 
 		// Algoritmic preprocessing
-		windowVolume(volume, lowest_hu_val, highest_hu_val);		// Norm values are set here
-		setIgnoreBelow(volume, lowest_hu_val);
+		windowVolume(volume, -600, 800);		// Norm values are set here
+		setIgnoreBelow(volume, -600);
 		setColumnIgnores(volume);
 
 
 		int k = 20;
 		rmf(volume);
 		rmf(volume);
-		fuzzyClusterAssignment(volume, k, 10);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 
 		// Move voxels to HOST here, get speedup?	
 		vector<TissueCluster3D*> clusters = clusterSync(volume);
 		mergeClusters(volume, clusters);
 		int remaining_clusters = countAliveClusters(clusters, clusters.size());
-		eliminateVesicles(volume, clusters, 20);	// min size to survive
+		eliminateVesicles(volume, clusters, 15);	// min size to survive
 		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
-		mergeClusters(volume, clusters);
-		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
-
 		finalizeClusters(volume, clusters);
 
 		printf("\n\nPreprocessing finished!\n\n\n\n");
@@ -80,13 +77,6 @@ public:
 
 	Int3 size;
 private:
-	Int3 input_size;
-	float* raw_scan;
-	float* scan;
-	int lowest_hu_val = -600;
-	int highest_hu_val = 800;
-
-
 	void speedTest();
 	void loadScans(string folder_path);
 	void insertImInVolume(cv::Mat img, int z);
@@ -124,7 +114,9 @@ private:
 	void windowVolume(Volume* volume,  float min, float max);
 
 
-	
+	Int3 input_size;
+	float* raw_scan;
+	float* scan;
 
 
 

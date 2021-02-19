@@ -17,11 +17,12 @@ public:
 			exit(-2);
 		}
 			
-		if (root != NULL)
+		if (root != NULL) {
 			if (root->addVal(key)) {
 				treesize++;
 				return true;
 			}
+		}
 		else {
 			root = new Node(key);
 			treesize++;
@@ -62,14 +63,6 @@ public:
 			root->clear();
 		delete(root);
 		root = NULL;
-	}
-	void copy(UnorderedIntTree tree) {
-		clear();
-		int* values = tree.fetch();
-		for (int i = 0; i < tree.size(); i++) {
-			addVal(values[i]);
-		}
-		delete(values);
 	}
 
 
