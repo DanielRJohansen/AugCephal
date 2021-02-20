@@ -583,3 +583,72 @@ int Preprocessor::countAliveClusters(vector<TissueCluster3D*> clusters, int from
 
 
 
+
+
+
+
+
+
+TissueCluster3D* Preprocessor::removeExcessClusters(vector<TissueCluster3D*> clusters, int remaining_clusters) {
+    TissueCluster3D* compressed_clusters = new TissueCluster3D[remaining_clusters];
+    int compressed_index = 0;
+    for (int i = 0; i < clusters.size(); i++) {
+        if (!clusters[i]->dead) {
+            compressed_clusters[compressed_index].copyMinInfo(clusters[i]);
+            compressed_clusters[compressed_index].id = compressed_index;
+            compressed_index++;
+        }
+        clusters.empty();
+    }
+    return compressed_clusters;
+}
+
+
+int* generateClusterIDMap(vector<TissueCluster3D*> clusters, int remaining_clusters) {
+    int* map = new int[clusters.size()];
+    int compact_index = 0;
+    for (int i = 0; i < clusters.size(); i++) {
+        if (!clusters[i]->dead) {
+            map[i] = compact_index;
+            compact_index++;
+        }
+        else
+            map[i] = -1;
+    }
+    printf("Verify list is full: %d = %d", compact_index, remaining_clusters);
+    return map;
+}
+
+RenderVoxel* Preprocessor::compressVoxels(Volume* vol, vector<TissueCluster3D*> clusters, int remaining_clusters) {
+    /*
+    CompactCluster* ComClusters = new CompactCluster[remaining_clusters];
+    for (int i = 0; i < clusters.size(); i++) {
+        if (clustermap[i] != -1) {
+            ComClusters[clustermap[i]].setAlpha(1.);
+            ComClusters[clustermap[i]].setColor(clusters[i]->color);
+        }
+    }
+    */
+    RenderVoxel* rvoxels = new RenderVoxel[vol->len];
+    int* clustermap = generateClusterIDMap(clusters, remaining_clusters);
+    
+    for (int i = 0; i < vol->len; i++) {
+        rvoxels[i].cluster_id = clustermap[vol->voxels[i].cluster_id];
+    }
+
+
+    RenderVoxel* rvoxels_dev;
+    int bytesize = vol->len * sizeof(RenderVoxel);
+    printf("Allocating rendervoxels on gpu: %d MB", bytesize / 1000000);
+    cudaMallocManaged(&rvoxels_dev, bytesize);
+    cudaMemcpy(rvoxels_dev, rvoxels, bytesize, cudaMemcpyHostToDevice);
+    delete(rvoxels);
+    delete(clustermap);
+    return rvoxels_dev;
+}
+
+
+
+
+
+

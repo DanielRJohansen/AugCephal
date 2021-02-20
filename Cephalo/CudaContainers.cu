@@ -330,3 +330,27 @@ void TissueCluster3D::colorMembers(Volume* vol, CudaColor(c)) {
 		vol->voxels[member_indexes[i]].color = c;
 	}
 }
+
+
+
+
+
+
+
+void TissueCluster3D::copyMinInfo(TissueCluster3D* cluster) {
+	id = cluster->id;
+	color = cluster->color;
+	member_indexes = cluster->member_indexes;
+	mean = cluster->mean;
+}
+
+
+
+
+
+
+
+
+
+
+

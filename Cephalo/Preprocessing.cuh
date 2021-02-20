@@ -81,6 +81,8 @@ public:
 		finalizeClusters(volume, clusters);
 
 
+		TissueCluster3D* compressedclusters = removeExcessClusters(clusters, remaining_clusters);
+		volume->rendervoxels = compressVoxels(volume, clusters, remaining_clusters);
 
 		printf("\n\nPreprocessing finished!\n\n\n\n");
 		return volume;
@@ -115,7 +117,9 @@ private:
 	void finalizeClusters(Volume* vol, vector<TissueCluster3D*> clusters);
 	int countAliveClusters(vector<TissueCluster3D*> clusters, int from);
 	
-	
+
+	TissueCluster3D* Preprocessor::removeExcessClusters(vector<TissueCluster3D*> clusters, int remaining_clusters);
+	RenderVoxel* compressVoxels(Volume* vol, vector<TissueCluster3D*> clusters, int remaining_clusters);
 	
 	
 	void setColumnIgnores(Volume* vol);

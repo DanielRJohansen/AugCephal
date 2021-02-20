@@ -126,9 +126,12 @@ private:
 };
 
 
+
 struct Voxel{	//Lots of values
 	Voxel() {}	
 
+
+	// For preprocessing
 	bool ignore = false;
 	float hu_val = 10;
 	int cluster_id = -1;
@@ -137,6 +140,11 @@ struct Voxel{	//Lots of values
 	float alpha = 0.5;
 	float norm_val = 0;			// Becomes kcluster centroid during fuzzy assignment
 	CudaColor color;			// Set during fuzzy assignment
+
+
+
+	
+
 
 	__device__ void norm(float min, float max) {
 		if (hu_val > max) { norm_val = 1; }
@@ -155,6 +163,10 @@ struct TissueCluster {	// Lots of functions
 	float median;
 };
 
+
+struct RenderVoxel;
+class CompactCluster;
+class TissueCluster3D;
 class Volume {
 public: 
 	Volume(){}
@@ -172,6 +184,11 @@ public:
 	bool* xyColumnIgnores;
 	CompactBool* CB;	//Host side
 	TissueCluster* clusters;
+
+	// For rendering
+	RenderVoxel* rendervoxels;				// Contains only clusterid						- global mem
+	CompactCluster* compactclusters;		// Contains minimal info for rendering			- shared mem
+	TissueCluster3D* compressedclusters;	// Contains slightly more info for live editing	- host side only
 };
 
 const int OUTSIDEVOL = -9393;
@@ -325,7 +342,14 @@ public:
 	// MAY be called by another cluster trying to merge, but smaller
 	void mergeCluster(vector<TissueCluster3D*>* all_clusters, TissueCluster3D* orphan);
 
-
+	// For compression stuffs
+	void copyMinInfo(TissueCluster3D* cluster);
+	void empty() {
+		member_indexes.clear();
+		edge_member_indexes.clear();
+		neighbor_ids.clear();
+		viable_neighbor_ids.clear();
+	}
 
 
 	// Functions called by other clusters
@@ -343,10 +367,10 @@ public:
 	unsigned char k_cluster;
 	double mean = 0;
 	CudaColor color;
+
 	// Large structures
 	vector<int> member_indexes;
 	vector<int> edge_member_indexes;
-
 	UnorderedIntTree neighbor_ids;
 	UnorderedIntTree viable_neighbor_ids;	// Smaller than that one ^^^^
 
@@ -424,4 +448,29 @@ private:
 	__device__ __host__ inline bool isInVolume(Int3 coord, Int3 size) {
 		return coord.x >= 0 && coord.y >= 0 && coord.z >= 0 && coord.x < size.x&& coord.y < size.y&& coord.z < size.z;
 	}
+};
+
+
+struct CompactColor {
+	unsigned char r, g, b;
+};
+
+class CompactCluster {
+public:
+	__device__ float getAlpha() {
+		return 255. / (float)alpha;
+	}
+	__host__ float setAlpha(float a) {
+		alpha = (unsigned char)(a * 255);
+	}
+	__device__ CudaColor getColor() { return CudaColor(color.r, color.g, color.b); }
+	__host__ void setColor(CudaColor c) { color.r = c.r; color.g = c.g; color.b = c.b; }
+
+private:
+	CompactColor color;
+	unsigned char alpha;
+};
+
+struct RenderVoxel {
+	short int cluster_id;
 };
