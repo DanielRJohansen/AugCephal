@@ -185,10 +185,14 @@ public:
 	CompactBool* CB;	//Host side
 	TissueCluster* clusters;
 
+	// Send to LiveEditor
+	TissueCluster3D* compressedclusters;	// Contains slightly more info for live editing	- host side only
+	int num_clusters;
 	// For rendering
 	RenderVoxel* rendervoxels;				// Contains only clusterid						- global mem
 	CompactCluster* compactclusters;		// Contains minimal info for rendering			- shared mem
-	TissueCluster3D* compressedclusters;	// Contains slightly more info for live editing	- host side only
+
+	
 };
 
 const int OUTSIDEVOL = -9393;
@@ -460,7 +464,7 @@ public:
 	__device__ float getAlpha() {
 		return 255. / (float)alpha;
 	}
-	__host__ float setAlpha(float a) {
+	__host__ void setAlpha(float a) {
 		alpha = (unsigned char)(a * 255);
 	}
 	__device__ CudaColor getColor() { return CudaColor(color.r, color.g, color.b); }

@@ -598,8 +598,9 @@ TissueCluster3D* Preprocessor::removeExcessClusters(vector<TissueCluster3D*> clu
             compressed_clusters[compressed_index].id = compressed_index;
             compressed_index++;
         }
-        clusters.empty();
+        clusters[i]->empty();
     }
+    printf("Clustervector compressed to %d clusters\n", compressed_index);
     return compressed_clusters;
 }
 
@@ -615,20 +616,12 @@ int* generateClusterIDMap(vector<TissueCluster3D*> clusters, int remaining_clust
         else
             map[i] = -1;
     }
-    printf("Verify list is full: %d = %d", compact_index, remaining_clusters);
+    assert(compact_index == remaining_clusters);
     return map;
 }
 
 RenderVoxel* Preprocessor::compressVoxels(Volume* vol, vector<TissueCluster3D*> clusters, int remaining_clusters) {
-    /*
-    CompactCluster* ComClusters = new CompactCluster[remaining_clusters];
-    for (int i = 0; i < clusters.size(); i++) {
-        if (clustermap[i] != -1) {
-            ComClusters[clustermap[i]].setAlpha(1.);
-            ComClusters[clustermap[i]].setColor(clusters[i]->color);
-        }
-    }
-    */
+    
     RenderVoxel* rvoxels = new RenderVoxel[vol->len];
     int* clustermap = generateClusterIDMap(clusters, remaining_clusters);
     

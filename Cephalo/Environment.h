@@ -1,9 +1,16 @@
 #pragma once
-#include "Camera.h"
 #include <SFML\graphics.hpp>
-#include "CudaContainers.cuh"
-#include "Rendering.cuh"
 #include <thread>
+#include <iostream>
+
+#include "Camera.h"
+#include "CudaContainers.cuh"
+#include "Preprocessing.cuh"
+#include "Rendering.cuh"
+#include "LiveEditor.cuh"
+
+
+
 
 struct Task {
 	Task(int c, bool h) { cat_index = c; hide = h; }
@@ -17,6 +24,7 @@ public:
 	Environment();
 	Environment(Volume* volume);
 	Environment(Block* vol);
+	Environment(string path, Int3 dimensions, float zoverxy);
 	void newVolume(Block* vol);
 
 	Camera *camera;
@@ -29,6 +37,7 @@ public:
 	void Run();
 private:
 	RenderEngine REE;
+	LiveEditor liveeditor;
 
 	void scheduleTask(Task);		//By subthreads
 	bool handleTasks();	// By main thread

@@ -18,6 +18,22 @@ Environment::Environment(Volume* vol) {
 
 	REE = RenderEngine(volume, camera);
 }
+Environment::Environment(string path, Int3 dimensions, float zoverxy) {
+	Preprocessor PP;
+	volume = PP.processScan(path, dimensions, zoverxy);
+
+	liveeditor = LiveEditor(volume->compressedclusters, volume->num_clusters);
+	volume->compactclusters = liveeditor.getCompactClusters();
+
+	camera = new Camera();
+
+	image = new sf::Image();
+	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
+	cuda_texture = new sf::Texture;
+	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);
+
+	REE = RenderEngine(volume, camera);
+}
 
 
 void Environment::Run() {

@@ -1,10 +1,6 @@
 #include <iostream>
 
 #include "Environment.h"
-#include "Containers.h"
-//#include "SliceMagic.h"
-#include "CudaContainers.cuh"
-#include "Preprocessing.cuh"
 
 
 // Just for testing
@@ -72,13 +68,8 @@ A* tre() {
 }
 
 int main() {
-
-	//SliceMagic SliceM;
-	Preprocessor PP;
-	Volume* vol = PP.processScan("F:\\DumbLesion\\NIH_scans\\002701_04_03\\", Int3(512, 512, 191), 1. / 0.8164);
-	Environment Env(vol);
+	Environment Env("F:\\DumbLesion\\NIH_scans\\002701_04_03\\", Int3(512, 512, 191), 1. / 0.8164);
 	Env.Run();
-
 
 	return 0;
 }

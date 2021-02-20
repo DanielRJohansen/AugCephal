@@ -57,9 +57,9 @@ public:
 
 
 		int k = 20;
+		//rmf(volume);
 		rmf(volume);
-		rmf(volume);
-		fuzzyClusterAssignment(volume, k, 30);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		fuzzyClusterAssignment(volume, k, 3);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 
 		// Move voxels to HOST here, get speedup?	
@@ -67,6 +67,8 @@ public:
 
 		mergeClusters(volume, clusters);										
 		int remaining_clusters = countAliveClusters(clusters, clusters.size());
+
+		
 		mergeClusters(volume, clusters);
 		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
 
@@ -77,13 +79,13 @@ public:
 		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
 		mergeClusters(volume, clusters);
 		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
-
+		
 		finalizeClusters(volume, clusters);
 
 
 		TissueCluster3D* compressedclusters = removeExcessClusters(clusters, remaining_clusters);
 		volume->rendervoxels = compressVoxels(volume, clusters, remaining_clusters);
-
+		volume->num_clusters = remaining_clusters;
 		printf("\n\nPreprocessing finished!\n\n\n\n");
 		return volume;
 	}

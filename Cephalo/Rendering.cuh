@@ -45,6 +45,15 @@ public:
 		cudaMallocManaged(&image_device, NUM_RAYS * 4 * sizeof(uint8_t));	//4 = RGBA
 		image_host = new uint8_t[NUM_RAYS * 4];
 		printf("RenderEngine initialized. Approx GPU size: %d Mb\n\n", (int)((NUM_RAYS * sizeof(Ray) + vol->len * sizeof(Voxel)) / 1000000.));
+
+
+
+
+		// Volume
+		//rendervoxels = vol->rendervoxels;
+
+
+
 	}
 	void render(sf::Texture* texture);
 	void updateVolume() {
@@ -61,6 +70,10 @@ private:
 	unsigned* hostignores;
 	CompactBool* CB;
 
+	RenderVoxel* rendervoxels;		// Dev
+	CompactCluster* comclusters;	// Dev
+
+	// Non-volume specific
 	Ray* rayptr_device;
 	Ray* rayptr_host;
 	Camera* camera;
