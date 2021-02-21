@@ -67,7 +67,7 @@ public:
 		mergeClusters(volume, clusters);										
 		int remaining_clusters = countAliveClusters(clusters, clusters.size());
 
-		
+		/*
 		mergeClusters(volume, clusters);
 		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
 
@@ -78,6 +78,7 @@ public:
 		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
 		mergeClusters(volume, clusters);
 		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
+		*/
 		finalizeClusters(volume, clusters);
 		
 		

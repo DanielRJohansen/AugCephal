@@ -1,10 +1,11 @@
 #pragma once
 
-
+#include <cuda.h>
 #include <cuda_runtime_api.h>
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include "cuda_texture_types.h"
+
 
 #include <stdio.h>
 #include <iostream>
@@ -27,43 +28,12 @@ __device__ const float e = 2.7182;
 
 
 // Textore global memory
-//texture<CompactCluster, 1, cudaReadModeElementType> clusters_texture;
 
 
 class RenderEngine {
 public:
 	RenderEngine() {};
-	RenderEngine(Volume* vol, Camera* c) {
-
-		volume = vol;
-		camera = c;
-
-		CUDAPlanning();
-
-		//cudaMallocManaged(&voxels, vol->len * sizeof(Voxel));
-		voxels = vol->voxels;
-		xyColumnIgnores = vol->xyColumnIgnores;
-		CB = vol->CB;
-		compactignores = CB->compact_gpu;
-		hostignores = CB->compact_host;
-		//updateVolume();
-
-		rayptr_host = initRays();
-		cudaMallocManaged(&rayptr_device, NUM_RAYS * sizeof(Ray));
-
-		cudaMallocManaged(&image_device, NUM_RAYS * 4 * sizeof(uint8_t));	//4 = RGBA
-		image_host = new uint8_t[NUM_RAYS * 4];
-		printf("RenderEngine initialized. Approx GPU size: %d Mb\n\n", (int)((NUM_RAYS * sizeof(Ray) + vol->len * sizeof(Voxel)) / 1000000.));
-
-
-
-		//cudaMallocManaged(&const_clusters, vol->num_clusters * sizeof(CompactCluster));
-		// Volume
-		//rendervoxels = vol->rendervoxels;
-
-
-
-	}
+	RenderEngine(Volume* vol, Camera* c);
 	void render(sf::Texture* texture);
 	void updateVolume() {
 		auto start = chrono::high_resolution_clock::now();

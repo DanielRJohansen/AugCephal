@@ -126,7 +126,6 @@ __device__ Int2 smartStartStop(CudaFloat3 origin, CudaFloat3 vector, Int3 vol_si
 
 //--------------------------------------------------------------------------------------    KERNEL  --------------------------------------------------------------------------------------------------------------------------//
 
-//texture<CompactCluster, 1, cudaReadModeElementType> clusters_texture;
 
 __global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, unsigned* ignores, int ignores_len, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters) {
     int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x +offset;
@@ -225,11 +224,7 @@ void RenderEngine::render(sf::Texture* texture) {
         int offset = i * stream_size;
         cudaMemcpyAsync(&rayptr_device[offset], &rayptr_host[offset], ray_stream_bytes, cudaMemcpyHostToDevice, stream[i]);
     }
-    /*int* f_device;
-    unsigned icopy[8192];
-    for (int i = 0; i < 8192; i++)
-        icopy[i] = hostignores[i];
-    cudaMallocManaged(&f_device, sizeof(int));*/
+
 
     int shared_mem_size = volume->CB->arr_len*sizeof(unsigned int);
     printf("memsize: %d\n", shared_mem_size);
@@ -260,3 +255,54 @@ void RenderEngine::render(sf::Texture* texture) {
 }
 
 
+
+
+
+
+
+
+
+
+
+//--------------------------------------------------------------------------------------    CONSTRUCTOR     --------------------------------------------------------------------------------------------------------------------//
+
+texture<CompactCluster, 1, cudaReadModeElementType> clusters_texture;
+
+
+RenderEngine::RenderEngine(Volume* vol, Camera* c) {
+
+    volume = vol;
+    camera = c;
+
+    CUDAPlanning();
+
+    //cudaMallocManaged(&voxels, vol->len * sizeof(Voxel));
+    voxels = vol->voxels;
+    xyColumnIgnores = vol->xyColumnIgnores;
+    CB = vol->CB;
+    compactignores = CB->compact_gpu;
+    hostignores = CB->compact_host;
+    //updateVolume();
+
+    rayptr_host = initRays();
+    cudaMallocManaged(&rayptr_device, NUM_RAYS * sizeof(Ray));
+
+    cudaMallocManaged(&image_device, NUM_RAYS * 4 * sizeof(uint8_t));	//4 = RGBA
+    image_host = new uint8_t[NUM_RAYS * 4];
+    printf("RenderEngine initialized. Approx GPU size: %d Mb\n\n", (int)((NUM_RAYS * sizeof(Ray) + vol->len * sizeof(Voxel)) / 1000000.));
+
+
+
+    /*
+    CompactCluster* compactcluster_texture;
+    int bytesize = volume->num_clusters * sizeof(CompactCluster);
+    cudaMalloc((void**) &compactcluster_texture, bytesize);
+    cudaMemcpy(compactcluster_texture, volume->compactclusters, bytesize, cudaMemcpyDeviceToDevice);
+
+    cudaChannelFormatDesc* channelDesc = &cudaCreateChannelDesc<int>();
+    //cudaBindTexture(NULL, clusters_texture, compactcluster_texture, channelDesc, bytesize);
+    size_t offset = size_t(0);
+    //cudaBindTexture(&offset, clusters_texture, compactcluster_texture, channelDesc, bytesize);
+    */
+
+}

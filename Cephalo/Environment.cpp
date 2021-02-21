@@ -37,9 +37,9 @@ Environment::Environment(string path, Int3 dimensions, float zoverxy) {
 
 
 void Environment::Run() {
-	cout << "Environment running" << endl;
-	thread thr1;
-	thr1 = thread(&Environment::handleConsole, this);
+	cout << "Environment running\n\n\n" << endl;
+	//thread thr1;
+	//thr1 = thread(&Environment::handleConsole, this);
 
 	sf::RenderWindow window(sf::VideoMode(RAYS_PER_DIM, RAYS_PER_DIM), 
 		"3D body", sf::Style::Close );
@@ -49,6 +49,12 @@ void Environment::Run() {
 	texture.loadFromImage(*image);
 	sprite.setTexture(*cuda_texture, true);
 
+
+
+
+	sf::Vector2i prev_mousepos;
+
+	bool left_pressed = false;
 	while (window.isOpen()) {
 		window.clear();
 		
@@ -56,13 +62,33 @@ void Environment::Run() {
 		sf::Event event;	// Create new each time so no event is applied twice
 		if (window.pollEvent(event)) {
 			if (handleEvents(event)) {	//If relevant event happened
-				//texture.loadFromImage(*image);
 				sprite.setTexture(*cuda_texture, true);
 			}
 		}
 		if (handleTasks()) {
-			//texture.loadFromImage(*image);
 			sprite.setTexture(*cuda_texture, true);
+		}
+		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
+		if (mousepos.x >= 0 && mousepos.y >= 0 && mousepos.x < RAYS_PER_DIM && mousepos.y < RAYS_PER_DIM) {
+			if (mousepos != prev_mousepos) {
+				printf("\rMouse pos: x: %04d y: %04d", mousepos.x, mousepos.y);
+				
+			}
+				
+			prev_mousepos = mousepos;
+		}
+		if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
+			left_pressed = false;
+				
+		}
+		if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+			if (left_pressed == false)
+				printf("  click  ");
+			left_pressed = true;
+		}
+		
+		if (event.type == sf::Event::MouseWheelMoved) {
+			printf("   D:%d ", event.mouseWheel.delta);
 		}
 		
 
@@ -85,12 +111,14 @@ bool Environment::handleTasks() {
 }
 bool Environment::handleEvents(sf::Event event) {
 	string action;
+
 	/*if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
 		action = "zoom_in";
 	}
 	else if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
-		action = "zoom_out";
+		action = "zoom_out";sfml get g
 	}*/
+
 	if (event.type == sf::Event::KeyPressed) {
 		switch (event.key.code)
 		{
