@@ -68,6 +68,8 @@ A* tre() {
 }
 
 int main() {
+
+
 	Environment Env("F:\\DumbLesion\\NIH_scans\\002701_04_03\\", Int3(512, 512, 191), 1. / 0.8164);
 	Env.Run();
 

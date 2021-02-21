@@ -45,5 +45,19 @@ private:
 	vector<Task> tasks;
 
 	bool handleEvents(sf::Event event);
+	void handleMouseEvents(sf::Event event, sf::RenderWindow* window);
 	void updateSprite();
+
+
+
+
+
+
+
+
+
+	// For mouse actions
+	sf::Vector2i prev_mousepos;
+	bool left_pressed = false;
+
 };

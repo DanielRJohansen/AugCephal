@@ -52,9 +52,7 @@ void Environment::Run() {
 
 
 
-	sf::Vector2i prev_mousepos;
 
-	bool left_pressed = false;
 	while (window.isOpen()) {
 		window.clear();
 		
@@ -68,32 +66,40 @@ void Environment::Run() {
 		if (handleTasks()) {
 			sprite.setTexture(*cuda_texture, true);
 		}
-		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
-		if (mousepos.x >= 0 && mousepos.y >= 0 && mousepos.x < RAYS_PER_DIM && mousepos.y < RAYS_PER_DIM) {
-			if (mousepos != prev_mousepos) {
-				printf("\rMouse pos: x: %04d y: %04d", mousepos.x, mousepos.y);
-				
-			}
-				
-			prev_mousepos = mousepos;
-		}
-		if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
-			left_pressed = false;
-				
-		}
-		if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-			if (left_pressed == false)
-				printf("  click  ");
-			left_pressed = true;
-		}
-		
-		if (event.type == sf::Event::MouseWheelMoved) {
-			printf("   D:%d ", event.mouseWheel.delta);
-		}
+
+		handleMouseEvents(event, &window);
+
+
 		
 
 		window.draw(sprite);
 		window.display();
+	}
+}
+
+
+void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
+	sf::Vector2i mousepos = sf::Mouse::getPosition(*window);
+	if (mousepos.x >= 0 && mousepos.y >= 0 && mousepos.x < RAYS_PER_DIM && mousepos.y < RAYS_PER_DIM) {
+		if (mousepos != prev_mousepos) {
+			printf("\rMouse pos: x: %04d y: %04d", mousepos.x, mousepos.y);
+
+		}
+
+		prev_mousepos = mousepos;
+	}
+	if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
+		left_pressed = false;
+
+	}
+	if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+		if (left_pressed == false)
+			printf("  click  ");
+		left_pressed = true;
+	}
+
+	if (event.type == sf::Event::MouseWheelMoved) {
+		printf("   D:%d ", event.mouseWheel.delta);
 	}
 }
 

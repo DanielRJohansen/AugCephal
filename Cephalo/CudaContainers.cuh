@@ -79,6 +79,7 @@ struct CudaRay {
 	CudaColor color;
 	CudaFloat3 step_vector;
 	float alpha = 0;
+
 };
 
 

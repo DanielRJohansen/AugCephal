@@ -40,6 +40,8 @@ struct Ray {
 	Ray() {};
 	Ray(Float3 rel_unit_vector) : rel_unit_vector(rel_unit_vector) {};
 	Float3 rel_unit_vector;
+
+	short int clusterids_hit[5];
 };
 
 struct Cluster {

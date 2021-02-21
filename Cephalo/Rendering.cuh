@@ -34,7 +34,7 @@ class RenderEngine {
 public:
 	RenderEngine() {};
 	RenderEngine(Volume* vol, Camera* c);
-	void render(sf::Texture* texture);
+	Ray* render(sf::Texture* texture);
 	void updateVolume() {
 		auto start = chrono::high_resolution_clock::now();
 		cudaMemcpy(voxels, volume->voxels, volume->len * sizeof(Voxel), cudaMemcpyHostToDevice);

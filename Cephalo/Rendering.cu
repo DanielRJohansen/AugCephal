@@ -127,8 +127,8 @@ __device__ Int2 smartStartStop(CudaFloat3 origin, CudaFloat3 vector, Int3 vol_si
 //--------------------------------------------------------------------------------------    KERNEL  --------------------------------------------------------------------------------------------------------------------------//
 
 
-__global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, unsigned* ignores, int ignores_len, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters) {
-    int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x +offset;
+__global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_size, unsigned* ignores, int ignores_len, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters) {
+    int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x;
     //50
     Ray ray = rayptr[index];    // This operation alone takes ~60 ms
 
@@ -144,6 +144,11 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* imag
     __syncthreads();
 
 
+
+    short int clusterids_hit[5];
+    for (int i = 0; i < 5; i++)
+        clusterids_hit[i] = -1;
+    int hit_index = 0;
 
     CudaFloat3 unit_vector = makeUnitVector(&ray, cc);
     CudaRay cray(unit_vector * RAY_SS);
@@ -174,14 +179,21 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* imag
             if (CB.getBit(xyignores, column_index) != 0)
                 continue;
             
-            int cluster_id = rendervoxels[volume_index].cluster_id;
+            short int cluster_id = rendervoxels[volume_index].cluster_id;
             if (cluster_id == prev_cluster_id) {
                 continue;
             }
             prev_cluster_id = cluster_id;
+           
 
             if (cluster_id == -1)
                 continue;
+
+            if (hit_index < 5) {
+                clusterids_hit[hit_index] = cluster_id;
+                hit_index++;
+            }
+                
             CompactCluster* compactcluster = &compactclusters[cluster_id];
             cray.color.add(compactcluster->getColor() * compactcluster->getAlpha());
             cray.alpha += compactcluster->getAlpha();
@@ -208,50 +220,28 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* imag
 //--------------------------------------------------------------------------------------    LAUNCHER     --------------------------------------------------------------------------------------------------------------------//
 
 
-void RenderEngine::render(sf::Texture* texture) {
+Ray* RenderEngine::render(sf::Texture* texture) {
     auto start = chrono::high_resolution_clock::now();
     
     CompactCam cc = CompactCam(camera->origin, camera->plane_pitch, camera->plane_yaw, camera->radius);
 
 
-    cudaStream_t stream[N_STREAMS];
-    for (int i = 0; i < N_STREAMS; i++) {
-        cudaStreamCreate(&(stream[i]));
-    }
+    int shared_mem_size = volume->CB->arr_len * sizeof(unsigned int);
+    stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size >> > (rayptr_device, cc, image_device, volume->size, compactignores, volume->CB->arr_len, volume->rendervoxels, volume->compactclusters, volume->num_clusters);
+    cudaDeviceSynchronize();
 
-
-    for (int i = 0; i < N_STREAMS; i++) {       // Needed because we dont want to block the GPU from other requests!
-        int offset = i * stream_size;
-        cudaMemcpyAsync(&rayptr_device[offset], &rayptr_host[offset], ray_stream_bytes, cudaMemcpyHostToDevice, stream[i]);
-    }
-
-
-    int shared_mem_size = volume->CB->arr_len*sizeof(unsigned int);
-    printf("memsize: %d\n", shared_mem_size);
-    for (int i = 0; i < N_STREAMS; i++) {
-        int offset = i * stream_size;
-        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size, stream[i] >> > (rayptr_device, cc, offset, image_device, volume->size, compactignores, volume->CB->arr_len, volume->rendervoxels, volume->compactclusters, volume->num_clusters);
-        checkCudaError2();
-    }
-
-    printf("Rendering...");
-    for (int i = 0; i < N_STREAMS; i++) {
-        int offset = i * stream_size;
-        cudaMemcpyAsync(&image_host[offset * 4], &image_device[offset * 4], image_stream_bytes, cudaMemcpyDeviceToHost, stream[i]);
-    }
 
     
 
+    cudaMemcpyAsync(image_host, image_device, image_stream_bytes, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
+
+
     texture->update(image_host);
 
-    for (int i = 0; i < N_STREAMS; i++) {
-        cudaStreamDestroy(stream[i]);
-    }
+    printf("Executed in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
-    auto stop = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-    printf("Executed in %d ms.\n", duration);
+    return rayptr_device;
 }
 
 
@@ -286,10 +276,11 @@ RenderEngine::RenderEngine(Volume* vol, Camera* c) {
 
     rayptr_host = initRays();
     cudaMallocManaged(&rayptr_device, NUM_RAYS * sizeof(Ray));
+    cudaMemcpy(rayptr_device, rayptr_host, NUM_RAYS * sizeof(Ray), cudaMemcpyHostToDevice);
 
     cudaMallocManaged(&image_device, NUM_RAYS * 4 * sizeof(uint8_t));	//4 = RGBA
     image_host = new uint8_t[NUM_RAYS * 4];
-    printf("RenderEngine initialized. Approx GPU size: %d Mb\n\n", (int)((NUM_RAYS * sizeof(Ray) + vol->len * sizeof(Voxel)) / 1000000.));
+    printf("RenderEngine initialized. Approx GPU size: %d Mb\n\n", (int)(NUM_RAYS * sizeof(Ray) / 1000000.));
 
 
 
