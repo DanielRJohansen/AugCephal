@@ -126,7 +126,7 @@ __device__ Int2 smartStartStop(CudaFloat3 origin, CudaFloat3 vector, Int3 vol_si
 
 //--------------------------------------------------------------------------------------    KERNEL  --------------------------------------------------------------------------------------------------------------------------//
 
-__global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, int* finished, unsigned* ignores, RenderVoxel* rendervoxels, CompactCluster* compactclusters) {
+__global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, unsigned* ignores, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters) {
     int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x +offset;
     //50
     Ray ray = rayptr[index];    // This operation alone takes ~60 ms
@@ -134,6 +134,16 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
 
     extern __shared__ CompactCluster block_clusters[];
     CompactCluster* shared_clusters = (CompactCluster*)block_clusters;      // k per block
+
+
+    int temp = threadIdx.x;
+    while (temp < num_clusters) {
+        shared_clusters[temp] = compactclusters[temp];
+        temp += THREADS_PER_BLOCK;
+    }
+
+    __syncthreads();
+
     /*__shared__ unsigned xyignores[8192];
     int specific_index = threadIdx.x;
     while (specific_index < 8192) {
@@ -145,9 +155,6 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
     CudaRay cray(unit_vector * RAY_SS);
     //CompactBool CB;
 
-    Voxel* cached_voxel;
-    cached_voxel = &voxels[0];  // Init Block, doesn't matter is never used before another is loaded.
-    int prev_vol_index = -1;    // Impossible index
 
     //77
     Int2 start_stop = smartStartStop(CudaFloat3(cc.origin.x, cc.origin.y, cc.origin.z), cray.step_vector, vol_size);
@@ -177,32 +184,21 @@ __global__ void stepKernel(Ray* rayptr, Voxel* voxels, CompactCam cc, int offset
             if (CB.getBit(xyignores, column_index) != 0)
                 continue;
             */
-
-            if (volume_index == prev_vol_index) {   // Dont render same block twice
+            //RenderVoxel rendervoxel = ;
+            int cluster_id = rendervoxels[volume_index].cluster_id;
+            if (cluster_id == prev_cluster_id) {
                 continue;
             }
-            
-            else {
-                prev_vol_index = volume_index;
-                if (voxels[volume_index].ignore || !voxels[volume_index].isEdge) { continue; }
-                else { cached_voxel = &voxels[volume_index]; }
-                
-                
-            }
-            if (cached_voxel->cluster_id == prev_cluster_id)
+            prev_cluster_id = cluster_id;
+
+            if (cluster_id == -1)
                 continue;
-            prev_cluster_id = cached_voxel->cluster_id;
-
-
-            CudaColor block_color = cached_voxel->color;// CudaColor(cached_voxel->color.r, cached_voxel->color.g, cached_voxel->color.b);
-            float brightness = 1;// lightSeeker(voxels, CudaFloat3(vol_x, vol_y, vol_z));
-            block_color = block_color * brightness;
-            cray.color.add(block_color * cached_voxel->alpha);
-            cray.alpha += cached_voxel->alpha;
+            CompactCluster* compactcluster = &shared_clusters[cluster_id];
+            cray.color.add(compactcluster->getColor() * compactcluster->getAlpha());
+            cray.alpha += 1;// compactcluster->getAlpha();
             if (cray.alpha >= 1)
                 break;
         }
-
     }
     cray.color.cap();   //Caps each channel at 255
 
@@ -249,7 +245,7 @@ void RenderEngine::render(sf::Texture* texture) {
     printf("memsize: %d\n", shared_mem_size);
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
-        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size, stream[i] >> > (rayptr_device, voxels, cc, offset, image_device, volume->size, f_device, compactignores, volume->rendervoxels, volume->compactclusters);// , dev_empty_y_slices, dev_empty_x_slices);
+        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size, stream[i] >> > (rayptr_device, cc, offset, image_device, volume->size, compactignores, volume->rendervoxels, volume->compactclusters, volume->num_clusters);// , dev_empty_y_slices, dev_empty_x_slices);
         checkCudaError2();
     }
 

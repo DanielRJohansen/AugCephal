@@ -626,7 +626,10 @@ RenderVoxel* Preprocessor::compressVoxels(Volume* vol, vector<TissueCluster3D*> 
     int* clustermap = generateClusterIDMap(clusters, remaining_clusters);
     
     for (int i = 0; i < vol->len; i++) {
-        rvoxels[i].cluster_id = clustermap[vol->voxels[i].cluster_id];
+        if (vol->voxels[i].isEdge && !vol->voxels[i].ignore)
+            rvoxels[i].cluster_id = clustermap[vol->voxels[i].cluster_id];
+        else
+            rvoxels[i].cluster_id = -1;
     }
 
 
