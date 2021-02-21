@@ -126,66 +126,7 @@ __global__ void kMeansRunKernel(Voxel* voxels, CudaKCluster* kclusters, CudaKClu
     updateSharedMemClusters(shared_clusters, thread_accs, thread_mems, k, threads_per_block);
     pushSharedMemClusterToGlobalBlockClusters(shared_clusters, global_clusters, k);
 }
-/*
-__global__ void kMeansRunKernel2(Voxel* voxels, CudaKCluster* kclusters, CudaKCluster* global_clusters, int k, Int3 size) {
-    int y = blockIdx.x;
-    int x = threadIdx.x;
 
-    extern __shared__ CudaKCluster block_clusters[];
-    CudaKCluster* shared_clusters = (CudaKCluster*)block_clusters;
-    float* thread_accs = (float*)&shared_clusters[k];
-    short* thread_mems = (short*)&thread_accs[k * size.x];
-
-    updateGlobalClustersIntoShared(shared_clusters, kclusters, k);  // Load clusters into shared mem  
-    resetAccumulations(thread_accs, thread_mems, k);                // Init thread mem
-
-    // Algo
-    int offset = x * k;
-    for (int z = 0; z < size.z; z++) {
-        Voxel voxel = voxels[xyzToIndex(Int3(x, y, z), size)];
-        if (!voxel.ignore) {
-            float highest_belonging = 0;
-            int best_index = 0;
-
-            for (int i = 0; i < k; i++) {
-                float belonging = shared_clusters[i].belonging(voxel.norm_val);
-                if (belonging > highest_belonging) {
-                    highest_belonging = belonging;
-                    best_index = i;
-                }
-            }
-            int index = offset + best_index;
-            thread_accs[index] += voxel.norm_val;
-            thread_mems[index] += 1;
-        }
-    }
-
-    updateSharedMemClusters(shared_clusters, thread_accs, thread_mems, k, size);
-    pushSharedMemClusterToGlobalBlockClusters(shared_clusters, global_clusters, k);
-}
-*/
-/*
-__global__ void updateGlobalClustersKernel2(CudaKCluster* kclusters, CudaKCluster* block_clusters, int k, Int3 size) { // block_clusters are in global memory
-    int x = threadIdx.x;                                        // Which k to handle
-
-    extern __shared__ float change_arr[];
-    float* shared_change = (float*)change_arr;
-
-    for (int i = 0; i < size.y; i++) {
-        kclusters[x].mergeBatch(block_clusters[i * k + x]);
-    }
-
-    shared_change[x] = kclusters[x].calcCentroid();;
-
-    __syncthreads();
-
-    if (x == 0) {
-        kcluster_total_change = 0;
-        for (int i = 0; i < k; i++)
-            kcluster_total_change += shared_change[i];
-    }
-}
-*/
 
 __global__ void updateGlobalClustersKernel(CudaKCluster* kclusters, CudaKCluster* block_clusters, int k, int num_blocks) { // block_clusters are in global memory
     int x = threadIdx.x;

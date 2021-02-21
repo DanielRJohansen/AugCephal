@@ -13,7 +13,7 @@ const int NUM_RAYS = RAYS_PER_DIM * RAYS_PER_DIM;
 //const float RAY_RANGE = 3.1415 * 0.1;
 const float RAY_STEPSIZE = 5;
 const int RAY_STEPS = 1600;
-const int N_STREAMS = 16;
+const int N_STREAMS = 8;
 const int THREADS_PER_BLOCK = 256;
 
 // CAMERA SPECIFIC

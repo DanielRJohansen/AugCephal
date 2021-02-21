@@ -358,11 +358,10 @@ void Preprocessor::rmf(Volume* vol) {
     rotatingMaskFilterKernel << <vol->size.y, vol->size.x >> > (vol->voxels, voxelcopy, vol->size, vol->CB->compact_gpu, gpu_masks);
     cudaDeviceSynchronize();
     
-    delete(masks);
     cudaFree(voxelcopy);
     cudaFree(gpu_masks);
+    delete(masks);
     printf("RMF applied in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
-
 }
 
 
@@ -600,6 +599,7 @@ TissueCluster3D* Preprocessor::removeExcessClusters(vector<TissueCluster3D*> clu
         }
         clusters[i]->empty();
     }
+    clusters.clear();
     printf("Clustervector compressed to %d clusters\n", compressed_index);
     return compressed_clusters;
 }
@@ -638,6 +638,8 @@ RenderVoxel* Preprocessor::compressVoxels(Volume* vol, vector<TissueCluster3D*> 
     printf("Allocating rendervoxels on gpu: %d MB", bytesize / 1000000);
     cudaMallocManaged(&rvoxels_dev, bytesize);
     cudaMemcpy(rvoxels_dev, rvoxels, bytesize, cudaMemcpyHostToDevice);
+
+    cudaFree(vol->voxels);
     delete(rvoxels);
     delete(clustermap);
     return rvoxels_dev;

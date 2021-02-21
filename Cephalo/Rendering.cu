@@ -126,39 +126,34 @@ __device__ Int2 smartStartStop(CudaFloat3 origin, CudaFloat3 vector, Int3 vol_si
 
 //--------------------------------------------------------------------------------------    KERNEL  --------------------------------------------------------------------------------------------------------------------------//
 
-__global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, unsigned* ignores, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters) {
+//texture<CompactCluster, 1, cudaReadModeElementType> clusters_texture;
+
+__global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* image, Int3 vol_size, unsigned* ignores, int ignores_len, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters) {
     int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x +offset;
     //50
     Ray ray = rayptr[index];    // This operation alone takes ~60 ms
 
 
-    extern __shared__ CompactCluster block_clusters[];
-    CompactCluster* shared_clusters = (CompactCluster*)block_clusters;      // k per block
-
-
+    extern __shared__ unsigned int blockignores[];
+    unsigned int* xyignores = (unsigned int*)blockignores;
     int temp = threadIdx.x;
-    while (temp < num_clusters) {
-        shared_clusters[temp] = compactclusters[temp];
+    while (temp < ignores_len) {
+        xyignores[temp] = ignores[temp];
         temp += THREADS_PER_BLOCK;
     }
-
+    
     __syncthreads();
 
-    /*__shared__ unsigned xyignores[8192];
-    int specific_index = threadIdx.x;
-    while (specific_index < 8192) {
-        xyignores[specific_index] = 0;
-        specific_index += THREADS_PER_BLOCK;
-    }*/
+
 
     CudaFloat3 unit_vector = makeUnitVector(&ray, cc);
     CudaRay cray(unit_vector * RAY_SS);
-    //CompactBool CB;
+    CompactBool CB;
 
 
     //77
     Int2 start_stop = smartStartStop(CudaFloat3(cc.origin.x, cc.origin.y, cc.origin.z), cray.step_vector, vol_size);
-    //81
+    int prev_vol_index = -1;
     int prev_cluster_id = -1;
     for (int step = start_stop.x; step < start_stop.y+1; step++) {    //500
         int x = cc.origin.x + cray.step_vector.x * step;
@@ -170,21 +165,16 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* imag
         int vol_z = (int) (z + vol_size.z / 2);
         Int3 pos = Int3(vol_x, vol_y, vol_z);
         
-        if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { // Only proceed if coordinate is within volume!
-            int volume_index = xyzToIndex(pos, vol_size);
 
-            /*if (vol_z == 0) {
-                cray.color.b += 255 * (1 - cray.alpha);
-                break;
-            }
+        if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { 
+            int volume_index = xyzToIndex(pos, vol_size);            
+            if (volume_index == prev_vol_index)
+                continue;
+
             int column_index = vol_y * vol_size.x + vol_x;
-            int quad_index = CB.quadIndex(column_index);
-            //if (xyignores[quad_index] == 0)
-              //  xyignores[quad_index] = ignores[quad_index];
             if (CB.getBit(xyignores, column_index) != 0)
                 continue;
-            */
-            //RenderVoxel rendervoxel = ;
+            
             int cluster_id = rendervoxels[volume_index].cluster_id;
             if (cluster_id == prev_cluster_id) {
                 continue;
@@ -193,9 +183,9 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, int offset, uint8_t* imag
 
             if (cluster_id == -1)
                 continue;
-            CompactCluster* compactcluster = &shared_clusters[cluster_id];
+            CompactCluster* compactcluster = &compactclusters[cluster_id];
             cray.color.add(compactcluster->getColor() * compactcluster->getAlpha());
-            cray.alpha += 1;// compactcluster->getAlpha();
+            cray.alpha += compactcluster->getAlpha();
             if (cray.alpha >= 1)
                 break;
         }
@@ -235,17 +225,17 @@ void RenderEngine::render(sf::Texture* texture) {
         int offset = i * stream_size;
         cudaMemcpyAsync(&rayptr_device[offset], &rayptr_host[offset], ray_stream_bytes, cudaMemcpyHostToDevice, stream[i]);
     }
-    int* f_device;
+    /*int* f_device;
     unsigned icopy[8192];
     for (int i = 0; i < 8192; i++)
         icopy[i] = hostignores[i];
-    cudaMallocManaged(&f_device, sizeof(int));
+    cudaMallocManaged(&f_device, sizeof(int));*/
 
-    int shared_mem_size = volume->num_clusters * sizeof(CompactCluster);
+    int shared_mem_size = volume->CB->arr_len*sizeof(unsigned int);
     printf("memsize: %d\n", shared_mem_size);
     for (int i = 0; i < N_STREAMS; i++) {
         int offset = i * stream_size;
-        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size, stream[i] >> > (rayptr_device, cc, offset, image_device, volume->size, compactignores, volume->rendervoxels, volume->compactclusters, volume->num_clusters);// , dev_empty_y_slices, dev_empty_x_slices);
+        stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size, stream[i] >> > (rayptr_device, cc, offset, image_device, volume->size, compactignores, volume->CB->arr_len, volume->rendervoxels, volume->compactclusters, volume->num_clusters);
         checkCudaError2();
     }
 

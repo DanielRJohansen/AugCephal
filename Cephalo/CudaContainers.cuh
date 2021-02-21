@@ -87,6 +87,7 @@ struct CompactBool {
 	__host__ __device__ CompactBool() {}
 	__host__ CompactBool(bool* boolean_gpu, int column_len) {
 		int compact_size = ceil((float)column_len / 32.);
+		arr_len = compact_size;
 		int compact_bytesize = compact_size * sizeof(unsigned);
 		int boolbytesize = column_len * sizeof(bool);
 		printf("Creating compact vector for %d values of size: %d Kb\n", column_len, compact_bytesize / 1000);
@@ -94,7 +95,7 @@ struct CompactBool {
 		bool* boolean_host = new bool[column_len];
 		cudaMemcpy(boolean_host, boolean_gpu, boolbytesize, cudaMemcpyDeviceToHost);
 
-		unsigned* compact = new unsigned[compact_size]();
+		unsigned int* compact = new unsigned[compact_size]();
 		for (int i = 0; i < column_len; i++) {
 			if (boolean_host[i])
 				setBit(compact, i);
@@ -106,18 +107,19 @@ struct CompactBool {
 		cudaFree(boolean_gpu);
 	}
 
-	__host__ __device__ unsigned getBit(unsigned* compacted, int index) {
-		unsigned byte = compacted[quadIndex(index)];
+	__host__ __device__ unsigned int getBit(unsigned* compacted, int index) {
+		unsigned int byte = compacted[quadIndex(index)];
 		return (byte >> bitIndex(index)) & (unsigned)1;
 	}
-	__device__ unsigned getQuad(unsigned* compacted, int index) {
-		unsigned quad = compacted[quadIndex(index)];
+	__device__ unsigned int getQuad(unsigned* compacted, int index) {
+		unsigned int quad = compacted[quadIndex(index)];
 		return quad;
 	}
 	__host__ __device__ inline int quadIndex(int index) { return index / 32; }
 
-	unsigned* compact_gpu;		// FOR STORAGE ONLY, NO OPERATIONS ALLOWED
-	unsigned* compact_host;
+	int arr_len;
+	unsigned int* compact_gpu;		// FOR STORAGE ONLY, NO OPERATIONS ALLOWED
+	unsigned int* compact_host;
 private:
 	__host__ __device__ void setBit(unsigned* compacted, int index) {
 		compacted[quadIndex(index)] |= ((unsigned)1 << bitIndex(index));
@@ -158,10 +160,7 @@ struct Voxel{	//Lots of values
 	}
 };
 
-struct TissueCluster {	// Lots of functions
-	Voxel* voxels;
-	float median;
-};
+
 
 
 struct RenderVoxel;
@@ -183,7 +182,6 @@ public:
 	Voxel* voxels;	
 	bool* xyColumnIgnores;
 	CompactBool* CB;	//Host side
-	TissueCluster* clusters;
 
 	// Send to LiveEditor
 	TissueCluster3D* compressedclusters;	// Contains slightly more info for live editing	- host side only

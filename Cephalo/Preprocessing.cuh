@@ -57,7 +57,6 @@ public:
 
 
 		int k = 20;
-		//rmf(volume);
 		rmf(volume);
 		fuzzyClusterAssignment(volume, k, 3);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
@@ -79,8 +78,11 @@ public:
 		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
 		mergeClusters(volume, clusters);
 		remaining_clusters = countAliveClusters(clusters, remaining_clusters);
-		
 		finalizeClusters(volume, clusters);
+		
+		
+
+
 
 
 		TissueCluster3D* compressedclusters = removeExcessClusters(clusters, remaining_clusters);

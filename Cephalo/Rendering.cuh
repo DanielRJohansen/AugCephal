@@ -4,8 +4,7 @@
 #include <cuda_runtime_api.h>
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-
-
+#include "cuda_texture_types.h"
 
 #include <stdio.h>
 #include <iostream>
@@ -24,6 +23,11 @@
 __device__ const float RAY_SS = 0.4;
 __device__ const float e = 2.7182;
 
+
+
+
+// Textore global memory
+//texture<CompactCluster, 1, cudaReadModeElementType> clusters_texture;
 
 
 class RenderEngine {
@@ -53,7 +57,7 @@ public:
 
 
 
-
+		//cudaMallocManaged(&const_clusters, vol->num_clusters * sizeof(CompactCluster));
 		// Volume
 		//rendervoxels = vol->rendervoxels;
 
@@ -77,6 +81,8 @@ private:
 
 	RenderVoxel* rendervoxels;		// Dev
 	CompactCluster* comclusters;	// Dev
+	//__constant__ CompactCluster* const_clusters;
+
 
 	// Non-volume specific
 	Ray* rayptr_device;
