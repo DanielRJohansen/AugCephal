@@ -207,6 +207,9 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
     image[index * 4 + 1] = (int)cray.color.g;
     image[index * 4 + 2] = (int)cray.color.b;
     image[index * 4 + 3] = 255;
+
+    for (int i = 0; i < 5; i++)
+        rayptr[index].clusterids_hit[i] = clusterids_hit[i];
 }
 
 

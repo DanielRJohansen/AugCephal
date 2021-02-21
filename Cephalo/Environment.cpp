@@ -22,7 +22,7 @@ Environment::Environment(string path, Int3 dimensions, float zoverxy) {
 	Preprocessor PP;
 	volume = PP.processScan(path, dimensions, zoverxy);
 
-	liveeditor = LiveEditor(volume->compressedclusters, volume->num_clusters);
+	liveeditor = LiveEditor(volume);
 	volume->compactclusters = liveeditor.getCompactClusters();
 
 	camera = new Camera();
@@ -41,11 +41,13 @@ void Environment::Run() {
 	//thread thr1;
 	//thr1 = thread(&Environment::handleConsole, this);
 
-	sf::RenderWindow window(sf::VideoMode(RAYS_PER_DIM, RAYS_PER_DIM), 
-		"3D body", sf::Style::Close );
+	sf::RenderWindow window(sf::VideoMode(RAYS_PER_DIM, RAYS_PER_DIM), "3D body", sf::Style::Close );
 	sf::Texture texture;
 	sf::Sprite sprite;
-	REE.render(cuda_texture);
+
+	rayptr_dev = REE.render(cuda_texture);		// Do initial render
+	liveeditor.setRayptr(rayptr_dev);			// Setup rayptr first time rendering, before polling for any clusters at pixels
+
 	texture.loadFromImage(*image);
 	sprite.setTexture(*cuda_texture, true);
 
@@ -63,9 +65,9 @@ void Environment::Run() {
 				sprite.setTexture(*cuda_texture, true);
 			}
 		}
-		if (handleTasks()) {
+		/*if (handleTasks()) {
 			sprite.setTexture(*cuda_texture, true);
-		}
+		}*/
 
 		handleMouseEvents(event, &window);
 
@@ -80,21 +82,24 @@ void Environment::Run() {
 
 void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
 	sf::Vector2i mousepos = sf::Mouse::getPosition(*window);
-	if (mousepos.x >= 0 && mousepos.y >= 0 && mousepos.x < RAYS_PER_DIM && mousepos.y < RAYS_PER_DIM) {
+	if (mousepos.x >= 0 && mousepos.y >= 0 && mousepos.x < RAYS_PER_DIM && mousepos.y < RAYS_PER_DIM){
 		if (mousepos != prev_mousepos) {
 			printf("\rMouse pos: x: %04d y: %04d", mousepos.x, mousepos.y);
-
+			prev_mousepos = mousepos;
 		}
-
-		prev_mousepos = mousepos;
 	}
+	else { return; }	// Ensures no actions are recorded with mouse outside window!
+		
+
 	if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
 		left_pressed = false;
-
 	}
 	if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-		if (left_pressed == false)
+		if (left_pressed == false) {
 			printf("  click  ");
+			int pixel_index = mousepos.y * RAYS_PER_DIM + mousepos.x;
+			liveeditor.selectCluster(pixel_index);
+		}
 		left_pressed = true;
 	}
 

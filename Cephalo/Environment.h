@@ -37,6 +37,7 @@ public:
 	void Run();
 private:
 	RenderEngine REE;
+	Ray* rayptr_dev;				// Is live!
 	LiveEditor liveeditor;
 
 	void scheduleTask(Task);		//By subthreads

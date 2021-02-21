@@ -11,20 +11,42 @@
 class LiveEditor {
 public:
 	LiveEditor(){}
-	LiveEditor(TissueCluster3D* compressed_clusters, int num_clusters) : num_clusters(num_clusters), clusters(compressed_clusters) { makeCompactClusters(); }
+	LiveEditor(Volume* volume) : vol(volume) { num_clusters = vol->num_clusters; makeCompactClusters(); }
+	void setRayptr(Ray* rayptr) { rayptr_dev = rayptr; }
+
 
 	CompactCluster* getCompactClusters() {
 		return comclusters;
 	}
 	CompactCluster* window(int from, int to);
 
+	void selectCluster(int pixel_index) {
+		ray = &rayptr_dev[pixel_index];
+		short int id = ray->clusterids_hit[0];
+		if (id == -1)
+			return;
 
+		printf("Top id: %d\n", id);
+		cluster_id = id;
+		wheel_zoom = 0;
+		cluster_mean = vol->compressedclusters[cluster_id].mean;
+		cluster_size = vol->compressedclusters[cluster_id].member_indexes.size();
+		printf("Clusted %d selected. Mean: %d	Size: %d\n", cluster_id, cluster_mean, cluster_size);
+	}
+
+	Ray* ray;
+	short int cluster_id = -1;
+	float cluster_mean = 0;
+	int cluster_size = 0;
+	int wheel_zoom = 0;
 
 private:
 	int num_clusters;
-	TissueCluster3D* clusters;
-	CompactCluster* comclusters;
+	CompactCluster* comclusters;	// Edited here, and fetched often!
+	Ray* rayptr_dev;				// Live rayptr
 
+
+	Volume* vol;					// Contains rendervoxels, and compressed clusterlist (Only has some info from original clusters)
 
 
 	void resetAlpha();
