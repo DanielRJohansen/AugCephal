@@ -84,3 +84,52 @@ y = 1./x.^2;
 plot(x,y)
 
 
+
+%% Clustering Heuristic
+clc
+clear
+
+
+
+
+
+[X,Y]= meshgrid(-600:800, 0:23);
+
+
+% Lung tissue
+huwidth = 200; sizewidth = 8000;
+hucenter = -600; sizecenter = 0;
+Z1 = 80 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
+
+% Bone tissue
+huwidth = 600; sizewidth = 19;
+hucenter = 1000; sizecenter = 23;
+Z2 = 100 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
+
+
+% Noise probably
+huwidth = 10000; sizewidth = 2;
+hucenter = 0; sizecenter = 0;
+Z3 = 50 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
+
+Z = 10 + Z1+Z2 + Z3;
+%Z = 1./Z
+
+
+
+
+
+%figure()
+mesh(X,Y,Z)
+hold on
+
+xlabel('Houndsvield Value');
+ylabel('log2(mm^2)');
+
+% Muscles
+plot3(80,log2(0.5*10^6),15, '-o','Color','b','MarkerSize',10,'MarkerFaceColor','red');
+plot3(102,log2(2.3*10^6),15, '-o','Color','b','MarkerSize',10,'MarkerFaceColor','red');
+
+%
+hold off
+
