@@ -224,7 +224,7 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
 
 
 Ray* RenderEngine::render(sf::Texture* texture) {
-    auto start = chrono::high_resolution_clock::now();
+    //auto start = chrono::high_resolution_clock::now();
     
     CompactCam cc = CompactCam(camera->origin, camera->plane_pitch, camera->plane_yaw, camera->radius);
 
@@ -242,7 +242,7 @@ Ray* RenderEngine::render(sf::Texture* texture) {
 
     texture->update(image_host);
 
-    printf("Executed in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    //printf("Executed in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
     return rayptr_device;
 }

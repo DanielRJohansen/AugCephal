@@ -84,7 +84,7 @@ void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
 	sf::Vector2i mousepos = sf::Mouse::getPosition(*window);
 	if (mousepos.x >= 0 && mousepos.y >= 0 && mousepos.x < RAYS_PER_DIM && mousepos.y < RAYS_PER_DIM){
 		if (mousepos != prev_mousepos) {
-			printf("\rMouse pos: x: %04d y: %04d", mousepos.x, mousepos.y);
+			//printf("\rMouse pos: x: %04d y: %04d", mousepos.x, mousepos.y);
 			prev_mousepos = mousepos;
 		}
 	}
@@ -96,7 +96,6 @@ void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
 	}
 	if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
 		if (left_pressed == false) {
-			printf("  click  ");
 			int pixel_index = mousepos.y * RAYS_PER_DIM + mousepos.x;
 			liveeditor.selectCluster(pixel_index);
 		}

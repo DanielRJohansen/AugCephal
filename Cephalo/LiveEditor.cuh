@@ -26,12 +26,12 @@ public:
 		if (id == -1)
 			return;
 
-		printf("Top id: %d\n", id);
+		
 		cluster_id = id;
 		wheel_zoom = 0;
 		cluster_mean = vol->compressedclusters[cluster_id].mean;
 		cluster_size = vol->compressedclusters[cluster_id].member_indexes.size();
-		printf("Clusted %d selected. Mean: %d	Size: %d\n", cluster_id, cluster_mean, cluster_size);
+		printf("    Cluster ID: %05d selected. Mean: %f	Size: %f cm3 \n", cluster_id, cluster_mean, cluster_size/1000.);
 	}
 
 	Ray* ray;
