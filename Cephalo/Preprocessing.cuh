@@ -37,7 +37,7 @@ public:
 	Preprocessor() {};
 
 
-	Volume* processScan(string path, Int3 s, float z_over_xy) {
+	Volume* processScan(string path, Int3 s, float z_over_xy, float true_voxel_volume) {
 		//return new Volume;
 		input_size = s;
 		raw_scan = new float[s.x*s.y*s.z];
@@ -47,6 +47,7 @@ public:
 		
 		//scan = Interpolate3D(raw_scan, size, &size, z_over_xy);		
 		Volume* volume = convertToVolume(scan, size);
+		volume->true_voxel_volume = true_voxel_volume;
 		delete(scan, raw_scan);
 
 

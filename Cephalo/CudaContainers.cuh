@@ -176,6 +176,7 @@ public:
 	}
 
 
+	float true_voxel_volume;				// In mm3
 	Int3 size;
 	int len = 0;
 
@@ -461,9 +462,11 @@ struct CompactColor {
 class CompactCluster {
 public:
 	__device__ float getAlpha() {
-		return 255. / (float)alpha;
+		float a =  (float) alpha / 255.;
+		return capFloat01(a);
 	}
 	__host__ void setAlpha(float a) {
+		a = capFloat01(a);
 		alpha = (unsigned char)(a * 255);
 	}
 	__device__ CudaColor getColor() { return CudaColor(color.r, color.g, color.b); }
@@ -472,6 +475,13 @@ public:
 private:
 	CompactColor color;
 	unsigned char alpha;
+	__host__ __device__ float capFloat01(float a) {
+		if (a < 0)
+			return 0;
+		if (a > 1)
+			return 1;
+		return a;
+	}
 };
 
 struct RenderVoxel {

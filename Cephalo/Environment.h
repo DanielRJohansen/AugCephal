@@ -24,7 +24,7 @@ public:
 	Environment();
 	Environment(Volume* volume);
 	Environment(Block* vol);
-	Environment(string path, Int3 dimensions, float zoverxy);
+	Environment(string path, Int3 dimensions, float zoverxy, float true_voxel_volume);
 	void newVolume(Block* vol);
 
 	Camera *camera;
@@ -60,5 +60,6 @@ private:
 	// For mouse actions
 	sf::Vector2i prev_mousepos;
 	bool left_pressed = false;
+	bool right_pressed = false;
 
 };

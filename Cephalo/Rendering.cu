@@ -189,12 +189,15 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
             if (cluster_id == -1)
                 continue;
 
+            CompactCluster* compactcluster = &compactclusters[cluster_id];
+            if (compactcluster->getAlpha() == 0.)
+                continue;
+
             if (hit_index < 5) {
                 clusterids_hit[hit_index] = cluster_id;
                 hit_index++;
             }
                 
-            CompactCluster* compactcluster = &compactclusters[cluster_id];
             cray.color.add(compactcluster->getColor() * compactcluster->getAlpha());
             cray.alpha += compactcluster->getAlpha();
             if (cray.alpha >= 1)

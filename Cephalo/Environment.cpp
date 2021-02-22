@@ -18,9 +18,10 @@ Environment::Environment(Volume* vol) {
 
 	REE = RenderEngine(volume, camera);
 }
-Environment::Environment(string path, Int3 dimensions, float zoverxy) {
+
+Environment::Environment(string path, Int3 dimensions, float zoverxy, float true_voxel_volume) {
 	Preprocessor PP;
-	volume = PP.processScan(path, dimensions, zoverxy);
+	volume = PP.processScan(path, dimensions, zoverxy, true_voxel_volume);
 
 	liveeditor = LiveEditor(volume);
 	volume->compactclusters = liveeditor.getCompactClusters();
@@ -72,7 +73,8 @@ void Environment::Run() {
 		handleMouseEvents(event, &window);
 
 
-		
+		if (liveeditor.checkRenderFlag())
+			REE.render(cuda_texture);
 
 		window.draw(sprite);
 		window.display();
@@ -94,6 +96,9 @@ void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
 	if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left) {
 		left_pressed = false;
 	}
+	if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Right) {
+		right_pressed = false;
+	}
 	if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
 		if (left_pressed == false) {
 			int pixel_index = mousepos.y * RAYS_PER_DIM + mousepos.x;
@@ -101,6 +106,19 @@ void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
 		}
 		left_pressed = true;
 	}
+	if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
+		if (right_pressed == false) {
+			/*char this_input;
+			printf("Isolate element? (y/n) \n");
+			cin >> this_input;
+			if (this_input == 'y')*/
+			liveeditor.isolateCurrentCluster();
+		}
+		right_pressed = true;
+	}
+
+
+	
 
 	if (event.type == sf::Event::MouseWheelMoved) {
 		printf("   D:%d ", event.mouseWheel.delta);

@@ -431,7 +431,7 @@ void clusterInitScheduler(vector<TissueCluster3D*> clusters, Volume* vol) {
     unsigned int edge_voxels = 0;
     for (int i = 0; i < clusters.size(); i++) {
         char index = 0;
-        if (clusters[i]->member_indexes.size() < 1000000) {
+        if (clusters[i]->member_indexes.size() < 500000) {
             clusters[i]->initialize(vol);
         }
         else {

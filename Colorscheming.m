@@ -133,3 +133,31 @@ plot3(102,log2(2.3*10^6),15, '-o','Color','b','MarkerSize',10,'MarkerFaceColor',
 %
 hold off
 
+
+
+
+
+%% HU to mass conversion for siemens machines (Not very precise)
+clc
+clear
+
+mass = [0      0.29   0.45   0.943 0.985  1.000 1.016 1.052 1.089 1.145 1.159 1.335 1.560 1.823]';
+hu =   [-969.8 -712.9 -536.5 -95.6 -45.6  -5.6 -1.9  25.7 65.6 207.5 220.7 429.9 775.3 1173.7]';
+
+
+%plot(hu, mass)
+
+
+
+
+f = @(b,hu) b(1).*exp(b(2).*hu)+b(3);                                     % Objective Function
+B = fminsearch(@(b) norm(mass - f(b,hu)), [-0.2; -0.1; 0.8])                  % Estimate Parameters
+figure
+plot(hu, mass, 'pg')
+hold on
+plot(hu, f(B,hu), '-r')
+hold off;
+grid
+xlabel('Houndsfield unit')
+ylabel('Mass g/cm3')
+text(27, 105, sprintf('f(x) = %.1f\\cdote^{%.3f\\cdotx}%+.1f', B))
