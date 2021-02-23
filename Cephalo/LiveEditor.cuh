@@ -41,8 +41,8 @@ public:
 		cluster_size = vol->compressedclusters[cluster_id].member_indexes.size();
 		cluster_weight = avg_dens * cluster_size * voxel_volume;
 
-		printf("    Cluster ID: %05d selected. Avg. density: %f g/cm3 	Size: %f cm3. Weight: %f g \n", 
-			cluster_id, avg_dens*1000, cluster_size * voxel_volume * 1./1000., cluster_weight);
+		printf("    Cluster ID: %05d selected. Mean HU: %08f Members: %d	Size: %f cm3. Weight: %f g \n", 
+			cluster_id, cluster_mean, cluster_size, cluster_size * voxel_volume * 1./1000., cluster_weight);
 	}
 
 	void isolateCurrentCluster() {

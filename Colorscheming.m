@@ -40,7 +40,8 @@ hold off
 clc
 blocks = 9*5;
 x = 1:1:blocks+3;
-f = 2./(1+exp(-x/15))-1;
+x = 0:1:9;
+f = 1/0.6*(1./(1+exp(-x/2)) - 0.4);
 plot(x, f)
 
 
@@ -99,20 +100,20 @@ clear
 % Lung tissue
 huwidth = 200; sizewidth = 8000;
 hucenter = -600; sizecenter = 0;
-Z1 = 80 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
+Z1 = 150 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
 
 % Bone tissue
-huwidth = 600; sizewidth = 19;
+huwidth = 550; sizewidth = 19;
 hucenter = 1000; sizecenter = 23;
-Z2 = 100 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
+Z2 = 700 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
 
 
 % Noise probably
 huwidth = 10000; sizewidth = 2;
 hucenter = 0; sizecenter = 0;
-Z3 = 50 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
+Z3 = 30 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
 
-Z = 10 + Z1+Z2 + Z3;
+Z = 15 + Z1+Z2 + Z3;
 %Z = 1./Z
 
 

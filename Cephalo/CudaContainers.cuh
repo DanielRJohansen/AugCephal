@@ -430,10 +430,14 @@ private:
 	const int xo[3] = { -1, 0, 1 };
 	const int yo[3] = { -1, 0, 1 };
 	const int zo[3] = { -1, 0, 1 };
-	Int3 getImmediateNeighbor(Int3 pos, int i) {
+	Int3 getVagueNeighbor(Int3 pos, int i) {
 		Int3 rel = indexToXYZ(i, Int3(3, 3, 3));
 		Int3 pos_ = Int3(xo[rel.x], yo[rel.y], zo[rel.z]);
 		//Int3 pos_ = Int3(x_off[i], y_off[i], z_off[i]);
+		return pos + pos_;
+	}
+	Int3 getImmediateNeighbor(Int3 pos, int i) {
+		Int3 pos_ = Int3(x_off[i], y_off[i], z_off[i]);
 		return pos + pos_;
 	}
 

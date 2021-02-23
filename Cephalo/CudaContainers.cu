@@ -13,7 +13,7 @@ void TissueCluster3D::findNeighborsAndMean(Volume* vol) {
 		Voxel* cur_voxel = &vol->voxels[member_index];			// No ignores are added to a cluster
 		mean += (double)cur_voxel->hu_val / (double)member_indexes.size();
 		Int3 origin = indexToXYZ(member_index, vol->size);
-		for (int j = 0; j < 27; j++) {							// search each neighbor-voxel for neighbor cluster
+		for (int j = 0; j < 6; j++) {							// search each neighbor-voxel for neighbor cluster
 			Int3 pos = getImmediateNeighbor(origin, j);
 			if (isInVolume(pos, vol->size)) {
 				Voxel* neighbor = &vol->voxels[xyzToIndex(pos, vol->size)];
@@ -121,18 +121,18 @@ float distContribFunc(float humean, float hucenter, float huwidth, float size, f
 float maxMergeDist(float hu_mean, float size) {
 	float huwidth, sizewidth, hucenter, sizecenter, maxcontribution, dist;
 	float temphu, tempsize;
-	dist = 30; // min range;
+	dist = 15; // min range;
 
 	// Lung Tissue
-	huwidth = 200; sizewidth = 8000; hucenter = -600; sizecenter = 0, maxcontribution = 80;
+	huwidth = 200; sizewidth = 8000; hucenter = -600; sizecenter = 0, maxcontribution = 150;
 	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
 
 	// Bone Tissue
-	huwidth = 600; sizewidth = 19; hucenter = 1000; sizecenter = 23, maxcontribution = 100;
+	huwidth = 550; sizewidth = 19; hucenter = 1000; sizecenter = 23, maxcontribution = 700;
 	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
 
 	// Noise probably
-	huwidth = 10000; sizewidth = 2; hucenter = 0; sizecenter = 0, maxcontribution = 100;
+	huwidth = 10000; sizewidth = 2; hucenter = 0; sizecenter = 0, maxcontribution = 30;
 	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
 
 	return dist;
@@ -212,7 +212,7 @@ void TissueCluster3D::findEdges(Volume* vol) {
 	}
 }
 bool TissueCluster3D::isEdge(Volume* vol, Int3 origin, Voxel* v0) {
-	for (int i = 0; i < 27; i++) {
+	for (int i = 0; i < 6; i++) {
 		Int3 pos = getImmediateNeighbor(origin, i);
 		if (isInVolume(pos, vol->size)) {						// Edges can on purpose not be volume-border voxels
 			int neighbor_index = xyzToIndex(pos, vol->size);

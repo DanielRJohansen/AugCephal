@@ -57,7 +57,7 @@ public:
 		setColumnIgnores(volume);
 
 
-		int k = 20;
+		int k = 12;
 		rmf(volume);
 		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 

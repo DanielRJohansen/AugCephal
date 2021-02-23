@@ -27,33 +27,31 @@ Ray* RenderEngine::initRays() {
 
 
 
-__device__ float activationFunction(float counts) {
-    return 2 / (1 + powf(e, (-counts / 4.))) - 1.;
+/*__device__ float activationFunction(int counts) {
+    return 1. / (1 + powf(e, (-counts / 4.))) - 1.;
+}*/
+__device__ float activationFunction(int counts) {
+    return 1./0.6 * (    1. / (1 + exp(-counts / 2.))    -0.4);
 }
-
-/*__device__ float lightSeeker(Block* volume, CudaFloat3 pos) {
-    float spread = 1;
-    float brightness = 1;
-    for (int y = 0; y < 3; y++) {
-        for (int x = 0; x < 3; x++) {
-
-            // Upward seeking
-            brightness += 1;
-            for (int z = 1; z <= 64; z *= 2) {
-                int vol_x = pos.x - spread + spread * x;
-                int vol_y = pos.y - spread + spread * y;
-                int vol_z = pos.z + z;
-                if (isInVolume(Int3(vol_x, vol_y, vol_z))) {
-                    int index = xyzToIndex(vol_x, vol_y, vol_z);
-                    if (!volume[index].ignore) { brightness -= 1; break; }
-                    //else { break; }
+__device__ float lightSeeker(short int cluster_id, RenderVoxel* voxels, Int3 vol_pos, Int3 vol_size) {
+    int clear_voxels = 0;
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            Int3 pos_ = vol_pos + Int3(x, y, 1);              
+            if (isInVolume(pos_, vol_size)) {
+                int voxel_index = xyzToIndex(pos_, vol_size);
+                if (voxels[voxel_index].cluster_id != cluster_id) { 
+                    clear_voxels++;
                 }
-                //else { brightness += 1; }
             }
+            else {
+                clear_voxels++;
+            }
+            
         }
     }
-    return activationFunction(brightness);
-}*/
+    return activationFunction(clear_voxels);
+}
 
 __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
     float x = ray->rel_unit_vector.x;
@@ -197,8 +195,8 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
                 clusterids_hit[hit_index] = cluster_id;
                 hit_index++;
             }
-                
-            cray.color.add(compactcluster->getColor() * compactcluster->getAlpha());
+            float brightness = lightSeeker(cluster_id, rendervoxels, pos, vol_size);
+            cray.color.add(compactcluster->getColor() * compactcluster->getAlpha() * brightness);
             cray.alpha += compactcluster->getAlpha();
             if (cray.alpha >= 1)
                 break;
@@ -233,7 +231,7 @@ Ray* RenderEngine::render(sf::Texture* texture) {
 
 
     int shared_mem_size = volume->CB->arr_len * sizeof(unsigned int);
-    stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size >> > (rayptr_device, cc, image_device, volume->size, compactignores, volume->CB->arr_len, volume->rendervoxels, volume->compactclusters, volume->num_clusters);
+    stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size >> > (rayptr_device, cc, image_device, volume->size, volume->CB->compact_gpu, volume->CB->arr_len, volume->rendervoxels, volume->compactclusters, volume->num_clusters);
     cudaDeviceSynchronize();
 
 

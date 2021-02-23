@@ -57,4 +57,4 @@ const int km_iterations = 1;
 
 // Dont have a good title for this
 
-const float DEFAULT_ALPHA = 0.5;
+const float DEFAULT_ALPHA = 1;
