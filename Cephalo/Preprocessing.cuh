@@ -25,6 +25,7 @@
 #include "resizing.cuh"
 #include "FuzzyAssignment.cuh""
 #include "ColorMaker.h"
+#include "Constants.h"
 using namespace std;
 
 typedef vector<string> stringvec;	// Used for reading directory
@@ -52,12 +53,12 @@ public:
 
 
 		// Algoritmic preprocessing
-		windowVolume(volume, -600, 800);		// Norm values are set here
-		setIgnoreBelow(volume, -600);
+		windowVolume(volume, HU_MIN, HU_MAX);		// Norm values are set here
+		setIgnoreBelow(volume, HU_MIN);
 		setColumnIgnores(volume);
 
 
-		int k = 12;
+		int k = 12;								// Temporarily locked to 12!!!
 		rmf(volume);
 		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 

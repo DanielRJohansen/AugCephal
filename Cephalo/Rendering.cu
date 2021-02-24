@@ -121,11 +121,19 @@ __device__ Int2 smartStartStop(CudaFloat3 origin, CudaFloat3 vector, Int3 vol_si
 }
 
 
+__device__ inline bool voxelIsRelevant(CompactBool* CB,int *volume_index, int* prev_vol_index, unsigned int* xyignores, int* column_index) {
+    if (*volume_index == *prev_vol_index)
+        return false;
+    if (CB->getBit(xyignores, *column_index) != 0)
+        return false;
+    return true;
+}
+
 
 //--------------------------------------------------------------------------------------    KERNEL  --------------------------------------------------------------------------------------------------------------------------//
 
 
-__global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_size, unsigned* ignores, int ignores_len, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters) {
+__global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_size, unsigned* ignores, int ignores_len, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters, short int target_cluster, BoundingBox boundingbox) {
     int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x;
     //50
     Ray ray = rayptr[index];    // This operation alone takes ~60 ms
@@ -153,8 +161,13 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
     CompactBool CB;
 
 
-    //77
+
     Int2 start_stop = smartStartStop(CudaFloat3(cc.origin.x, cc.origin.y, cc.origin.z), cray.step_vector, vol_size);
+
+    bool begin_rendering = true;
+    if (target_cluster != -1)
+        begin_rendering = false;
+
     int prev_vol_index = -1;
     int prev_cluster_id = -1;
     for (int step = start_stop.x; step < start_stop.y+1; step++) {    //500
@@ -168,14 +181,18 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
         Int3 pos = Int3(vol_x, vol_y, vol_z);
         
 
-        if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { 
-            int volume_index = xyzToIndex(pos, vol_size);            
+        //if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { 
+        if (boundingbox.isInBox(pos)) {
+            int volume_index = xyzToIndex(pos, vol_size);   
+            int column_index = vol_y * vol_size.x + vol_x;
+
+
             if (volume_index == prev_vol_index)
                 continue;
-
-            int column_index = vol_y * vol_size.x + vol_x;
             if (CB.getBit(xyignores, column_index) != 0)
                 continue;
+            //if (!voxelIsRelevant(&CB, &volume_index, &prev_vol_index, xyignores, &column_index));
+
             
             short int cluster_id = rendervoxels[volume_index].cluster_id;
             if (cluster_id == prev_cluster_id) {
@@ -185,6 +202,12 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
            
 
             if (cluster_id == -1)
+                continue;
+
+            if (cluster_id == target_cluster)
+                begin_rendering = true;
+
+            if (!begin_rendering)
                 continue;
 
             CompactCluster* compactcluster = &compactclusters[cluster_id];
@@ -225,13 +248,13 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
 
 
 Ray* RenderEngine::render(sf::Texture* texture) {
-    //auto start = chrono::high_resolution_clock::now();
+    auto start = chrono::high_resolution_clock::now();
     
     CompactCam cc = CompactCam(camera->origin, camera->plane_pitch, camera->plane_yaw, camera->radius);
 
 
     int shared_mem_size = volume->CB->arr_len * sizeof(unsigned int);
-    stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size >> > (rayptr_device, cc, image_device, volume->size, volume->CB->compact_gpu, volume->CB->arr_len, volume->rendervoxels, volume->compactclusters, volume->num_clusters);
+    stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size >> > (rayptr_device, cc, image_device, volume->size, volume->CB->compact_gpu, volume->CB->arr_len, volume->rendervoxels, volume->compactclusters, volume->num_clusters, volume->target_cluster, volume->boundingbox);
     cudaDeviceSynchronize();
 
 
@@ -243,7 +266,7 @@ Ray* RenderEngine::render(sf::Texture* texture) {
 
     texture->update(image_host);
 
-    //printf("Executed in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    printf("Rendered in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 
     return rayptr_device;
 }

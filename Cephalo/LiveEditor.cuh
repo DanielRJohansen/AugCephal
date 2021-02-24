@@ -45,6 +45,22 @@ public:
 			cluster_id, cluster_mean, cluster_size, cluster_size * voxel_volume * 1./1000., cluster_weight);
 	}
 
+
+
+	/*void updateXYIgnores() {
+		for (int y = 0; y < vol->size.y; y++) {
+			for (int x = 0; x < vol->size.x; x++) {
+				bool ignore_column = true;
+				for (int z = 0; z < vol->size.z; z++) {
+					int vol_index = xyzToIndex(Int3(x, y, z), vol->size);
+					int id = vol->rendervoxels[vol_index].cluster_id;
+					if (compact_cluster[])
+				}
+			}
+		}
+	}*/
+
+
 	void isolateCurrentCluster() {
 		if (isolated_mode) {
 			resetAlpha();
@@ -87,20 +103,24 @@ private:
 	bool render_flag = false;
 
 	void resetAlpha() {
-		for (int i = 0; i < num_clusters; i++) {
+		vol->target_cluster = -1;
+		vol->boundingbox = vol->og_boundingbox;
+		/*for (int i = 0; i < num_clusters; i++) {
 			vol->compactclusters[i].setAlpha(DEFAULT_ALPHA);
-		}
+		}*/
 		render_flag = true;
 		isolated_mode = false;
 	}
 
 	void isolate() {
-		for (int i = 0; i < num_clusters; i++) {
+		vol->target_cluster = cluster_id;
+		vol->boundingbox = vol->compressedclusters[cluster_id].boundingbox;
+		/*for (int i = 0; i < num_clusters; i++) {
 			if (i == cluster_id)
 				vol->compactclusters[i].setAlpha(1.);
 			else
 				vol->compactclusters[i].setAlpha(0.);
-		}
+		}*/
 		render_flag = true;
 		isolated_mode = true;
 	}

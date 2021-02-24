@@ -30,9 +30,39 @@ struct Int3 {
 	__device__ Int3(CudaFloat3 s);
 	__device__ __host__ Int3(int x, int y, int z) : x(x), y(y), z(z) {}
 	__device__ __host__ Int3 operator+(Int3 s) const { return Int3(x + s.x, y + s.y, z + s.z); }
+	__device__ __host__ Int3 operator-(Int3 s) const { return Int3(x - s.x, y - s.y, z - s.z); }
+	__device__ __host__ bool operator>=(Int3 s) const { return (x >= s.x && y >= s.y && z >= s.z); }
+	__device__ __host__ bool operator<=(Int3 s) const { return (x <= s.x && y <= s.y && z <= s.z); }
+	__device__ __host__ void max(Int3 s) { 
+		x = s.x > x ? s.x : x;
+		y = s.y > y ? s.y : y;
+		z = s.z > z ? s.z : z;
+	}
+	__device__ __host__ void min(Int3 s) {
+		x = s.x < x ? s.x : x;
+		y = s.y < y ? s.y : y;
+		z = s.z < z ? s.z : z;
+	}
 
 	void print() { cout << "(" << x << ", " << y << ", " << z << ")" << endl;}
 	int x, y, z;
+};
+
+struct BoundingBox {
+	__device__ __host__ BoundingBox() {}
+	__device__ __host__ BoundingBox(Int3 from, Int3 to) : from(from), to(to) {}
+
+	__device__ __host__ bool isInBox(Int3 pos) {
+		return (pos >= from && pos <= to);
+	}
+	__device__ __host__ void makeBoxFit(Int3 pos) {	
+		from.min(pos);
+		to.max(pos);
+	}
+
+
+	Int3 from = Int3(9999, 9999, 9999);
+	Int3 to = Int3(-9999, -9999, -9999);
 };
 
 struct CudaColor {
@@ -173,6 +203,8 @@ public:
 	Volume(Voxel* v, Int3 size) : size(size){
 		voxels = v;
 		len = size.x * size.y * size.z;
+		boundingbox = BoundingBox(Int3(0, 0, 0), size-Int3(1,1,1));
+		og_boundingbox = boundingbox;
 	}
 
 
@@ -180,10 +212,15 @@ public:
 	Int3 size;
 	int len = 0;
 
+	BoundingBox boundingbox;
+	BoundingBox og_boundingbox;
+
 	// GPU side
 	Voxel* voxels;	
 	bool* xyColumnIgnores;
 	CompactBool* CB;	//Host side
+
+
 
 	// Send to LiveEditor
 	TissueCluster3D* compressedclusters;	// Contains slightly more info for live editing	- host side only
@@ -191,7 +228,7 @@ public:
 	// For rendering
 	RenderVoxel* rendervoxels;				// Contains only clusterid						- global mem
 	CompactCluster* compactclusters;		// Contains minimal info for rendering			- shared mem
-
+	short int target_cluster = -1;			// Only starts rendering once clusters is found
 	
 };
 
@@ -271,10 +308,16 @@ struct CudaMask {
 
 
 
+const float initial_centroids[12] = { -600, -200, -50, -20, -5, 10, 35, 50, 80, 100, 200, 700 };
+
 class CudaKCluster {
 public:
 	__host__ __device__ CudaKCluster() {}
-	__host__ CudaKCluster(int id, int k) : id(id) { color = CudaColor().getRandColor(); centroid = ((float)id +0.5)/ (float)k; }
+	__host__ CudaKCluster(int id, int k) : id(id) { 
+		color = CudaColor().getRandColor(); 
+		centroid = (initial_centroids[id] + HU_MAX)/(HU_MAX-HU_MIN);
+		//centroid = ((float)id +0.5)/ (float)k; 
+	}
 	__host__ __device__ ~CudaKCluster() {}
 
 	__host__ __device__ float calcCentroid() {
@@ -371,6 +414,8 @@ public:
 	unsigned char k_cluster;
 	double mean = 0;
 	CudaColor color;
+	BoundingBox boundingbox;
+
 
 	// Large structures
 	vector<int> member_indexes;

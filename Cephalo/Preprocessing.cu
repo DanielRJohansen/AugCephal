@@ -49,14 +49,14 @@ void Preprocessor::loadScans(string folder_path) {
 }
 
 
-__global__ void conversionKernel(Voxel* voxels, float* hu_vals, Int3 size) {
+/*__global__ void conversionKernel(Voxel* voxels, float* hu_vals, Int3 size) {
     int x = blockIdx.x;
     int y = threadIdx.x;
     for (int z = 0; z < size.z; z++) {
         int index = xyzToIndex(Int3(x, y, z), size);
         voxels[index].hu_val = 600;
     }
-}
+}*/
 
 Volume* Preprocessor::convertToVolume(float* scan, Int3 size) {
     auto start = chrono::high_resolution_clock::now();

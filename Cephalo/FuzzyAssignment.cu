@@ -85,7 +85,11 @@ __device__ void fetchWindow3x3(Voxel* voxelcopy, float* kernel, Int3 pos, Int3 s
 }
 
 
+
+
 //--------------------------Kernels----------------------//
+
+
 __global__ void kMeansRunKernel(Voxel* voxels, CudaKCluster* kclusters, CudaKCluster* global_clusters, int k, Int3 size, int threads_per_block) {
     int index = blockIdx.x *threads_per_block + threadIdx.x;
     int y = index / size.x;
@@ -128,6 +132,8 @@ __global__ void kMeansRunKernel(Voxel* voxels, CudaKCluster* kclusters, CudaKClu
 }
 
 
+
+
 __global__ void updateGlobalClustersKernel(CudaKCluster* kclusters, CudaKCluster* block_clusters, int k, int num_blocks) { // block_clusters are in global memory
     int x = threadIdx.x;
 
@@ -149,6 +155,32 @@ __global__ void updateGlobalClustersKernel(CudaKCluster* kclusters, CudaKCluster
     }
 }
 
+__global__ void liveUpdateGlobalClustersKernel(CudaKCluster* kclusters, CudaKCluster* block_clusters, int k, int num_blocks, bool* block_finished, bool* finish) { // block_clusters are in global memory
+    int iterations = 0;
+    while (iterations < 6) {
+
+        for (int i = 0; i < num_blocks; i++) {
+            printf("Block: %d\n", i);
+            while (!block_finished[i]) {}          // Deadspin
+        }
+        *finish = true;
+        return;
+        float shared_change = 0;
+        for (int x = 0; x < k; x++) {
+            for (int i = 0; i < num_blocks; i++) {
+                kclusters[x].mergeBatch(block_clusters[i * k + x]);
+            }
+            shared_change = kclusters[x].calcCentroid();
+        }
+
+        for (int i = 0; i < num_blocks; i++) {
+            block_finished = false;
+        }
+
+        iterations++;
+    }
+    *finish = true;
+}
 
 
 __global__ void fuzzyAssignmentKernel(Voxel* voxels, CudaKCluster* kclusters, float* gauss_kernel, int k, Int3 size) {
@@ -222,7 +254,7 @@ void checkCudaError() {
 }
 
 
-int inline normvalToHuval(float norm) {return norm * 1500. - 700;}
+int inline normvalToHuval(float norm) {return norm * (HU_MAX-HU_MIN) + HU_MIN;}
 
 void printKmeansStuff(CudaKCluster* cluster_dev, int k) {
     CudaKCluster* kc_host = new CudaKCluster[k];
@@ -287,7 +319,7 @@ void checkFuzzyAssignment(Volume* vol, int k) {
 
 //---------------------------------------------KERNEL launchers -----------------------------------------------------------------------------------------------------------------//
 
-
+texture<float, 1, cudaReadModeElementType> texref;
 
 CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {                                    // We must launch separate kernels to update clusters. Only 100% safe way to sync threadblocks!
     auto start = chrono::high_resolution_clock::now();
@@ -304,7 +336,12 @@ CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {   
     int shared_mem_size = k * sizeof(CudaKCluster) + k * threads_per_block * sizeof(float) + k * threads_per_block * sizeof(short);
     printf("\n\nExecuting kMeans with %d clusters.\nAllocating %d Kb of memory on %d threadblocks\n", k, shared_mem_size / 1000, num_blocks);
 
-
+    
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
+    size_t offset;
+    float* a;
+    //cudaBindTexture(&offset, texref, a, &channelDesc, vol->len * sizeof(float));
+    //cudaBindTexture(0, tex, vol->voxels, vol->len * sizeof(Voxel));
 
 
     int iterations = 0;
@@ -320,6 +357,9 @@ CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {   
 
         printf("Total change for kclusters: %f    iterations: %02d\r", kcluster_total_change, iterations++);
     }
+    //cudaUnbindTexture(texref);
+
+
     printKmeansStuff(kclusters_device, k);
 
 

@@ -206,8 +206,9 @@ void TissueCluster3D::findEdges(Volume* vol) {
 		cur_voxel->cluster_id = id;
 		if (isEdge(vol, indexToXYZ(member_index, vol->size), cur_voxel)) {
 			edge_member_indexes.push_back(member_index);
-			cur_voxel->color = color;
+			//cur_voxel->color = color;
 			cur_voxel->isEdge = true;
+			boundingbox.makeBoxFit(indexToXYZ(member_index, vol->size));
 		}
 	}
 }
@@ -342,6 +343,7 @@ void TissueCluster3D::copyMinInfo(TissueCluster3D* cluster) {
 	color = cluster->color;
 	member_indexes = cluster->member_indexes;
 	mean = cluster->mean;
+	boundingbox = cluster->boundingbox;
 }
 
 
