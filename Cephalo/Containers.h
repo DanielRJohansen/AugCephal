@@ -42,6 +42,7 @@ struct Ray {
 	Float3 rel_unit_vector;
 
 	short int clusterids_hit[5];
+	bool no_hits = 0;
 };
 
 struct Cluster {
@@ -94,6 +95,7 @@ struct ColorScheme {
 
 };
 
+/*
 struct CompactCam {
 	CompactCam(Float3 origin, float pitch, float yaw, float r);
 	Float3 origin;
@@ -103,3 +105,4 @@ struct CompactCam {
 	float sin_yaw;
 	float cos_yaw;
 };
+*/

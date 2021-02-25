@@ -52,6 +52,8 @@ Color Color::mul(float s) {
 	}
 }*/
 
+
+/*
 CompactCam::CompactCam(Float3 o, float p, float y, float r) {
 	origin = o;
 	sin_pitch = sin(p);
@@ -60,3 +62,4 @@ CompactCam::CompactCam(Float3 o, float p, float y, float r) {
 	cos_yaw = cos(y);
 	radius = r;
 }
+*/

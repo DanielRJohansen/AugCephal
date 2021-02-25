@@ -208,11 +208,14 @@ void TissueCluster3D::findEdges(Volume* vol) {
 			edge_member_indexes.push_back(member_index);
 			//cur_voxel->color = color;
 			cur_voxel->isEdge = true;
+			//cur_voxel->cluster_id = id;
 			boundingbox.makeBoxFit(indexToXYZ(member_index, vol->size));
 		}
 	}
 }
 bool TissueCluster3D::isEdge(Volume* vol, Int3 origin, Voxel* v0) {
+	if (origin.z == 0 || origin.z == vol->size.z - 1)			// Heuristic! Top and botting are always transparant
+		return false;
 	for (int i = 0; i < 6; i++) {
 		Int3 pos = getImmediateNeighbor(origin, i);
 		if (isInVolume(pos, vol->size)) {						// Edges can on purpose not be volume-border voxels

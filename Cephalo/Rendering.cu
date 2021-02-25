@@ -52,7 +52,29 @@ __device__ float lightSeeker(short int cluster_id, RenderVoxel* voxels, Int3 vol
     }
     return activationFunction(clear_voxels);
 }
+__device__ float lightSeeker2(short int cluster_id, RenderVoxel* voxels, Int3 vol_pos, Int3 vol_size) {
+    int clear_voxels = 9;
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            Int3 pos_ = Int3(x, y, 1);
+            for (int i = 1; i < 10; i++) {
+                if (!isInVolume(pos_, vol_size))
+                    break;
+                int voxel_index = xyzToIndex(vol_pos + pos_*i, vol_size);
+                if (voxels[voxel_index].cluster_id != cluster_id) {
+                    clear_voxels++;
+                }
+                
+                else {
+                    clear_voxels++;
+                }
+            }
+            
 
+        }
+    }
+    return activationFunction(clear_voxels);
+}
 __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
     float x = ray->rel_unit_vector.x;
     float y = ray->rel_unit_vector.y;
@@ -135,7 +157,9 @@ __device__ inline bool voxelIsRelevant(CompactBool* CB,int *volume_index, int* p
 
 __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_size, unsigned* ignores, int ignores_len, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters, short int target_cluster, BoundingBox boundingbox) {
     int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x;
-    //50
+    
+    //17 ms
+
     Ray ray = rayptr[index];    // This operation alone takes ~60 ms
 
 
@@ -151,9 +175,9 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
 
 
 
-    short int clusterids_hit[5];
+    //short int clusterids_hit[5];
     for (int i = 0; i < 5; i++)
-        clusterids_hit[i] = -1;
+        ray.clusterids_hit[i] = -1;
     int hit_index = 0;
 
     CudaFloat3 unit_vector = makeUnitVector(&ray, cc);
@@ -170,28 +194,27 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
 
     int prev_vol_index = -1;
     int prev_cluster_id = -1;
-    for (int step = start_stop.x; step < start_stop.y+1; step++) {    //500
-        int x = cc.origin.x + cray.step_vector.x * step;
-        int y = cc.origin.y + cray.step_vector.y * step;
-        int z = cc.origin.z + cray.step_vector.z * step;
+    
+    //62 ms
+    CudaFloat3 precise_pos = cc.origin + cray.step_vector * start_stop.x;
+    CudaFloat3 vol_offset = CudaFloat3(vol_size);
+    vol_offset = vol_offset * 0.5;
+    for (int step = start_stop.x; step < start_stop.y+1; step++) {  
 
-        int vol_x = (int) (x + vol_size.x / 2);
-        int vol_y = (int) (y + vol_size.y / 2);
-        int vol_z = (int) (z + vol_size.z / 2);
-        Int3 pos = Int3(vol_x, vol_y, vol_z);
-        
+        precise_pos = precise_pos + cray.step_vector;
+        CudaFloat3 temp = precise_pos + vol_offset;
+        Int3 pos = Int3(temp.x, temp.y, temp.z);
 
-        //if (vol_x >= 0 && vol_y >= 0 && vol_z >= 0 && vol_x < vol_size.x && vol_y < vol_size.y && vol_z < vol_size.z) { 
+
         if (boundingbox.isInBox(pos)) {
             int volume_index = xyzToIndex(pos, vol_size);   
-            int column_index = vol_y * vol_size.x + vol_x;
+            int column_index = pos.y * vol_size.x + pos.x;
 
 
             if (volume_index == prev_vol_index)
                 continue;
             if (CB.getBit(xyignores, column_index) != 0)
                 continue;
-            //if (!voxelIsRelevant(&CB, &volume_index, &prev_vol_index, xyignores, &column_index));
 
             
             short int cluster_id = rendervoxels[volume_index].cluster_id;
@@ -215,7 +238,7 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
                 continue;
 
             if (hit_index < 5) {
-                clusterids_hit[hit_index] = cluster_id;
+                ray.clusterids_hit[hit_index] = cluster_id;
                 hit_index++;
             }
             float brightness = lightSeeker(cluster_id, rendervoxels, pos, vol_size);
@@ -225,15 +248,20 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
                 break;
         }
     }
-    cray.color.cap();   //Caps each channel at 255
+
 
     image[index * 4 + 0] = (int)cray.color.r;
     image[index * 4 + 1] = (int)cray.color.g;
     image[index * 4 + 2] = (int)cray.color.b;
     image[index * 4 + 3] = 255;
 
-    for (int i = 0; i < 5; i++)
-        rayptr[index].clusterids_hit[i] = clusterids_hit[i];
+    if (hit_index != 0) {
+        ray.no_hits = false;
+        rayptr[index] = ray;
+    }
+    else
+        rayptr[index].no_hits = true;
+        
 }
 
 
@@ -250,7 +278,8 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
 Ray* RenderEngine::render(sf::Texture* texture) {
     auto start = chrono::high_resolution_clock::now();
     
-    CompactCam cc = CompactCam(camera->origin, camera->plane_pitch, camera->plane_yaw, camera->radius);
+    CudaFloat3 temporigin = CudaFloat3(camera->origin.x, camera->origin.y, camera->origin.z);
+    CompactCam cc = CompactCam(temporigin, camera->plane_pitch, camera->plane_yaw, camera->radius);
 
 
     int shared_mem_size = volume->CB->arr_len * sizeof(unsigned int);
@@ -307,7 +336,7 @@ RenderEngine::RenderEngine(Volume* vol, Camera* c) {
 
     cudaMallocManaged(&image_device, NUM_RAYS * 4 * sizeof(uint8_t));	//4 = RGBA
     image_host = new uint8_t[NUM_RAYS * 4];
-    printf("RenderEngine initialized. Approx GPU size: %d Mb\n\n", (int)(NUM_RAYS * sizeof(Ray) / 1000000.));
+    printf("RenderEngine initialized. Rayptr size: %d MB. Image size: %d KB\n\n", (int)(NUM_RAYS * sizeof(Ray) / 1000000.), NUM_RAYS*sizeof(uint8_t)*4/1000 );
 
 
 

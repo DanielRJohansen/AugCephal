@@ -528,7 +528,7 @@ int* orderClustersBySize(vector<TissueCluster3D*> clusters) {
 }
 
 
-void Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
+int Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters, int remaining_clusters) {
     auto start = chrono::high_resolution_clock::now();
 
 
@@ -544,9 +544,10 @@ void Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters)
     delete(ordered_index);
 
     printf("\nMerging completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    return countAliveClusters(clusters, remaining_clusters);
 }
 
-void Preprocessor::eliminateVesicles(Volume* vol, vector<TissueCluster3D*> clusters, int threshold_size) {
+int Preprocessor::eliminateVesicles(Volume* vol, vector<TissueCluster3D*> clusters, int threshold_size, int remaining_clusters) {
     auto start = chrono::high_resolution_clock::now();
     printf("Removing vesicles...");
 
@@ -555,6 +556,7 @@ void Preprocessor::eliminateVesicles(Volume* vol, vector<TissueCluster3D*> clust
     }
 
     printf("    completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    return countAliveClusters(clusters, remaining_clusters);
 }
 
 
@@ -626,8 +628,8 @@ RenderVoxel* Preprocessor::compressVoxels(Volume* vol, vector<TissueCluster3D*> 
     int* clustermap = generateClusterIDMap(clusters, remaining_clusters);
     
     for (int i = 0; i < vol->len; i++) {
-        //if (vol->voxels[i].isEdge && !vol->voxels[i].ignore)
-        if (!vol->voxels[i].ignore)
+        //if (!vol->voxels[i].ignore)
+        if (vol->voxels[i].isEdge && !vol->voxels[i].ignore)
             rvoxels[i].cluster_id = clustermap[vol->voxels[i].cluster_id];
         else
             rvoxels[i].cluster_id = -1;

@@ -31,6 +31,7 @@ struct Int3 {
 	__device__ __host__ Int3(int x, int y, int z) : x(x), y(y), z(z) {}
 	__device__ __host__ Int3 operator+(Int3 s) const { return Int3(x + s.x, y + s.y, z + s.z); }
 	__device__ __host__ Int3 operator-(Int3 s) const { return Int3(x - s.x, y - s.y, z - s.z); }
+	__device__ __host__ Int3 operator*(int s) const { return Int3(x * s, y * s, z * s); }
 	__device__ __host__ bool operator>=(Int3 s) const { return (x >= s.x && y >= s.y && z >= s.z); }
 	__device__ __host__ bool operator<=(Int3 s) const { return (x <= s.x && y <= s.y && z <= s.z); }
 	__device__ __host__ void max(Int3 s) { 
@@ -88,11 +89,11 @@ struct CudaColor {
 };
 
 struct CudaFloat3 {
-	__device__ CudaFloat3() {};
-	__device__ CudaFloat3(Int3 s) { x = s.x; y = s.y; z = s.z; };
-	__device__ CudaFloat3(float x, float y, float z) : x(x), y(y), z(z) {};
-	__device__ inline CudaFloat3 operator*(float s) const { return CudaFloat3(x * s, y * s, z * s); }
-	__device__ inline CudaFloat3 operator+(CudaFloat3 s) const { return CudaFloat3(x + s.x, y + s.y, z + s.z); }
+	__host__ __device__ CudaFloat3() {};
+	__host__ __device__ CudaFloat3(Int3 s) { x = s.x; y = s.y; z = s.z; };
+	__host__ __device__ CudaFloat3(float x, float y, float z) : x(x), y(y), z(z) {};
+	__host__ __device__ inline CudaFloat3 operator*(float s) const { return CudaFloat3(x * s, y * s, z * s); }
+	__host__ __device__ inline CudaFloat3 operator+(CudaFloat3 s) const { return CudaFloat3(x + s.x, y + s.y, z + s.z); }
 
 	__device__ inline float len() { sqrt(x * x + y * y + z * z); }
 	__device__ void norm() {
@@ -112,7 +113,22 @@ struct CudaRay {
 
 };
 
-
+struct CompactCam {
+	CompactCam(CudaFloat3 o, float p, float y, float r) {	// origin, pitch, yaw, radius
+		origin = o;
+		sin_pitch = sin(p);
+		cos_pitch = cos(p);
+		sin_yaw = sin(y);
+		cos_yaw = cos(y);
+		radius = r;
+	}
+	CudaFloat3 origin;
+	float radius;
+	float sin_pitch;
+	float cos_pitch;
+	float sin_yaw;
+	float cos_yaw;
+};
 
 struct CompactBool {
 	__host__ __device__ CompactBool() {}

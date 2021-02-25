@@ -27,6 +27,8 @@ public:
 
 	void selectCluster(int pixel_index) {
 		ray = &rayptr_dev[pixel_index];
+		if (ray->no_hits)
+			return;
 		short int id = ray->clusterids_hit[0];
 		if (id == -1)
 			return;

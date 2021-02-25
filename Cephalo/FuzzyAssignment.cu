@@ -319,7 +319,7 @@ void checkFuzzyAssignment(Volume* vol, int k) {
 
 //---------------------------------------------KERNEL launchers -----------------------------------------------------------------------------------------------------------------//
 
-texture<float, 1, cudaReadModeElementType> texref;
+//texture<float, 1, cudaReadModeElementType> texref;
 
 CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {                                    // We must launch separate kernels to update clusters. Only 100% safe way to sync threadblocks!
     auto start = chrono::high_resolution_clock::now();
@@ -336,13 +336,6 @@ CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {   
     int shared_mem_size = k * sizeof(CudaKCluster) + k * threads_per_block * sizeof(float) + k * threads_per_block * sizeof(short);
     printf("\n\nExecuting kMeans with %d clusters.\nAllocating %d Kb of memory on %d threadblocks\n", k, shared_mem_size / 1000, num_blocks);
 
-    
-    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
-    size_t offset;
-    float* a;
-    //cudaBindTexture(&offset, texref, a, &channelDesc, vol->len * sizeof(float));
-    //cudaBindTexture(0, tex, vol->voxels, vol->len * sizeof(Voxel));
-
 
     int iterations = 0;
     while (kcluster_total_change > 0.002 && iterations < max_iterations) {
@@ -357,7 +350,6 @@ CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {   
 
         printf("Total change for kclusters: %f    iterations: %02d\r", kcluster_total_change, iterations++);
     }
-    //cudaUnbindTexture(texref);
 
 
     printKmeansStuff(kclusters_device, k);
