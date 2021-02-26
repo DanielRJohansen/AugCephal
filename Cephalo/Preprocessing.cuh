@@ -68,13 +68,23 @@ public:
 		// Move voxels to HOST here, get speedup?	
 		vector<TissueCluster3D*> clusters = clusterSync(volume);
 
-		int remaining_clusters = mergeClusters(volume, clusters, clusters.size());	
-		remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
+
+		int remaining_clusters = clusters.size(); 
+		int prev = remaining_clusters+1;
+		while (remaining_clusters < prev) {
+			prev = remaining_clusters;
+			remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
+		}
+		
+		
 
 		remaining_clusters = eliminateVesicles(volume, clusters, 50, remaining_clusters);	// min size to survive
 
-		remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
-		remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
+		prev = remaining_clusters + 1;
+		while (remaining_clusters < prev) {
+			prev = remaining_clusters;
+			remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
+		}
 		
 		finalizeClusters(volume, clusters);
 		

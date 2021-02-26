@@ -625,7 +625,7 @@ int Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters, 
     }
     delete(ordered_index);
 
-    printf("\nMerging completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    printf("Merged in %d ms!", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
     return countAliveClusters(clusters, remaining_clusters);
 }
 

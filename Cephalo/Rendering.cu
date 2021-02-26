@@ -207,11 +207,9 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
             int volume_index = xyzToIndex(pos, vol_size);   
             int column_index = pos.y * vol_size.x + pos.x;
 
-
-            if (pos.y < 1) {
-                cray.color.add(CudaColor(50, 50, 250) * (1 - cray.alpha));
-                cray.alpha += (1 - cray.alpha);
-                break;
+            if (pos.z < 5) {
+                cray.color.add(CudaColor(255, 120, 0) * (1 - cray.alpha));
+                cray.alpha = 1;
             }
 
             if (volume_index == prev_vol_index)
@@ -219,6 +217,7 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
             if (CB.getBit(xyignores, column_index) != 0)
                 continue;
 
+            
             
             short int cluster_id = rendervoxels[volume_index].cluster_id;
             if (cluster_id == prev_cluster_id) {
@@ -245,8 +244,9 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
                 hit_index++;
             }
             float brightness = lightSeeker2(cluster_id, rendervoxels, pos, vol_size);
-            cray.color.add(compactcluster->getColor() * compactcluster->getAlpha() * brightness);
-            cray.alpha += compactcluster->getAlpha();
+            float alpha = min(compactcluster->getAlpha(), (1 - cray.alpha));
+            cray.color.add(compactcluster->getColor() * alpha * brightness);
+            cray.alpha += alpha;
             if (cray.alpha >= 1)
                 break;
         }
