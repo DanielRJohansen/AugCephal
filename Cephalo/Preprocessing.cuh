@@ -60,7 +60,8 @@ public:
 
 		int k = 12;								// Temporarily locked to 12!!!
 		rmf(volume);
-		fuzzyClusterAssignment(volume, k, 1);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		removeAirLayer(volume);
+		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 
 
@@ -85,6 +86,7 @@ public:
 		volume->compressedclusters = removeExcessClusters(clusters, remaining_clusters);
 		volume->rendervoxels = compressVoxels(volume, clusters, remaining_clusters);
 		volume->num_clusters = remaining_clusters;
+		fitBoundingBoxToVolume(volume);
 		printf("\n\nPreprocessing finished!\n\n\n\n");
 		return volume;
 	}
@@ -103,6 +105,7 @@ private:
 
 
 	void rmf(Volume* vol);
+	void removeAirLayer(Volume* volume);
 	void fuzzyClusterAssignment(Volume* volume, int k, int max_iterations) {
 		FuzzyAssigner FA;
 		FA.doFuzzyAssignment(volume, k, max_iterations);
@@ -121,7 +124,7 @@ private:
 
 	TissueCluster3D* Preprocessor::removeExcessClusters(vector<TissueCluster3D*> clusters, int remaining_clusters);
 	RenderVoxel* compressVoxels(Volume* vol, vector<TissueCluster3D*> clusters, int remaining_clusters);
-	
+	void fitBoundingBoxToVolume(Volume* vol);  // Supposed to recieves the compressed clusterlist!
 	
 	void setColumnIgnores(Volume* vol);
 

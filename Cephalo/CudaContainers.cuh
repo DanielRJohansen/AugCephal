@@ -60,7 +60,10 @@ struct BoundingBox {
 		from.min(pos);
 		to.max(pos);
 	}
-
+	__device__ __host__ void makeBoxFit(BoundingBox box) {
+		from.min(box.from);
+		to.max(box.to);
+	}
 
 	Int3 from = Int3(9999, 9999, 9999);
 	Int3 to = Int3(-9999, -9999, -9999);
@@ -186,6 +189,7 @@ struct Voxel{	//Lots of values
 	int cluster_id = -1;
 	signed char kcluster = -1;
 	bool isEdge = false;			// Is eventually changed after initial tissueclustering
+	bool is_air_layer = false;		// Used in preprocessing after RMF
 	float alpha = 0.5;
 	float norm_val = 0;			// Becomes kcluster centroid during fuzzy assignment
 	CudaColor color;			// Set during fuzzy assignment

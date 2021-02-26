@@ -364,9 +364,91 @@ void Preprocessor::rmf(Volume* vol) {
     printf("RMF applied in %d ms.\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
 }
 
+bool isAirLayer(Volume* vol, Int3 pos) {
+    for (int z = -1; z <= 1; z++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+                Int3 pos_ = pos + Int3(x, y, z);
+                if (isInVolume(pos_, vol->size)) {
+                    int index_ = xyzToIndex(pos_, vol->size);
+                    if (vol->voxels[index_].ignore)
+                        return true;                    
+                }
+            }
+        }
+    }
+    return false;
+}
 
+void propagateRAL(Volume* vol, Int3 start_pos) {
+    if (isAirLayer(vol, start_pos)) {
+        int index = xyzToIndex(start_pos, vol->size);
+        vol->voxels[index].is_air_layer = true;
 
+        for (int z = -1; z <= 1; z++) {
+            for (int y = -1; y <= 1; y++) {
+                for (int x = -1; x <= 1; x++) {
+                    Int3 pos_ = start_pos + Int3(x, y, z);
+                    if (isInVolume(pos_, vol->size)) {
+                        int index_ = xyzToIndex(pos_, vol->size);
+                        if (!vol->voxels[index_].is_air_layer) {
+                            propagateRAL(vol, pos_);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
+bool neighborIsAL(Volume* vol, Int3 pos) {
+    for (int z_ = pos.z - 1; z_ <= pos.z + 1; z_++) {
+        for (int y_ = pos.y - 1; y_ <= pos.y + 1; y_++) {
+            for (int x_ = pos.x - 1; x_ <= pos.x + 1; x_++) {
+                Int3 pos_ = Int3(x_, y_, z_);
+                if (isInVolume(pos_, vol->size)) {
+                    if (vol->voxels[xyzToIndex(pos_, vol->size)].is_air_layer)
+                        return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+void removeIfNeighborIsAirLayer(Volume* vol) {
+    for (int z = 0; z < vol->size.z; z++) {
+        for (int y = 0; y < vol->size.y; y++) {
+            for (int x = 0; x < vol->size.x; x++) {
+                if (neighborIsAL(vol, Int3(x, y, z))) {
+                    vol->voxels[xyzToIndex(Int3(x, y, z), vol->size)].ignore = true;
+                }
+            }
+        }
+    }
+}
+
+void Preprocessor::removeAirLayer(Volume* vol) {
+    int z = vol->size.z / 2;
+    for (int x = 0; x < vol->size.x; x++) {
+        
+
+        for (int y = vol->size.y - 1; y >= 0; y--) {
+            int index = xyzToIndex(Int3(x, y, z), vol->size);
+            if (!vol->voxels[index].ignore && !vol->voxels[index].is_air_layer) {
+                propagateRAL(vol, Int3(x, y, z));
+                break;                                  // Finish column here, otherwise we start removing lung :( 
+            }
+        }
+    }
+    
+    removeIfNeighborIsAirLayer(vol);
+    /*for (int i = 0; i < vol->len; i++) {
+
+        if (vol->voxels[i].is_air_layer)
+            vol->voxels[i].ignore = true;
+    }*/
+}
 
 
 
@@ -580,6 +662,26 @@ int Preprocessor::countAliveClusters(vector<TissueCluster3D*> clusters, int from
     printf("Num clusters reduced by %d          %d->%d\n", reduced, from, clusters.size() - num_dead);
     return from - reduced;
 }
+
+
+
+void Preprocessor::fitBoundingBoxToVolume(Volume* vol) {    // Supposed to recieves the compressed clusterlist!
+    BoundingBox box;
+
+    for (int i = 0; i < vol->num_clusters; i++) {
+        box.makeBoxFit(vol->compressedclusters[i].boundingbox);
+    }
+    vol->boundingbox = box;
+    vol->og_boundingbox = box;
+}
+
+
+
+
+
+
+
+
 
 
 

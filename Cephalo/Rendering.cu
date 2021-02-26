@@ -56,23 +56,20 @@ __device__ float lightSeeker2(short int cluster_id, RenderVoxel* voxels, Int3 vo
     int clear_voxels = 9;
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
-            Int3 pos_ = Int3(x, y, 1);
+            Int3 vector = Int3(x, y, 1);
             for (int i = 1; i < 10; i++) {
-                if (!isInVolume(pos_, vol_size))
-                    break;
-                int voxel_index = xyzToIndex(vol_pos + pos_*i, vol_size);
-                if (voxels[voxel_index].cluster_id != cluster_id) {
-                    clear_voxels++;
-                }
-                
-                else {
-                    clear_voxels++;
+                Int3 pos_ = vol_pos + vector * i;
+                if (isInVolume(pos_, vol_size)) {
+                    int voxel_index = xyzToIndex(pos_, vol_size);
+                    if (voxels[voxel_index].cluster_id == cluster_id) {
+                        clear_voxels--;
+                        break;
+                    }
                 }
             }
-            
-
         }
     }
+
     return activationFunction(clear_voxels);
 }
 __device__ CudaFloat3 makeUnitVector(Ray* ray, CompactCam cc) {
@@ -211,6 +208,12 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
             int column_index = pos.y * vol_size.x + pos.x;
 
 
+            if (pos.y < 1) {
+                cray.color.add(CudaColor(50, 50, 250) * (1 - cray.alpha));
+                cray.alpha += (1 - cray.alpha);
+                break;
+            }
+
             if (volume_index == prev_vol_index)
                 continue;
             if (CB.getBit(xyignores, column_index) != 0)
@@ -241,7 +244,7 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
                 ray.clusterids_hit[hit_index] = cluster_id;
                 hit_index++;
             }
-            float brightness = lightSeeker(cluster_id, rendervoxels, pos, vol_size);
+            float brightness = lightSeeker2(cluster_id, rendervoxels, pos, vol_size);
             cray.color.add(compactcluster->getColor() * compactcluster->getAlpha() * brightness);
             cray.alpha += compactcluster->getAlpha();
             if (cray.alpha >= 1)
