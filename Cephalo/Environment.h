@@ -10,6 +10,8 @@
 #include "LiveEditor.cuh"
 
 
+#include "ResourceFiles\Button.h"
+
 
 
 struct Task {
@@ -52,7 +54,10 @@ private:
 
 
 
-
+	// Features
+	sf::Font MyFont;
+	Button window_from;
+	Button window_to;
 
 
 

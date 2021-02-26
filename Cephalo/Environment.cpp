@@ -20,6 +20,27 @@ Environment::Environment(Volume* vol) {
 }
 
 Environment::Environment(string path, Int3 dimensions, float zoverxy, float true_voxel_volume) {
+
+
+	// Handle features
+
+	// Load from a font file on disk
+	if (!MyFont.loadFromFile(".\\ResourceFiles\\arial.ttf"))
+	{
+		printf("Font not loaded wtf\n");
+		exit(-3);
+	}
+
+
+
+
+	// Prepare window
+	image = new sf::Image();
+	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
+	cuda_texture = new sf::Texture;
+	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);
+
+
 	Preprocessor PP;
 	volume = PP.processScan(path, dimensions, zoverxy, true_voxel_volume);
 
@@ -28,12 +49,21 @@ Environment::Environment(string path, Int3 dimensions, float zoverxy, float true
 
 	camera = new Camera();
 
-	image = new sf::Image();
-	image->create(RAYS_PER_DIM, RAYS_PER_DIM, sf::Color(0, 255, 0));
-	cuda_texture = new sf::Texture;
-	cuda_texture->create(RAYS_PER_DIM, RAYS_PER_DIM);
+
 
 	REE = RenderEngine(volume, camera);
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 
@@ -53,6 +83,8 @@ void Environment::Run() {
 	sprite.setTexture(*cuda_texture, true);
 
 
+	window_from = Button(500, 500, 200, 50, &MyFont, "Window From", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
+	window_from = Button(500, 600, 200, 50, &MyFont, "Window To", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
 
 
 

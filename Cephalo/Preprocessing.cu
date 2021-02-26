@@ -625,19 +625,19 @@ int Preprocessor::mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters, 
     }
     delete(ordered_index);
 
-    printf("Merged in %d ms!", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    printf("Merged in %d ms!   ", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
     return countAliveClusters(clusters, remaining_clusters);
 }
 
 int Preprocessor::eliminateVesicles(Volume* vol, vector<TissueCluster3D*> clusters, int threshold_size, int remaining_clusters) {
     auto start = chrono::high_resolution_clock::now();
-    printf("Removing vesicles...");
+    printf("Removed vesicles ");
 
     for (int i = 0; i < clusters.size(); i++) {
         clusters[i]->eliminateVesicle(vol, &clusters, threshold_size);
     }
 
-    printf("    completed in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
+    printf(" in %d ms!   ", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
     return countAliveClusters(clusters, remaining_clusters);
 }
 
@@ -659,7 +659,7 @@ int Preprocessor::countAliveClusters(vector<TissueCluster3D*> clusters, int from
             num_dead++;
     }
     int reduced = from - (clusters.size()-num_dead);
-    printf("Num clusters reduced by %d          %d->%d\n", reduced, from, clusters.size() - num_dead);
+    printf("Clusters reduced by %d      %d->%d\n", reduced, from, clusters.size() - num_dead);
     return from - reduced;
 }
 
