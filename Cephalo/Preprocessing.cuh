@@ -61,7 +61,7 @@ public:
 		int k = 12;								// Temporarily locked to 12!!!
 		rmf(volume);
 		removeAirLayer(volume);
-		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		fuzzyClusterAssignment(volume, k, 3);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 
 

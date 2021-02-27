@@ -23,14 +23,17 @@ Environment::Environment(string path, Int3 dimensions, float zoverxy, float true
 
 
 	// Handle features
-
+	
 	// Load from a font file on disk
 	if (!MyFont.loadFromFile(".\\ResourceFiles\\arial.ttf"))
 	{
 		printf("Font not loaded wtf\n");
-		exit(-3);
+		exit(-1);
 	}
-
+	int btn_width = 250;
+	int btn_height = 60;
+	window_from = Button(RAYS_PER_DIM - btn_width - 30, 150, btn_width, btn_height, &MyFont, "From: ", HU_MIN);
+	window_to = Button(RAYS_PER_DIM - btn_width - 30, 150 + btn_height + 10, btn_width, btn_height, &MyFont, "To: ", HU_MAX);
 
 
 
@@ -74,11 +77,6 @@ void Environment::Run() {
 	sprite.setTexture(*cuda_texture, true);
 
 
-	//window_from = Button(500, 500, 200, 50, &MyFont, "Window From", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
-	//window_from = Button(500, 600, 200, 50, &MyFont, "Window To", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
-
-
-
 
 	while (window.isOpen()) {
 		window.clear();
@@ -90,20 +88,31 @@ void Environment::Run() {
 				sprite.setTexture(*cuda_texture, true);
 			}
 		}
-		/*if (handleTasks()) {
-			sprite.setTexture(*cuda_texture, true);
-		}*/
+
 
 		handleMouseEvents(event, &window);
+		handleButtonEvents(&window, &sprite);
 
 
-		//if (liveeditor.checkRenderFlag())
-			//REE.render(cuda_texture);
 
-		window.draw(sprite);
-		window.display();
+		if (liveeditor.checkRenderFlag())
+			REE.render(cuda_texture);
+
+
+
+
+		renderAll(&window, &sprite);
 	}
 }
+
+void Environment::renderAll(sf::RenderWindow* window, sf::Sprite* sprite)
+{
+	window->draw(*sprite);
+	window_from.render(window);
+	window_to.render(window);
+	window->display();
+}
+
 
 
 void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
@@ -132,10 +141,6 @@ void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
 	}
 	if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
 		if (right_pressed == false) {
-			/*char this_input;
-			printf("Isolate element? (y/n) \n");
-			cin >> this_input;
-			if (this_input == 'y')*/
 			liveeditor.isolateCurrentCluster();
 		}
 		right_pressed = true;
@@ -149,9 +154,20 @@ void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
 	}
 }
 
+void Environment::handleButtonEvents(sf::RenderWindow* window, sf::Sprite* sprite) {
+	sf::Vector2f mouspos = sf::Vector2f(sf::Mouse::getPosition(*window));
+	if (window_from.update(mouspos, window, window)) {
+		renderAll(window, sprite);
+		window_from.inputTextLoop(window);
+		liveeditor.window(window_from.getVal(), window_to.getVal());
+	}
+	if (window_to.update(mouspos, window, window)) {
+		renderAll(window, sprite);
+		window_to.inputTextLoop(window);
+		liveeditor.window(window_from.getVal(), window_to.getVal());
+	}
 
-void Environment::updateSprite() {
-	
+
 }
 
 bool Environment::handleTasks() {
@@ -163,14 +179,6 @@ bool Environment::handleTasks() {
 }
 bool Environment::handleEvents(sf::Event event) {
 	string action;
-
-	/*if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-		action = "zoom_in";
-	}
-	else if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
-		action = "zoom_out";sfml get g
-	}*/
-
 	if (event.type == sf::Event::KeyPressed) {
 		switch (event.key.code)
 		{

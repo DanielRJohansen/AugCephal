@@ -23,63 +23,14 @@ public:
 	CompactCluster* getCompactClusters() {
 		return comclusters;
 	}
-	CompactCluster* window(int from, int to);
 
-	void selectCluster(int pixel_index) {
-		ray = &rayptr_dev[pixel_index];
-		if (ray->no_hits)
-			return;
-		short int id = ray->clusterids_hit[0];
-		if (id == -1)
-			return;
-
-		
-		cluster_id = id;
-		wheel_zoom = 0;
-
-		cluster_mean = vol->compressedclusters[cluster_id].mean;
-		avg_dens = huToDensSiemens(cluster_mean);
-
-		cluster_size = vol->compressedclusters[cluster_id].member_indexes.size();
-		cluster_weight = avg_dens * cluster_size * voxel_volume;
-
-		printf("    Cluster ID: %05d selected. Mean HU: %08f Members: %d	Size: %f cm3. Weight: %f g \n", 
-			cluster_id, cluster_mean, cluster_size, cluster_size * voxel_volume * 1./1000., cluster_weight);
-	}
+	void selectCluster(int pixel_index);
 
 
+	void isolateCurrentCluster();
+	void window(int from, int to);
 
-	/*void updateXYIgnores() {
-		for (int y = 0; y < vol->size.y; y++) {
-			for (int x = 0; x < vol->size.x; x++) {
-				bool ignore_column = true;
-				for (int z = 0; z < vol->size.z; z++) {
-					int vol_index = xyzToIndex(Int3(x, y, z), vol->size);
-					int id = vol->rendervoxels[vol_index].cluster_id;
-					if (compact_cluster[])
-				}
-			}
-		}
-	}*/
-
-
-	void isolateCurrentCluster() {
-		if (isolated_mode) {
-			resetAlpha();
-		}
-		else if (cluster_id == -1)
-			return;
-		else
-			isolate();
-	}
-
-	bool checkRenderFlag() {
-		if (render_flag) {
-			render_flag = false;
-			return true;
-		}
-		return false;
-	}
+	bool checkRenderFlag();
 
 
 
@@ -104,51 +55,11 @@ private:
 
 	bool render_flag = false;
 
-	void resetAlpha() {
-		vol->target_cluster = -1;
-		vol->boundingbox = vol->og_boundingbox;
-		/*for (int i = 0; i < num_clusters; i++) {
-			vol->compactclusters[i].setAlpha(DEFAULT_ALPHA);
-		}*/
-		render_flag = true;
-		isolated_mode = false;
-	}
+	void resetAlpha();
 
-	void isolate() {
-		vol->target_cluster = cluster_id;
-		vol->boundingbox = vol->compressedclusters[cluster_id].boundingbox;
-		/*for (int i = 0; i < num_clusters; i++) {
-			if (i == cluster_id)
-				vol->compactclusters[i].setAlpha(1.);
-			else
-				vol->compactclusters[i].setAlpha(0.);
-		}*/
-		render_flag = true;
-		isolated_mode = true;
-	}
-	void makeCompactClusters() {
-		CompactCluster* ComClusters = new CompactCluster[num_clusters];
-		CudaColor c;
-		int compact_index = 0;
-		for (int i = 0; i < num_clusters; i++) {
-			ComClusters[i].setAlpha(DEFAULT_ALPHA);
-			//ComClusters[i].setColor(clusters[i].color);			
-			ComClusters[i].setColor(c.getRandColor());
-		}
+	void isolate();
+	void makeCompactClusters();
 
-		
-		int bytesize = num_clusters * sizeof(CompactCluster);
-		printf("Allocating %d KB vram for Compact Clusters\n", bytesize / 1000);
-		cudaMallocManaged(&comclusters, bytesize);
-		cudaMemcpy(comclusters, ComClusters, bytesize, cudaMemcpyHostToDevice);
-		delete(ComClusters);
-	}
+	float huToDensSiemens(float hu);	// return g/mm3
 
-	float huToDensSiemens(float hu) {	// return g/mm3
-		float a = -2.1408;
-		float b = -0.0004;
-		float c = 3.1460;
-		float mass_cm3 = a * exp(b * hu) + c;
-		return mass_cm3 * 1. / 1000.;
-	}
 };

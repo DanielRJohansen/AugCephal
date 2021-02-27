@@ -44,13 +44,6 @@ Button::~Button() {
 
 
 
-// Accessors
-const bool Button::isPressed() const {
-	if (this->buttonState == BTN_ACTIVE) {
-		return true;
-	}
-	return false;
-}
 
 
 
@@ -110,10 +103,7 @@ bool Button::update(sf::Vector2f mousepos, sf::Window* window, sf::RenderTarget*
 		break;
 	case BTN_ACTIVE:
 		this->shape.setFillColor(this->active_color);
-		//this->render(target);
 		return true;
-		//inputTextLoop(window);
-		//break;
 	default:
 		this->shape.setFillColor(sf::Color::Red);
 		break;

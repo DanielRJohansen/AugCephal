@@ -40,7 +40,7 @@ public:
 
 
 	// Accessors
-	const bool isPressed() const;
+	inline int getVal() { return value; }
 
 
 	void updateText(std::string value);

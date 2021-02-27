@@ -64,9 +64,7 @@ Suite::Suite() {
 		if (window_from.update(mouspos, &window, &window)) {
 			renderAll(&window, &sprite);
 			window_from.inputTextLoop(&window);
-		}
-			
-		
+		}	
 		if (window_to.update(mouspos, &window, &window)) {
 			renderAll(&window, &sprite);
 			window_to.inputTextLoop(&window);

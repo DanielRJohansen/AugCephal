@@ -92,6 +92,7 @@
     <CudaCompile Include="backup.cu" />
     <CudaCompile Include="CudaContainers.cu" />
     <CudaCompile Include="FuzzyAssignment.cu" />
+    <CudaCompile Include="LiveEditor.cu" />
     <CudaCompile Include="Preprocessing.cu" />
     <CudaCompile Include="Rendering.cu" />
     <CudaCompile Include="Resizing.cu" />

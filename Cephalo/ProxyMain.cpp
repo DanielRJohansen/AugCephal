@@ -11,12 +11,8 @@ using namespace std;
 
 
 int main() {
-	Suite s;
-
-
-
-
-	return 1;
+	//Suite s;
+	//return 1;
 
 
 	float voxel_volume = 0.816406 * 0.816406 * 0.816406;

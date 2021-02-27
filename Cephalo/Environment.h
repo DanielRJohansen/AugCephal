@@ -49,8 +49,9 @@ private:
 
 	bool handleEvents(sf::Event event);
 	void handleMouseEvents(sf::Event event, sf::RenderWindow* window);
-	void updateSprite();
+	void handleButtonEvents(sf::RenderWindow* window, sf::Sprite* sprite);
 
+	void renderAll(sf::RenderWindow* window, sf::Sprite* sprite);
 
 
 
