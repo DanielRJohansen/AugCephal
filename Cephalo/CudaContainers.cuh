@@ -460,6 +460,7 @@ private:
 	// Merging - parent
 	float mergeCost(TissueCluster3D* orphan);
 	bool isMergeable(TissueCluster3D* orphan);
+	UnorderedIntTree* findMergeableNeighbors(vector<TissueCluster3D*>* all_clusters);
 	void transferMembers(TissueCluster3D* orphan);	//Deletes orphans large data structures
 
 	// Merging - orphan

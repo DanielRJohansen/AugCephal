@@ -328,7 +328,7 @@ __global__ void rotatingMaskFilterKernel(Voxel* voxels, Voxel* voxelcopy, Int3 s
 
         float best_mean = -1;// voxels[xyzToIndex(coord, size)].norm_val;
         float lowest_var = 999;
-        for (int i = 30; i < 43; i++) {
+        for (int i = 0; i < 43; i++) {
             float var = masks[i].applyMask(kernel);
             if (var < lowest_var) {
                 lowest_var = var;

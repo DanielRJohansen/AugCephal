@@ -15,20 +15,22 @@ public:
 	LiveEditor(Volume* volume) : vol(volume) { 
 		voxel_volume = volume->true_voxel_volume;
 		num_clusters = vol->num_clusters; 
-		makeCompactClusters(); 
 	}
 	void setRayptr(Ray* rayptr) { rayptr_dev = rayptr; }
 
 
-	CompactCluster* getCompactClusters() {
-		return comclusters;
-	}
+
 
 	void selectCluster(int pixel_index);
+	CompactCluster* makeCompactClusters();
 
 
 	void isolateCurrentCluster();
+	void hideCurrentCluster();
 	void window(int from, int to);
+	void resetClusters();
+
+
 
 	bool checkRenderFlag();
 
@@ -45,20 +47,22 @@ public:
 
 private:
 	int num_clusters;
-	CompactCluster* comclusters;	// Edited here, and fetched often!
+		// Edited here, and fetched often!
 	Ray* rayptr_dev;				// Live rayptr
 	float voxel_volume;				// in mm3
 
 	Volume* vol;					// Contains rendervoxels, and compressed clusterlist (Only has some info from original clusters)
 
 	bool isolated_mode = false;
+	bool hidden_mode = false;
 
 	bool render_flag = false;
 
-	void resetAlpha();
 
 	void isolate();
-	void makeCompactClusters();
+	void unisolate();
+	void hide();
+	void unhide();
 
 	float huToDensSiemens(float hu);	// return g/mm3
 

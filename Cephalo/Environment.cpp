@@ -48,7 +48,7 @@ Environment::Environment(string path, Int3 dimensions, float zoverxy, float true
 	volume = PP.processScan(path, dimensions, zoverxy, true_voxel_volume);
 
 	liveeditor = LiveEditor(volume);
-	volume->compactclusters = liveeditor.getCompactClusters();
+	volume->compactclusters = liveeditor.makeCompactClusters();// liveeditor.getCompactClusters();
 
 	camera = new Camera();
 
@@ -119,7 +119,6 @@ void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
 	sf::Vector2i mousepos = sf::Mouse::getPosition(*window);
 	if (mousepos.x >= 0 && mousepos.y >= 0 && mousepos.x < RAYS_PER_DIM && mousepos.y < RAYS_PER_DIM){
 		if (mousepos != prev_mousepos) {
-			//printf("\rMouse pos: x: %04d y: %04d", mousepos.x, mousepos.y);
 			prev_mousepos = mousepos;
 		}
 	}
@@ -141,17 +140,19 @@ void Environment::handleMouseEvents(sf::Event event, sf::RenderWindow* window) {
 	}
 	if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) {
 		if (right_pressed == false) {
-			liveeditor.isolateCurrentCluster();
+			liveeditor.resetClusters();
 		}
 		right_pressed = true;
 	}
-
-
-	
-
 	if (event.type == sf::Event::MouseWheelMoved) {
-		printf("   D:%d ", event.mouseWheel.delta);
+		if (event.mouseWheel.delta < 0)
+			liveeditor.hideCurrentCluster();
+		else if (event.mouseWheel.delta > 0)
+			liveeditor.isolateCurrentCluster();
 	}
+	
+	
+	
 }
 
 void Environment::handleButtonEvents(sf::RenderWindow* window, sf::Sprite* sprite) {

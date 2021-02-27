@@ -61,7 +61,7 @@ public:
 		int k = 12;								// Temporarily locked to 12!!!
 		rmf(volume);
 		removeAirLayer(volume);
-		fuzzyClusterAssignment(volume, k, 3);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
+		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
 
 
 
@@ -71,12 +71,13 @@ public:
 
 		int remaining_clusters = clusters.size(); 
 		int prev = remaining_clusters+1;
+		//remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
+
+		
 		while (remaining_clusters < prev) {
 			prev = remaining_clusters;
 			remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
 		}
-		
-		
 
 		remaining_clusters = eliminateVesicles(volume, clusters, 50, remaining_clusters);	// min size to survive
 
@@ -85,6 +86,7 @@ public:
 			prev = remaining_clusters;
 			remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
 		}
+		
 		
 		finalizeClusters(volume, clusters);
 		
