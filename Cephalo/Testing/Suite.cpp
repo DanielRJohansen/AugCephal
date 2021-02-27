@@ -26,6 +26,8 @@ Suite::Suite() {
 
 
 	sf::RenderWindow window(sf::VideoMode(RAYS_PER_DIM, RAYS_PER_DIM), "3D body", sf::Style::Close);
+	window.setKeyRepeatEnabled(false);
+
 	sf::Texture texture;
 	sf::Sprite sprite;
 
@@ -45,8 +47,10 @@ Suite::Suite() {
 	sprite.setTexture(*cuda_texture, true);
 
 
-	window_from = Button(500, 500, 200, 50, &MyFont, "Window From", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
-	window_to = Button(500, 600, 200, 50, &MyFont, "Window To", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
+	int btn_width = 250;
+	int btn_height = 60;
+	window_from = Button(RAYS_PER_DIM - btn_width - 30, 150, btn_width, btn_height, &MyFont, "From: ", HU_MIN);
+	window_to = Button(RAYS_PER_DIM - btn_width - 30, 150 + btn_height+10, btn_width, btn_height, &MyFont, "To: ", HU_MAX);
 
 
 
@@ -57,12 +61,34 @@ Suite::Suite() {
 		sf::Event event;	// Create new each time so no event is applied twice
 
 		sf::Vector2f mouspos = sf::Vector2f(sf::Mouse::getPosition(window));
-		window_from.update(mouspos);
-		window_to.update(mouspos);
+		if (window_from.update(mouspos, &window, &window)) {
+			renderAll(&window, &sprite);
+			window_from.inputTextLoop(&window);
+		}
+			
 		
-		window.draw(sprite);
+		if (window_to.update(mouspos, &window, &window)) {
+			renderAll(&window, &sprite);
+			window_to.inputTextLoop(&window);
+		}
+			
+		
+		
+		renderAll(&window, &sprite);
+
+		
+		/*window.draw(sprite);
 		window_from.render(&window);
 		window_to.render(&window);
-		window.display();
+		window.display();*/
 	}
+	
+}
+
+void Suite::renderAll(sf::RenderWindow* window, sf::Sprite* sprite)
+{
+	window->draw(*sprite);
+	window_from.render(window);
+	window_to.render(window);
+	window->display();
 }

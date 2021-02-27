@@ -28,10 +28,14 @@ private:
 	sf::Color hover_color;
 	sf::Color active_color;
 
+
+	// My additions
+	int default_val;
+	int value;
+	std::string og_text;
 public:
 	Button(){}
-	Button(float x, float y, float width, float height, sf::Font* font, std::string text, 
-		sf::Color idle_color, sf::Color hover_color, sf::Color active_color);
+	Button(float x, float y, float width, float height, sf::Font* font, std::string text, int default_val);
 	~Button();
 
 
@@ -40,7 +44,9 @@ public:
 
 
 	void updateText(std::string value);
-	void update(sf::Vector2f mousepos);
+	void inputTextLoop(sf::Window* window);
+	bool update(sf::Vector2f mousepos, sf::Window* window, sf::RenderTarget* target);	// Returns true when Env must call inputTextLoop
+	void reset();
 	void render(sf::RenderTarget* target);
 };
 

@@ -74,8 +74,8 @@ void Environment::Run() {
 	sprite.setTexture(*cuda_texture, true);
 
 
-	window_from = Button(500, 500, 200, 50, &MyFont, "Window From", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
-	window_from = Button(500, 600, 200, 50, &MyFont, "Window To", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
+	//window_from = Button(500, 500, 200, 50, &MyFont, "Window From", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
+	//window_from = Button(500, 600, 200, 50, &MyFont, "Window To", sf::Color::Green, sf::Color::Magenta, sf::Color::Blue);
 
 
 

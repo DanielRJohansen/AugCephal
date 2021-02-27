@@ -15,6 +15,12 @@ public:
 
 
 private:
+	void renderAll(sf::RenderWindow* target, sf::Sprite* sprite);
+
+
+
+
+
 	sf::Font MyFont;
 	Button window_from;
 	Button window_to;
