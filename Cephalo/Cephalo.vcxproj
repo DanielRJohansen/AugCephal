@@ -103,6 +103,7 @@
     <ClCompile Include="Containers.cpp" />
     <ClCompile Include="Environment.cpp" />
     <ClCompile Include="ProxyMain.cpp" />
+    <ClCompile Include="Testing\Suite.cpp" />
     <ClCompile Include="Toolbox.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -120,6 +121,7 @@
     <ClInclude Include="Rendering.cuh" />
     <ClInclude Include="Resizing.cuh" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="Testing\Suite.h" />
     <ClInclude Include="Toolbox.h" />
     <ClInclude Include="TreeClasses.h" />
   </ItemGroup>

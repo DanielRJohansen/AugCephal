@@ -39,6 +39,7 @@ public:
 	const bool isPressed() const;
 
 
+	void updateText(std::string value);
 	void update(sf::Vector2f mousepos);
 	void render(sf::RenderTarget* target);
 };

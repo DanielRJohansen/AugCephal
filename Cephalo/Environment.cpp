@@ -55,15 +55,6 @@ Environment::Environment(string path, Int3 dimensions, float zoverxy, float true
 
 
 
-
-
-
-
-
-
-
-
-
 }
 
 
@@ -88,6 +79,7 @@ void Environment::Run() {
 
 
 
+
 	while (window.isOpen()) {
 		window.clear();
 		
@@ -105,8 +97,8 @@ void Environment::Run() {
 		handleMouseEvents(event, &window);
 
 
-		if (liveeditor.checkRenderFlag())
-			REE.render(cuda_texture);
+		//if (liveeditor.checkRenderFlag())
+			//REE.render(cuda_texture);
 
 		window.draw(sprite);
 		window.display();
