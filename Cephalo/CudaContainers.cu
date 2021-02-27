@@ -47,44 +47,31 @@ void TissueCluster3D::mergeClusters(vector<TissueCluster3D*>* all_clusters) {
 	int num_merges = 0;
 
 	
-	int* ids = viable_neighbor_ids.fetch();
-	int num_neighbors = viable_neighbor_ids.size();					// Cache here, as size increases during function!!
-	//int* ids = neighbor_ids.fetch();
-	//int num_neighbors = neighbor_ids.size();					// Cache here, as size increases during function!!
-	for (int i = 0; i < num_neighbors; i++) {
-		int neighbor_id = ids[i];
+	UnorderedIntTree* mergeables = findMergeableNeighbors(all_clusters);
+
+	int* mergeable_indexes = mergeables->fetch();
+	int num_mergeables = mergeables->size();
+
+	mergeables->clear();
+	delete mergeables;
 
 
-		TissueCluster3D* neighbor = all_clusters[0][neighbor_id];
-		if (neighbor->dead) {
-			int parent_id = neighbor->getParentID(all_clusters);
-			if (parent_id == -1)								// In case the parent is annihilated
-				continue;
-			neighbor = all_clusters[0][parent_id];
-		}
-		if (neighbor->id == id) {
-			neighbor_ids.deleteVal(neighbor_id);
-			viable_neighbor_ids.deleteVal(neighbor_id);				// Case only arises from clusters eaten by another cluster eaten by parent :)
-			continue;
-		}
-			
-		if (isMergeable(neighbor)) {
-			if (member_indexes.size() >= neighbor->member_indexes.size()) {
-				num_merges++;
-				mergeCluster(all_clusters, neighbor);
-			}
-			else {
-				neighbor->mergeCluster(all_clusters, all_clusters[0][id]);
-				neighbor->mergeClusters(all_clusters);		// Continue merging on the new parent, who now owns all of this clusters' neighbors
-				delete(ids);
-				return;   										// Cannot continue as new parent have deleted everything in this cluster.
-			}
+	for (int i = 0; i < num_mergeables; i++) {
+		int neighbor_id = mergeable_indexes[i];
+
+		TissueCluster3D* neighbor = all_clusters[0][neighbor_id];	
+		if (member_indexes.size() >= neighbor->member_indexes.size()) {
+			num_merges++;
+			mergeCluster(all_clusters, neighbor);
 		}
 		else {
-			viable_neighbor_ids.deleteVal(neighbor_id);				// SO YEAH, THIS PROBABLY ISN'T IDEAL, but maybe it's not a problem.
+			neighbor->mergeCluster(all_clusters, all_clusters[0][id]);
+			neighbor->mergeClusters(all_clusters);		// Continue merging on the new parent, who now owns all of this clusters' neighbors
+			delete(mergeable_indexes);
+			return;   										// Cannot continue as new parent have deleted everything in this cluster.
 		}
 	}
-	delete(ids);
+	delete(mergeable_indexes);
 
 	if (num_merges > 0) {
 		mergeClusters(all_clusters);
@@ -125,7 +112,7 @@ float maxMergeDist(float hu_mean, float size) {
 	dist = 15; // min range;
 
 	// Lung Tissue
-	huwidth = 400; sizewidth = 8000; hucenter = -600; sizecenter = 0, maxcontribution = 150;
+	huwidth = 500; sizewidth = 8000; hucenter = -700; sizecenter = 0, maxcontribution = 250;
 	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
 
 	// Bone Tissue
@@ -153,11 +140,35 @@ bool TissueCluster3D::isMergeable(TissueCluster3D* orphan) {
 UnorderedIntTree* TissueCluster3D::findMergeableNeighbors(vector<TissueCluster3D*>* all_clusters) {
 	UnorderedIntTree* mergeables = new UnorderedIntTree;
 
+	int* ids = viable_neighbor_ids.fetch();
+	int num_viables = viable_neighbor_ids.size();
+	//int* ids = neighbor_ids.fetch();
 
+	for (int i = 0; i < num_viables; i++) {
+		int neighbor_id = ids[i];
 
+		TissueCluster3D* neighbor = all_clusters[0][neighbor_id];
+		if (neighbor->dead) {										// Child has been adopted by this or another nearby cluster
+			int parent_id = neighbor->getParentID(all_clusters);
+			if (parent_id == -1)									// In case the cluster or its parent is annihilated
+				continue;
+			neighbor = all_clusters[0][parent_id];
+		}
+		if (neighbor->id == id) {									// In this case the current cluster has previously adopted the child.
+			neighbor_ids.deleteVal(neighbor_id);
+			viable_neighbor_ids.deleteVal(neighbor_id);				// Case only arises from clusters eaten by another cluster eaten by parent :)
+			continue;
+		}
 
+		if (isMergeable(neighbor)) {
+			mergeables->addVal(neighbor_id);
+		}
+		else {
+			viable_neighbor_ids.deleteVal(neighbor_id);				// SO YEAH, THIS PROBABLY ISN'T IDEAL, but maybe it's not a problem.
+		}
+	}
 
-
+	delete ids;
 	return mergeables;
 }
 

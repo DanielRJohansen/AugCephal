@@ -73,7 +73,7 @@ public:
 		int prev = remaining_clusters+1;
 		//remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
 
-		
+		/*
 		while (remaining_clusters < prev) {
 			prev = remaining_clusters;
 			remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
@@ -86,7 +86,7 @@ public:
 			prev = remaining_clusters;
 			remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
 		}
-		
+		*/
 		
 		finalizeClusters(volume, clusters);
 		
