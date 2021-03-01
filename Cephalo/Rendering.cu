@@ -33,7 +33,7 @@ Ray* RenderEngine::initRays() {
 __device__ float activationFunction(int counts) {
     return 1./0.6 * (    1. / (1 + exp(-counts / 2.))    -0.4);
 }
-__device__ float lightSeeker(short int cluster_id, RenderVoxel* voxels, Int3 vol_pos, Int3 vol_size) {
+__device__ float lightSeeker(int cluster_id, RenderVoxel* voxels, Int3 vol_pos, Int3 vol_size) {
     int clear_voxels = 0;
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
@@ -52,7 +52,7 @@ __device__ float lightSeeker(short int cluster_id, RenderVoxel* voxels, Int3 vol
     }
     return activationFunction(clear_voxels);
 }
-__device__ float lightSeeker2(short int cluster_id, RenderVoxel* voxels, Int3 vol_pos, Int3 vol_size) {
+__device__ float lightSeeker2(int cluster_id, RenderVoxel* voxels, Int3 vol_pos, Int3 vol_size) {
     int clear_voxels = 9;
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
@@ -152,7 +152,7 @@ __device__ inline bool voxelIsRelevant(CompactBool* CB,int *volume_index, int* p
 //--------------------------------------------------------------------------------------    KERNEL  --------------------------------------------------------------------------------------------------------------------------//
 
 
-__global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_size, unsigned* ignores, int ignores_len, RenderVoxel* rendervoxels, CompactCluster* compactclusters, int num_clusters, short int target_cluster, BoundingBox boundingbox) {
+__global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_size, unsigned* ignores, int ignores_len, RenderVoxel* rendervoxels, RenderCluster* RenderClusters, int num_clusters, int target_cluster, BoundingBox boundingbox) {
     int index = blockIdx.x * THREADS_PER_BLOCK + threadIdx.x;
     
     //17 ms
@@ -212,14 +212,14 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
                 cray.alpha = 1;
             }
 
-            if (volume_index == prev_vol_index)
-                continue;
-            if (CB.getBit(xyignores, column_index) != 0)
+            //if (volume_index == prev_vol_index)
+              //  continue;
+            if (CB.getBit(xyignores, column_index))
                 continue;
 
             
             
-            short int cluster_id = rendervoxels[volume_index].cluster_id;
+            int cluster_id = rendervoxels[volume_index].cluster_id;
             if (cluster_id == prev_cluster_id) {
                 continue;
             }
@@ -229,14 +229,16 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
             if (cluster_id == -1)
                 continue;
 
+                                                //Useful for isolating and showing insides
             if (cluster_id == target_cluster)
                 begin_rendering = true;
 
             if (!begin_rendering)
                 continue;
+                
 
-            CompactCluster* compactcluster = &compactclusters[cluster_id];
-            if (compactcluster->getAlpha() == 0.)
+            RenderCluster* RenderCluster = &RenderClusters[cluster_id];
+            if (RenderCluster->getAlpha() == 0.)
                 continue;
 
             if (hit_index < 5) {
@@ -244,8 +246,8 @@ __global__ void stepKernel(Ray* rayptr, CompactCam cc, uint8_t* image, Int3 vol_
                 hit_index++;
             }
             float brightness = lightSeeker2(cluster_id, rendervoxels, pos, vol_size);
-            float alpha = min(compactcluster->getAlpha(), (1 - cray.alpha));
-            cray.color.add(compactcluster->getColor() * alpha * brightness);
+            float alpha = min(RenderCluster->getAlpha(), (1 - cray.alpha));
+            cray.color.add(RenderCluster->getColor() * alpha * brightness);
             cray.alpha += alpha;
             if (cray.alpha >= 1)
                 break;
@@ -286,7 +288,7 @@ Ray* RenderEngine::render(sf::Texture* texture) {
 
 
     int shared_mem_size = volume->CB->arr_len * sizeof(unsigned int);
-    stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size >> > (rayptr_device, cc, image_device, volume->size, volume->CB->compact_gpu, volume->CB->arr_len, volume->rendervoxels, volume->compactclusters, volume->num_clusters, volume->target_cluster, volume->boundingbox);
+    stepKernel << <blocks_per_sm, THREADS_PER_BLOCK, shared_mem_size >> > (rayptr_device, cc, image_device, volume->size, volume->CB->compact_gpu, volume->CB->arr_len, volume->rendervoxels, volume->renderclusters, volume->num_clusters, volume->target_cluster, volume->boundingbox);
     cudaDeviceSynchronize();
 
 
@@ -315,7 +317,7 @@ Ray* RenderEngine::render(sf::Texture* texture) {
 
 //--------------------------------------------------------------------------------------    CONSTRUCTOR     --------------------------------------------------------------------------------------------------------------------//
 
-texture<CompactCluster, 1, cudaReadModeElementType> clusters_texture;
+//texture<RenderCluster, 1, cudaReadModeElementType> clusters_texture;
 
 
 RenderEngine::RenderEngine(Volume* vol, Camera* c) {
@@ -344,15 +346,15 @@ RenderEngine::RenderEngine(Volume* vol, Camera* c) {
 
 
     /*
-    CompactCluster* compactcluster_texture;
-    int bytesize = volume->num_clusters * sizeof(CompactCluster);
-    cudaMalloc((void**) &compactcluster_texture, bytesize);
-    cudaMemcpy(compactcluster_texture, volume->compactclusters, bytesize, cudaMemcpyDeviceToDevice);
+    RenderCluster* RenderCluster_texture;
+    int bytesize = volume->num_clusters * sizeof(RenderCluster);
+    cudaMalloc((void**) &RenderCluster_texture, bytesize);
+    cudaMemcpy(RenderCluster_texture, volume->RenderClusters, bytesize, cudaMemcpyDeviceToDevice);
 
     cudaChannelFormatDesc* channelDesc = &cudaCreateChannelDesc<int>();
-    //cudaBindTexture(NULL, clusters_texture, compactcluster_texture, channelDesc, bytesize);
+    //cudaBindTexture(NULL, clusters_texture, RenderCluster_texture, channelDesc, bytesize);
     size_t offset = size_t(0);
-    //cudaBindTexture(&offset, clusters_texture, compactcluster_texture, channelDesc, bytesize);
+    //cudaBindTexture(&offset, clusters_texture, RenderCluster_texture, channelDesc, bytesize);
     */
 
 }

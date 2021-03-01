@@ -22,7 +22,7 @@ public:
 
 
 	void selectCluster(int pixel_index);
-	CompactCluster* makeCompactClusters();
+	RenderCluster* makeRenderClusters();
 
 
 	void isolateCurrentCluster();
@@ -38,10 +38,10 @@ public:
 
 
 	Ray* ray;
-	short int cluster_id = -1;
+	int cluster_id = -1;
 	float cluster_mean = 0;
 	float avg_dens = 0;
-	int cluster_size = 0;
+	int cluster_members = 0;
 	float cluster_weight = 0;
 	int wheel_zoom = 0;
 

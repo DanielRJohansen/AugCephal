@@ -8,7 +8,7 @@ void LiveEditor::selectCluster(int pixel_index) {
 		return;
 	}
 
-	short int id = ray->clusterids_hit[0];
+	int id = ray->clusterids_hit[0];
 	if (id == -1)
 		return;
 
@@ -16,18 +16,18 @@ void LiveEditor::selectCluster(int pixel_index) {
 	cluster_id = id;
 	wheel_zoom = 0;
 
-	cluster_mean = vol->compressedclusters[cluster_id].mean;
+	cluster_mean = vol->clusters[cluster_id].mean;
 	avg_dens = huToDensSiemens(cluster_mean);
 
-	cluster_size = vol->compressedclusters[cluster_id].member_indexes.size();
-	cluster_weight = avg_dens * cluster_size * voxel_volume;
+	cluster_members = vol->clusters[cluster_id].member_indexes.size();
+	cluster_weight = avg_dens * cluster_members * voxel_volume;
 
 
 	hidden_mode = false;
 
 
-	printf("    Cluster ID: %05d selected. Mean HU: %08f\tMembers: %08d\tSize: %f cm3. Weight: %f g \n",
-		cluster_id, cluster_mean, cluster_size, cluster_size * voxel_volume * 1. / 1000., cluster_weight);
+	printf("    Cluster ID: %05d selected. Mean HU: %08f\tMembers: %d\tSize: %f cm3. Weight: %f g \n",
+		cluster_id, cluster_mean, cluster_members, cluster_members * voxel_volume * 1. / 1000., cluster_weight);
 }
 
 void LiveEditor::isolateCurrentCluster() {
@@ -76,7 +76,7 @@ void LiveEditor::resetClusters() {
 	vol->target_cluster = -1;
 	vol->boundingbox = vol->og_boundingbox;
 	for (int i = 0; i < num_clusters; i++) {
-		vol->compactclusters[i].setAlpha(DEFAULT_ALPHA);
+		vol->renderclusters[i].setAlpha(DEFAULT_ALPHA);
 	}
 	render_flag = true;
 	isolated_mode = false;
@@ -84,7 +84,7 @@ void LiveEditor::resetClusters() {
 
 void LiveEditor::isolate() {
 	vol->target_cluster = cluster_id;
-	vol->boundingbox = vol->compressedclusters[cluster_id].boundingbox;
+	vol->boundingbox = vol->clusters[cluster_id].boundingbox;
 
 	render_flag = true;
 	isolated_mode = true;
@@ -98,43 +98,42 @@ void LiveEditor::unisolate() {
 }
 
 void LiveEditor::hide() {
-	vol->compactclusters[cluster_id].setAlpha(0);
+	vol->renderclusters[cluster_id].setAlpha(0);
 	render_flag = true;
 	hidden_mode = true;
 }
 void LiveEditor::unhide() {
-	vol->compactclusters[cluster_id].setAlpha(1);
+	vol->renderclusters[cluster_id].setAlpha(1);
 	render_flag = true;
 	hidden_mode = false;
 }
 
 void LiveEditor::window(int from, int to) {
 	for (int i = 0; i < vol->num_clusters; i++) {
-		if (vol->compressedclusters[i].mean < from || vol->compressedclusters[i].mean > to) {
-			vol->compactclusters[i].setAlpha(0);
+		if (vol->clusters[i].mean < from || vol->clusters[i].mean > to) {
+			vol->renderclusters[i].setAlpha(0);
 		}
 		else {
-			vol->compactclusters[i].setAlpha(1);
+			vol->renderclusters[i].setAlpha(1);
 		}
 	}
 	render_flag = true;
 }
 
 
-CompactCluster* LiveEditor::makeCompactClusters() {
-	CompactCluster* ComClusters = new CompactCluster[num_clusters];
+RenderCluster* LiveEditor::makeRenderClusters() {
+	RenderCluster* ComClusters = new RenderCluster[num_clusters];
 	CudaColor c;
-	int compact_index = 0;
 	for (int i = 0; i < num_clusters; i++) {
 		ComClusters[i].setAlpha(DEFAULT_ALPHA);
-		//ComClusters[i].setColor(clusters[i].color);			
-		ComClusters[i].setColor(c.getRandColor());
+		ComClusters[i].setColor(vol->clusters[i].color);			
+		//ComClusters[i].setColor(c.getRandColor());
 	}
 
 
-	int bytesize = num_clusters * sizeof(CompactCluster);
+	int bytesize = num_clusters * sizeof(RenderCluster);
 	printf("Allocating %d KB vram for Compact Clusters\n", bytesize / 1000);
-	CompactCluster* comclusters;
+	RenderCluster* comclusters;
 	cudaMallocManaged(&comclusters, bytesize);
 	cudaMemcpy(comclusters, ComClusters, bytesize, cudaMemcpyHostToDevice);
 	delete(ComClusters);

@@ -513,7 +513,7 @@ void clusterInitScheduler(vector<TissueCluster3D*> clusters, Volume* vol) {
     unsigned int edge_voxels = 0;
     for (int i = 0; i < clusters.size(); i++) {
         char index = 0;
-        if (clusters[i]->member_indexes.size() < 500000) {
+        if (clusters[i]->member_indexes.size() < 999500000) {
             clusters[i]->initialize(vol);
         }
         else {
@@ -555,7 +555,6 @@ vector<TissueCluster3D*> Preprocessor::clusterSync(Volume* vol) {
                 if (voxel.cluster_id == -1 && !voxel.ignore) {
                     TissueCluster3D* cluster = new TissueCluster3D(id, voxel.kcluster);
                     propagateCluster(vol, cluster, Int3(x, y, z), 0);
-
                     clusters.push_back(cluster);
                     id++;
                 }
@@ -642,11 +641,11 @@ int Preprocessor::eliminateVesicles(Volume* vol, vector<TissueCluster3D*> cluste
 }
 
 
-void Preprocessor::finalizeClusters(Volume* vol, vector<TissueCluster3D*> clusters) {
+void Preprocessor::finalizeClusters(Volume* vol) {
     auto start = chrono::high_resolution_clock::now();
     ColorMaker CM;
-    for (int i = 0; i < clusters.size(); i++) {
-        clusters[i]->finalize(vol, &CM);
+    for (int i = 0; i < vol->num_clusters; i++) {
+        vol->clusters[i].finalize(vol, &CM);
     }
 
     printf("Clusters finalized in %d ms!\n", chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start));
@@ -669,7 +668,7 @@ void Preprocessor::fitBoundingBoxToVolume(Volume* vol) {    // Supposed to recie
     BoundingBox box;
 
     for (int i = 0; i < vol->num_clusters; i++) {
-        box.makeBoxFit(vol->compressedclusters[i].boundingbox);
+        box.makeBoxFit(vol->clusters[i].boundingbox);
     }
     vol->boundingbox = box;
     vol->og_boundingbox = box;
@@ -695,13 +694,14 @@ void Preprocessor::fitBoundingBoxToVolume(Volume* vol) {    // Supposed to recie
 TissueCluster3D* Preprocessor::removeExcessClusters(vector<TissueCluster3D*> clusters, int remaining_clusters) {
     TissueCluster3D* compressed_clusters = new TissueCluster3D[remaining_clusters];
     int compressed_index = 0;
-    for (int i = 0; i < clusters.size(); i++) {
-        if (!clusters[i]->dead) {
-            compressed_clusters[compressed_index].copyMinInfo(clusters[i]);
+    for (int all_index = 0; all_index < clusters.size(); all_index++) {
+        if (!clusters[all_index]->dead) {
+            compressed_clusters[compressed_index].copyMinInfo(clusters[all_index]);
+
             compressed_clusters[compressed_index].id = compressed_index;
             compressed_index++;
         }
-        clusters[i]->empty();
+        clusters[all_index]->empty();
     }
     clusters.clear();
     printf("Clustervector compressed to %d clusters\n", compressed_index);
@@ -724,17 +724,20 @@ int* generateClusterIDMap(vector<TissueCluster3D*> clusters, int remaining_clust
     return map;
 }
 
-RenderVoxel* Preprocessor::compressVoxels(Volume* vol, vector<TissueCluster3D*> clusters, int remaining_clusters) {
+
+
+
+RenderVoxel* Preprocessor::compressVoxels(Volume* vol) {
     
     RenderVoxel* rvoxels = new RenderVoxel[vol->len];
-    int* clustermap = generateClusterIDMap(clusters, remaining_clusters);
+    //int* clustermap = generateClusterIDMap(clusters, remaining_clusters);            
     
     for (int i = 0; i < vol->len; i++) {
-        //if (!vol->voxels[i].ignore)
-        if (vol->voxels[i].isEdge && !vol->voxels[i].ignore)
-            rvoxels[i].cluster_id = clustermap[vol->voxels[i].cluster_id];
+        rvoxels[i].cluster_id = vol->voxels[i].cluster_id;
+        /*if ( !vol->voxels[i].ignore)                            // vol->voxels[i].isEdge &&
+            rvoxels[i].cluster_id = vol->voxels[i].cluster_id;
         else
-            rvoxels[i].cluster_id = -1;
+            rvoxels[i].cluster_id = -1;*/
     }
 
 
@@ -745,8 +748,7 @@ RenderVoxel* Preprocessor::compressVoxels(Volume* vol, vector<TissueCluster3D*> 
     cudaMemcpy(rvoxels_dev, rvoxels, bytesize, cudaMemcpyHostToDevice);
 
     cudaFree(vol->voxels);
-    delete(rvoxels);
-    delete(clustermap);
+    delete rvoxels;
     return rvoxels_dev;
 }
 

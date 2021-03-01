@@ -193,6 +193,7 @@ struct Voxel{	//Lots of values
 	float alpha = 0.5;
 	float norm_val = 0;			// Becomes kcluster centroid during fuzzy assignment
 	CudaColor color;			// Set during fuzzy assignment
+	
 
 
 
@@ -214,9 +215,11 @@ struct Voxel{	//Lots of values
 
 
 
+
 struct RenderVoxel;
-class CompactCluster;
+class RenderCluster;
 class TissueCluster3D;
+
 class Volume {
 public: 
 	Volume(){}
@@ -243,12 +246,13 @@ public:
 
 
 	// Send to LiveEditor
-	TissueCluster3D* compressedclusters;	// Contains slightly more info for live editing	- host side only
+	TissueCluster3D* clusters;	// Contains slightly more info for live editing	- host side only
 	int num_clusters;
+
 	// For rendering
 	RenderVoxel* rendervoxels;				// Contains only clusterid						- global mem
-	CompactCluster* compactclusters;		// Contains minimal info for rendering			- shared mem
-	short int target_cluster = -1;			// Only starts rendering once clusters is found
+	RenderCluster* renderclusters;		// Contains minimal info for rendering			- shared mem
+	int target_cluster = -1;			// Only starts rendering once clusters is found
 	
 };
 
@@ -328,7 +332,7 @@ struct CudaMask {
 
 
 
-const float initial_centroids[12] = { -600, -200, -50, -20, -5, 10, 35, 50, 80, 100, 200, 700 };
+const float initial_centroids[14] = { -600, -200, -50, -20, -5, 10, 35, 50, 80, 100, 200, 300, 400, 700 };
 
 class CudaKCluster {
 public:
@@ -529,7 +533,7 @@ struct CompactColor {
 	unsigned char r, g, b;
 };
 
-class CompactCluster {
+class RenderCluster {
 public:
 	__device__ float getAlpha() {
 		float a =  (float) alpha / 255.;
@@ -555,5 +559,5 @@ private:
 };
 
 struct RenderVoxel {
-	short int cluster_id;
+	int cluster_id;
 };

@@ -112,11 +112,11 @@ float maxMergeDist(float hu_mean, float size) {
 	dist = 15; // min range;
 
 	// Lung Tissue
-	huwidth = 500; sizewidth = 8000; hucenter = -700; sizecenter = 0, maxcontribution = 250;
+	huwidth = 400; sizewidth = 8; hucenter = -700; sizecenter = 2, maxcontribution = 250;
 	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
 
 	// Bone Tissue
-	huwidth = 500; sizewidth = 19; hucenter = 1000; sizecenter = 23, maxcontribution = 700;
+	huwidth = 520; sizewidth = 23; hucenter = 1000; sizecenter = 20, maxcontribution = 700;
 	dist += distContribFunc(hu_mean, hucenter, huwidth, size, sizecenter, sizewidth, maxcontribution);
 
 	// Noise probably
@@ -201,6 +201,7 @@ void TissueCluster3D::annihilate(Volume* vol) {
 	dead = true;
 	for (int i = 0; i < member_indexes.size(); i++) {
 		vol->voxels[member_indexes[i]].ignore = true;
+		vol->voxels[member_indexes[i]].cluster_id = -1;
 	}
 	neighbor_ids.clear();
 	viable_neighbor_ids.clear();
@@ -217,6 +218,7 @@ void TissueCluster3D::finalize(Volume* vol, ColorMaker* CM) {
 	Color temp_color = CM->colorFromHu(mean);  
 	//color = CudaColor(temp_color);
 	color = color.getRandColor();
+
 	findEdges(vol); 
 }
 
@@ -228,8 +230,7 @@ void TissueCluster3D::findEdges(Volume* vol) {
 		Voxel* cur_voxel = &vol->voxels[member_index];
 		cur_voxel->cluster_id = id;
 		if (isEdge(vol, indexToXYZ(member_index, vol->size), cur_voxel)) {
-			edge_member_indexes.push_back(member_index);
-			//cur_voxel->color = color;
+			//edge_member_indexes.push_back(member_index);
 			cur_voxel->isEdge = true;
 			//cur_voxel->cluster_id = id;
 			boundingbox.makeBoxFit(indexToXYZ(member_index, vol->size));
@@ -367,7 +368,10 @@ void TissueCluster3D::colorMembers(Volume* vol, CudaColor(c)) {
 void TissueCluster3D::copyMinInfo(TissueCluster3D* cluster) {
 	id = cluster->id;
 	color = cluster->color;
-	member_indexes = cluster->member_indexes;
+	//member_indexes = cluster->member_indexes;
+	for (int i = 0; i < cluster->member_indexes.size(); i++) {
+		member_indexes.push_back(cluster->member_indexes[i]);
+	}
 	mean = cluster->mean;
 	boundingbox = cluster->boundingbox;
 }

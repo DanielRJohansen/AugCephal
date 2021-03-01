@@ -98,20 +98,20 @@ clear
 
 
 % Lung tissue
-huwidth = 200; sizewidth = 8000;
-hucenter = -600; sizecenter = 0;
-Z1 = 150 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
+huwidth = 400; sizewidth = 8;
+hucenter = -700; sizecenter = 2;
+Z1 = 250 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
 
 % Bone tissue
-huwidth = 550; sizewidth = 19;
-hucenter = 1000; sizecenter = 23;
+huwidth = 520; sizewidth = 23;
+hucenter = 1000; sizecenter = 20;
 Z2 = 700 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
 
 
 % Noise probably
 huwidth = 10000; sizewidth = 2;
 hucenter = 0; sizecenter = 0;
-Z3 = 30 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
+Z3 = 10 * exp( - ((X-hucenter).^2/huwidth^2   +   (Y-sizecenter).^2/sizewidth^2)    )   ;
 
 Z = 15 + Z1+Z2 + Z3;
 %Z = 1./Z

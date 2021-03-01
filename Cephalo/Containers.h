@@ -41,7 +41,7 @@ struct Ray {
 	Ray(Float3 rel_unit_vector) : rel_unit_vector(rel_unit_vector) {};
 	Float3 rel_unit_vector;
 
-	short int clusterids_hit[5];
+	int clusterids_hit[5];
 	bool no_hits = 0;
 };
 

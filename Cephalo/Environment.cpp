@@ -32,8 +32,8 @@ Environment::Environment(string path, Int3 dimensions, float zoverxy, float true
 	}
 	int btn_width = 250;
 	int btn_height = 60;
-	window_from = Button(RAYS_PER_DIM - btn_width - 30, 150, btn_width, btn_height, &MyFont, "From: ", HU_MIN);
-	window_to = Button(RAYS_PER_DIM - btn_width - 30, 150 + btn_height + 10, btn_width, btn_height, &MyFont, "To: ", HU_MAX);
+	window_from = Button(RAYS_PER_DIM - btn_width - 30, 150, btn_width, btn_height, &MyFont, "From: ", -1000);
+	window_to = Button(RAYS_PER_DIM - btn_width - 30, 150 + btn_height + 10, btn_width, btn_height, &MyFont, "To: ", 2000);
 
 
 
@@ -48,7 +48,7 @@ Environment::Environment(string path, Int3 dimensions, float zoverxy, float true
 	volume = PP.processScan(path, dimensions, zoverxy, true_voxel_volume);
 
 	liveeditor = LiveEditor(volume);
-	volume->compactclusters = liveeditor.makeCompactClusters();// liveeditor.getCompactClusters();
+	volume->renderclusters = liveeditor.makeRenderClusters();
 
 	camera = new Camera();
 

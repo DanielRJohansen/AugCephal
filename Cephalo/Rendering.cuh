@@ -50,8 +50,8 @@ private:
 	CompactBool* CB;
 
 	RenderVoxel* rendervoxels;		// Dev
-	CompactCluster* comclusters;	// Dev
-	//__constant__ CompactCluster* const_clusters;
+	RenderCluster* comclusters;	// Dev
+	//__constant__ RenderCluster* const_clusters;
 
 
 	// Non-volume specific

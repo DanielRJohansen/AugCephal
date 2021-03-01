@@ -144,7 +144,7 @@ __global__ void updateGlobalClustersKernel(CudaKCluster* kclusters, CudaKCluster
         kclusters[x].mergeBatch(block_clusters[i * k + x]);
     }
 
-    shared_change[x] = kclusters[x].calcCentroid();;
+    shared_change[x] = kclusters[x].calcCentroid();
 
     __syncthreads();
 
@@ -321,6 +321,8 @@ void checkFuzzyAssignment(Volume* vol, int k) {
 
 //texture<float, 1, cudaReadModeElementType> texref;
 
+float normToHu(float norm) { return norm * (HU_MAX - HU_MIN); }
+
 CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {                                    // We must launch separate kernels to update clusters. Only 100% safe way to sync threadblocks!
     auto start = chrono::high_resolution_clock::now();
 
@@ -338,6 +340,7 @@ CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {   
 
 
     int iterations = 0;
+     
     while (kcluster_total_change > 0.002 && iterations < max_iterations) {
         
         kMeansRunKernel << <num_blocks, threads_per_block, shared_mem_size >> > (vol->voxels, kclusters_device, kclusters_blocks, k, vol->size, threads_per_block);
@@ -348,7 +351,7 @@ CudaKCluster* FuzzyAssigner::kMeans(Volume* vol, int k, int max_iterations) {   
         checkCudaError();
         cudaDeviceSynchronize();
 
-        printf("Total change for kclusters: %f    iterations: %02d\r", kcluster_total_change, iterations++);
+        printf("Total change for kclusters: %f    iterations: %02d\r", normToHu(kcluster_total_change), iterations++);
     }
 
 

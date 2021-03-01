@@ -58,7 +58,7 @@ public:
 		setColumnIgnores(volume);
 
 
-		int k = 12;								// Temporarily locked to 12!!!
+		int k = 14;								// Temporarily locked to 12!!!
 		rmf(volume);
 		removeAirLayer(volume);
 		fuzzyClusterAssignment(volume, k, 60);	// Limited to k<=15 for 512 threads pr block.		!! Make intelligent block spread
@@ -73,7 +73,7 @@ public:
 		int prev = remaining_clusters+1;
 		//remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
 
-		/*
+		
 		while (remaining_clusters < prev) {
 			prev = remaining_clusters;
 			remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
@@ -86,18 +86,22 @@ public:
 			prev = remaining_clusters;
 			remaining_clusters = mergeClusters(volume, clusters, remaining_clusters);
 		}
-		*/
 		
-		finalizeClusters(volume, clusters);
-		
-		
-
-
-
-
-		volume->compressedclusters = removeExcessClusters(clusters, remaining_clusters);
-		volume->rendervoxels = compressVoxels(volume, clusters, remaining_clusters);
+		volume->clusters = removeExcessClusters(clusters, remaining_clusters);
 		volume->num_clusters = remaining_clusters;
+
+		for (int i = 0; i < volume->len; i++) {
+			volume->voxels[i].cluster_id = -1;
+		}
+
+		finalizeClusters(volume);								// Critically updates the voxel with the new cluster_ids!!
+		
+		
+
+
+
+
+		volume->rendervoxels = compressVoxels(volume);
 		fitBoundingBoxToVolume(volume);
 		printf("\n\nPreprocessing finished!\n\n\n\n");
 		return volume;
@@ -130,12 +134,12 @@ private:
 	vector<TissueCluster3D*> clusterSync(Volume* vol);			// Sets num_clusters
 	int mergeClusters(Volume* vol, vector<TissueCluster3D*> clusters, int remaining_clusters);
 	int eliminateVesicles(Volume* vol, vector<TissueCluster3D*> clusters, int threshold_size, int remaining_clusters);
-	void finalizeClusters(Volume* vol, vector<TissueCluster3D*> clusters);
+	void finalizeClusters(Volume* vol);
 	int countAliveClusters(vector<TissueCluster3D*> clusters, int from);
 	
 
 	TissueCluster3D* Preprocessor::removeExcessClusters(vector<TissueCluster3D*> clusters, int remaining_clusters);
-	RenderVoxel* compressVoxels(Volume* vol, vector<TissueCluster3D*> clusters, int remaining_clusters);
+	RenderVoxel* compressVoxels(Volume* vol);
 	void fitBoundingBoxToVolume(Volume* vol);  // Supposed to recieves the compressed clusterlist!
 	
 	void setColumnIgnores(Volume* vol);
